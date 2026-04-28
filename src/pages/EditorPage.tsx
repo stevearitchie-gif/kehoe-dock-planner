@@ -1,18 +1,97 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
-import editorTools from '@/features/editor/toolDefinitions';
+import editorTools, { coreToolModes, type ToolMode } from '@/features/editor/toolDefinitions';
+import { EditorCanvas } from '@/features/editor/components/EditorCanvas';
+import type { DockProject, Point, ProjectScale, UnitType } from '@/types/dock';
+
+function buildEditorProject(projectId: string | undefined): DockProject {
+  return {
+    id: projectId ?? 'local-editor-project',
+    name: projectId ? `Project ${projectId}` : 'Untitled Project',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    shorelinePoints: [],
+    objects: [],
+  };
+}
+
+function getPixelsFromPoints(points: Point[]): number {
+  if (points.length < 2) {
+    return 0;
+  }
+
+  return Math.hypot(points[1].x - points[0].x, points[1].y - points[0].y);
+}
 
 export function EditorPage() {
   const { projectId } = useParams<{ projectId: string }>();
+  const [project, setProject] = useState<DockProject>(() => buildEditorProject(projectId));
+  const [activeTool, setActiveTool] = useState<ToolMode>('select');
+  const [scalePoints, setScalePoints] = useState<Point[]>([]);
+  const [zoom, setZoom] = useState(1);
 
-  const projectName = useMemo(() => {
-    if (!projectId) {
-      return 'Untitled Project';
+  const projectName = project.name;
+
+  const measuredPixels = useMemo(() => getPixelsFromPoints(scalePoints), [scalePoints]);
+
+  const currentScale: ProjectScale = useMemo(
+    () => ({
+      pixels: measuredPixels,
+      realLength: project.scale?.realLength ?? 0,
+      unit: project.scale?.unit ?? 'ft',
+    }),
+    [measuredPixels, project.scale?.realLength, project.scale?.unit],
+  );
+
+  const setProjectScale = (nextScale: ProjectScale) => {
+    setProject((prev) => ({
+      ...prev,
+      updatedAt: new Date().toISOString(),
+      scale: nextScale,
+    }));
+  };
+
+  const handleToolClick = (toolLabel: string) => {
+    if (!coreToolModes.includes(toolLabel as ToolMode)) {
+      return;
     }
 
-    return `Project ${projectId}`;
-  }, [projectId]);
+    setActiveTool(toolLabel as ToolMode);
+  };
+
+  const handleScalePointClick = (point: Point) => {
+    setScalePoints((prev) => {
+      const nextPoints = prev.length < 2 ? [...prev, point] : [point];
+      const nextPixels = getPixelsFromPoints(nextPoints);
+
+      setProjectScale({
+        pixels: nextPixels,
+        realLength: project.scale?.realLength ?? 0,
+        unit: project.scale?.unit ?? 'ft',
+      });
+
+      return nextPoints;
+    });
+  };
+
+  const handleScaleLengthChange = (value: string) => {
+    const parsedValue = Number(value);
+
+    setProjectScale({
+      pixels: currentScale.pixels,
+      realLength: Number.isFinite(parsedValue) ? parsedValue : 0,
+      unit: currentScale.unit,
+    });
+  };
+
+  const handleScaleUnitChange = (unit: UnitType) => {
+    setProjectScale({
+      pixels: currentScale.pixels,
+      realLength: currentScale.realLength,
+      unit,
+    });
+  };
 
   return (
     <AppShell className="h-screen overflow-hidden">
@@ -28,7 +107,9 @@ export function EditorPage() {
               Export PDF
             </button>
             <button className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700">-</button>
-            <button className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700">100%</button>
+            <button className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700">
+              {(zoom * 100).toFixed(0)}%
+            </button>
             <button className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700">+</button>
             <Link to="/projects" className="rounded-md bg-brand-600 px-3 py-2 text-sm text-white hover:bg-brand-700">
               Back to Projects
@@ -36,30 +117,41 @@ export function EditorPage() {
           </div>
         </header>
 
-        <main className="grid h-full grid-cols-[240px_1fr_280px]">
+        <main className="grid h-full grid-cols-[240px_1fr_300px]">
           <aside className="border-r border-slate-200 bg-white p-3">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Tools</p>
             <div className="grid grid-cols-1 gap-2">
-              {editorTools.map((tool) => (
-                <button
-                  key={tool}
-                  className="rounded-md border border-slate-200 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
-                >
-                  {tool}
-                </button>
-              ))}
+              {editorTools.map((tool) => {
+                const isActive = tool === activeTool;
+                const isCoreTool = coreToolModes.includes(tool as ToolMode);
+
+                return (
+                  <button
+                    key={tool}
+                    type="button"
+                    onClick={() => handleToolClick(tool)}
+                    disabled={!isCoreTool}
+                    className={`rounded-md border px-3 py-2 text-left text-sm ${
+                      isActive
+                        ? 'border-brand-600 bg-brand-50 text-brand-700'
+                        : 'border-slate-200 text-slate-700 hover:bg-slate-100'
+                    } ${!isCoreTool ? 'cursor-not-allowed opacity-50' : ''}`}
+                  >
+                    {tool}
+                  </button>
+                );
+              })}
             </div>
           </aside>
 
-          <section className="flex items-center justify-center bg-slate-50 p-4">
-            <div className="flex h-full w-full max-w-5xl items-center justify-center rounded-lg border-2 border-dashed border-slate-300 bg-white text-center">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-800">Canvas area coming next</h2>
-                <p className="mt-2 text-sm text-slate-500">
-                  Dock drawing and Konva tools will be implemented in upcoming tickets.
-                </p>
-              </div>
-            </div>
+          <section className="bg-slate-50 p-4">
+            <EditorCanvas
+              activeTool={activeTool}
+              scalePoints={scalePoints}
+              onCanvasPointClick={handleScalePointClick}
+              zoom={zoom}
+              onZoomChange={setZoom}
+            />
           </section>
 
           <aside className="border-l border-slate-200 bg-white p-4">
@@ -69,9 +161,54 @@ export function EditorPage() {
                 <h3 className="text-sm font-semibold text-slate-800">Selected Object</h3>
                 <p className="mt-1 text-sm text-slate-600">No object selected.</p>
               </div>
+
+              <div className="rounded-md border border-slate-200 p-3">
+                <h3 className="text-sm font-semibold text-slate-800">Scale Settings</h3>
+                <p className="mt-2 text-xs text-slate-500">
+                  Activate the scale tool and click two points in the canvas to calibrate.
+                </p>
+
+                <div className="mt-3 grid gap-3">
+                  <label className="text-sm text-slate-700">
+                    <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Measured Pixels</span>
+                    <input
+                      className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700"
+                      value={currentScale.pixels.toFixed(2)}
+                      readOnly
+                    />
+                  </label>
+
+                  <label className="text-sm text-slate-700">
+                    <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Real Length</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={currentScale.realLength}
+                      onChange={(event) => handleScaleLengthChange(event.target.value)}
+                      className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                    />
+                  </label>
+
+                  <label className="text-sm text-slate-700">
+                    <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Unit</span>
+                    <select
+                      value={currentScale.unit}
+                      onChange={(event) => handleScaleUnitChange(event.target.value as UnitType)}
+                      className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                    >
+                      <option value="ft">ft</option>
+                      <option value="m">m</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
               <div className="rounded-md border border-slate-200 p-3">
                 <h3 className="text-sm font-semibold text-slate-800">Project Settings</h3>
-                <p className="mt-1 text-sm text-slate-600">Scale, export options, and notes panel placeholders.</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Shoreline drawing, object placement, and dimensions are placeholders for upcoming tickets.
+                </p>
               </div>
             </div>
           </aside>
