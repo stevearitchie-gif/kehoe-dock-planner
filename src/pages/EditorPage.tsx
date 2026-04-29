@@ -24,6 +24,19 @@ function getPixelsFromPoints(points: Point[]): number {
   return Math.hypot(points[1].x - points[0].x, points[1].y - points[0].y);
 }
 
+function getPolylineLength(points: Point[]): number {
+  if (points.length < 2) {
+    return 0;
+  }
+
+  let totalLength = 0;
+  for (let index = 1; index < points.length; index += 1) {
+    totalLength += Math.hypot(points[index].x - points[index - 1].x, points[index].y - points[index - 1].y);
+  }
+
+  return totalLength;
+}
+
 export function EditorPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const [project, setProject] = useState<DockProject>(() => buildEditorProject(projectId));
@@ -44,6 +57,16 @@ export function EditorPage() {
     [measuredPixels, project.scale?.realLength, project.scale?.unit],
   );
 
+  const shorelineLengthPixels = useMemo(() => getPolylineLength(project.shorelinePoints), [project.shorelinePoints]);
+
+  const estimatedShorelineLength = useMemo(() => {
+    if (project.scale && project.scale.pixels > 0 && project.scale.realLength > 0) {
+      return (shorelineLengthPixels / project.scale.pixels) * project.scale.realLength;
+    }
+
+    return null;
+  }, [project.scale, shorelineLengthPixels]);
+
   const setProjectScale = (nextScale: ProjectScale) => {
     setProject((prev) => ({
       ...prev,
@@ -60,19 +83,30 @@ export function EditorPage() {
     setActiveTool(toolLabel as ToolMode);
   };
 
-  const handleScalePointClick = (point: Point) => {
-    setScalePoints((prev) => {
-      const nextPoints = prev.length < 2 ? [...prev, point] : [point];
-      const nextPixels = getPixelsFromPoints(nextPoints);
+  const handleCanvasPointClick = (point: Point) => {
+    if (activeTool === 'scale') {
+      setScalePoints((prev) => {
+        const nextPoints = prev.length < 2 ? [...prev, point] : [point];
+        const nextPixels = getPixelsFromPoints(nextPoints);
 
-      setProjectScale({
-        pixels: nextPixels,
-        realLength: project.scale?.realLength ?? 0,
-        unit: project.scale?.unit ?? 'ft',
+        setProjectScale({
+          pixels: nextPixels,
+          realLength: project.scale?.realLength ?? 0,
+          unit: project.scale?.unit ?? 'ft',
+        });
+
+        return nextPoints;
       });
+      return;
+    }
 
-      return nextPoints;
-    });
+    if (activeTool === 'shoreline') {
+      setProject((prev) => ({
+        ...prev,
+        updatedAt: new Date().toISOString(),
+        shorelinePoints: [...prev.shorelinePoints, point],
+      }));
+    }
   };
 
   const handleScaleLengthChange = (value: string) => {
@@ -91,6 +125,18 @@ export function EditorPage() {
       realLength: currentScale.realLength,
       unit,
     });
+  };
+
+  const handleFinishShoreline = () => {
+    setActiveTool('select');
+  };
+
+  const handleClearShoreline = () => {
+    setProject((prev) => ({
+      ...prev,
+      updatedAt: new Date().toISOString(),
+      shorelinePoints: [],
+    }));
   };
 
   return (
@@ -148,7 +194,8 @@ export function EditorPage() {
             <EditorCanvas
               activeTool={activeTool}
               scalePoints={scalePoints}
-              onCanvasPointClick={handleScalePointClick}
+              shorelinePoints={project.shorelinePoints}
+              onCanvasPointClick={handleCanvasPointClick}
               zoom={zoom}
               onZoomChange={setZoom}
             />
@@ -205,10 +252,31 @@ export function EditorPage() {
               </div>
 
               <div className="rounded-md border border-slate-200 p-3">
-                <h3 className="text-sm font-semibold text-slate-800">Project Settings</h3>
-                <p className="mt-1 text-sm text-slate-600">
-                  Shoreline drawing, object placement, and dimensions are placeholders for upcoming tickets.
-                </p>
+                <h3 className="text-sm font-semibold text-slate-800">Shoreline</h3>
+                <p className="mt-1 text-sm text-slate-600">Point count: {project.shorelinePoints.length}</p>
+                <p className="mt-1 text-sm text-slate-600">Total length: {shorelineLengthPixels.toFixed(2)} px</p>
+                {estimatedShorelineLength !== null && (
+                  <p className="mt-1 text-sm text-slate-600">
+                    Estimated real length: {estimatedShorelineLength.toFixed(2)} {project.scale?.unit}
+                  </p>
+                )}
+
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleFinishShoreline}
+                    className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    Finish Shoreline
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClearShoreline}
+                    className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    Clear Shoreline
+                  </button>
+                </div>
               </div>
             </div>
           </aside>

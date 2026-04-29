@@ -7,6 +7,7 @@ import type { ToolMode } from '@/features/editor/toolDefinitions';
 interface EditorCanvasProps {
   activeTool: ToolMode;
   scalePoints: Point[];
+  shorelinePoints: Point[];
   onCanvasPointClick: (point: Point) => void;
   zoom: number;
   onZoomChange: (nextZoom: number) => void;
@@ -20,7 +21,14 @@ function clampZoom(value: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
 }
 
-export function EditorCanvas({ activeTool, scalePoints, onCanvasPointClick, zoom, onZoomChange }: EditorCanvasProps) {
+export function EditorCanvas({
+  activeTool,
+  scalePoints,
+  shorelinePoints,
+  onCanvasPointClick,
+  zoom,
+  onZoomChange,
+}: EditorCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 800 });
 
@@ -72,10 +80,18 @@ export function EditorCanvas({ activeTool, scalePoints, onCanvasPointClick, zoom
     return [scalePoints[0].x, scalePoints[0].y, scalePoints[1].x, scalePoints[1].y];
   }, [scalePoints]);
 
+  const shorelineLinePoints = useMemo(() => {
+    if (shorelinePoints.length < 2) {
+      return null;
+    }
+
+    return shorelinePoints.flatMap((point) => [point.x, point.y]);
+  }, [shorelinePoints]);
+
   const isPanTool = activeTool === 'pan';
 
   const handlePointerDown = (event: KonvaEventObject<MouseEvent>) => {
-    if (activeTool !== 'scale') {
+    if (activeTool !== 'scale' && activeTool !== 'shoreline') {
       return;
     }
 
@@ -119,6 +135,20 @@ export function EditorCanvas({ activeTool, scalePoints, onCanvasPointClick, zoom
         </Layer>
 
         <Layer listening={false}>
+          {shorelineLinePoints && (
+            <Line
+              points={shorelineLinePoints}
+              stroke="#0f766e"
+              strokeWidth={4}
+              lineCap="round"
+              lineJoin="round"
+              dash={[10, 6]}
+            />
+          )}
+          {shorelinePoints.map((point) => (
+            <Circle key={`shoreline-${point.x}-${point.y}`} x={point.x} y={point.y} radius={5} fill="#0f766e" />
+          ))}
+
           {scaleLinePoints && <Line points={scaleLinePoints} stroke="#2563eb" strokeWidth={3} lineCap="round" />}
           {scalePoints.map((point) => (
             <Circle key={`${point.x}-${point.y}`} x={point.x} y={point.y} radius={5} fill="#1d4ed8" />
