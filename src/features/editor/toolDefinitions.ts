@@ -1,9 +1,8 @@
-export const coreToolModes = ['select', 'pan', 'scale'] as const;
+export const coreToolModes = ['select', 'pan', 'scale', 'shoreline'] as const;
 
 export type ToolMode = (typeof coreToolModes)[number];
 
 export const objectToolPlaceholders = [
-  'shoreline',
   'floating dock',
   'stationary dock',
   'ramp with rails',
