@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Circle, Layer, Line, Stage } from 'react-konva';
+import { Circle, Image, Layer, Line, Stage } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { Point } from '@/types/dock';
 import type { ToolMode } from '@/features/editor/toolDefinitions';
@@ -8,6 +8,7 @@ interface EditorCanvasProps {
   activeTool: ToolMode;
   scalePoints: Point[];
   shorelinePoints: Point[];
+  backgroundImageUrl?: string;
   onCanvasPointClick: (point: Point) => void;
   zoom: number;
   onZoomChange: (nextZoom: number) => void;
@@ -25,12 +26,14 @@ export function EditorCanvas({
   activeTool,
   scalePoints,
   shorelinePoints,
+  backgroundImageUrl,
   onCanvasPointClick,
   zoom,
   onZoomChange,
 }: EditorCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 800 });
+  const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -54,6 +57,22 @@ export function EditorCanvas({
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    if (!backgroundImageUrl) {
+      setBackgroundImage(null);
+      return;
+    }
+
+    const image = new window.Image();
+    image.src = backgroundImageUrl;
+    image.onload = () => {
+      setBackgroundImage(image);
+    };
+    image.onerror = () => {
+      setBackgroundImage(null);
+    };
+  }, [backgroundImageUrl]);
+
   const gridLines = useMemo(() => {
     const lines: number[][] = [];
     const xLineCount = Math.ceil(canvasSize.width / GRID_SIZE);
@@ -71,6 +90,25 @@ export function EditorCanvas({
 
     return lines;
   }, [canvasSize.height, canvasSize.width]);
+
+  const fittedBackgroundImage = useMemo(() => {
+    if (!backgroundImage) {
+      return null;
+    }
+
+    const widthRatio = canvasSize.width / backgroundImage.width;
+    const heightRatio = canvasSize.height / backgroundImage.height;
+    const scale = Math.min(widthRatio, heightRatio);
+    const width = backgroundImage.width * scale;
+    const height = backgroundImage.height * scale;
+
+    return {
+      x: (canvasSize.width - width) / 2,
+      y: (canvasSize.height - height) / 2,
+      width,
+      height,
+    };
+  }, [backgroundImage, canvasSize.height, canvasSize.width]);
 
   const scaleLinePoints = useMemo(() => {
     if (scalePoints.length < 2) {
@@ -128,6 +166,19 @@ export function EditorCanvas({
         onMouseDown={handlePointerDown}
         className="cursor-crosshair"
       >
+        <Layer listening={false}>
+          {backgroundImage && fittedBackgroundImage && (
+            <Image
+              image={backgroundImage}
+              x={fittedBackgroundImage.x}
+              y={fittedBackgroundImage.y}
+              width={fittedBackgroundImage.width}
+              height={fittedBackgroundImage.height}
+              listening={false}
+            />
+          )}
+        </Layer>
+
         <Layer listening={false}>
           {gridLines.map((linePoints) => (
             <Line key={linePoints.join('-')} points={linePoints} stroke="#e2e8f0" strokeWidth={1} />

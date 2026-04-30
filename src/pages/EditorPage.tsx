@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import editorTools, { coreToolModes, type ToolMode } from '@/features/editor/toolDefinitions';
@@ -43,6 +43,15 @@ export function EditorPage() {
   const [activeTool, setActiveTool] = useState<ToolMode>('select');
   const [scalePoints, setScalePoints] = useState<Point[]>([]);
   const [zoom, setZoom] = useState(1);
+  const objectUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+      }
+    };
+  }, []);
 
   const projectName = project.name;
 
@@ -139,6 +148,42 @@ export function EditorPage() {
     }));
   };
 
+  const handleSiteImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+    }
+
+    objectUrlRef.current = objectUrl;
+
+    setProject((prev) => ({
+      ...prev,
+      updatedAt: new Date().toISOString(),
+      backgroundImageUrl: objectUrl,
+    }));
+
+    event.target.value = '';
+  };
+
+  const handleClearSiteImage = () => {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+
+    setProject((prev) => ({
+      ...prev,
+      updatedAt: new Date().toISOString(),
+      backgroundImageUrl: undefined,
+    }));
+  };
+
   return (
     <AppShell className="h-screen overflow-hidden">
       <div className="flex h-full flex-col">
@@ -195,6 +240,7 @@ export function EditorPage() {
               activeTool={activeTool}
               scalePoints={scalePoints}
               shorelinePoints={project.shorelinePoints}
+              backgroundImageUrl={project.backgroundImageUrl}
               onCanvasPointClick={handleCanvasPointClick}
               zoom={zoom}
               onZoomChange={setZoom}
@@ -204,6 +250,30 @@ export function EditorPage() {
           <aside className="border-l border-slate-200 bg-white p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Properties</p>
             <div className="mt-3 space-y-3">
+              <div className="rounded-md border border-slate-200 p-3">
+                <h3 className="text-sm font-semibold text-slate-800">Site Image</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  Upload a single site image to use as the canvas background.
+                </p>
+                <label className="mt-3 block">
+                  <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Upload Site Image</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleSiteImageUpload}
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-700"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={handleClearSiteImage}
+                  disabled={!project.backgroundImageUrl}
+                  className="mt-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Clear Site Image
+                </button>
+              </div>
+
               <div className="rounded-md border border-slate-200 p-3">
                 <h3 className="text-sm font-semibold text-slate-800">Selected Object</h3>
                 <p className="mt-1 text-sm text-slate-600">No object selected.</p>
@@ -265,16 +335,16 @@ export function EditorPage() {
                   <button
                     type="button"
                     onClick={handleFinishShoreline}
-                    className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
                   >
-                    Finish Shoreline
+                    Finish
                   </button>
                   <button
                     type="button"
                     onClick={handleClearShoreline}
-                    className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
                   >
-                    Clear Shoreline
+                    Clear
                   </button>
                 </div>
               </div>
