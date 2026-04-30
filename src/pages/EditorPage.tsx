@@ -194,6 +194,22 @@ export function EditorPage() {
     }));
   };
 
+  const handleObjectRotationChange = (objectId: string, rotation: number) => {
+    setSelectedObjectId(objectId);
+    setProject((prev) => ({
+      ...prev,
+      updatedAt: new Date().toISOString(),
+      objects: prev.objects.map((object) =>
+        object.id === objectId
+          ? {
+              ...object,
+              rotation,
+            }
+          : object,
+      ),
+    }));
+  };
+
   const selectedObject = useMemo(
     () => project.objects.find((object) => object.id === selectedObjectId) ?? null,
     [project.objects, selectedObjectId],
@@ -389,6 +405,7 @@ export function EditorPage() {
               onObjectClick={handleObjectClick}
               onObjectPositionChange={handleObjectPositionChange}
               onObjectSizeChange={handleObjectSizeChange}
+              onObjectRotationChange={handleObjectRotationChange}
               zoom={zoom}
               onZoomChange={setZoom}
             />
