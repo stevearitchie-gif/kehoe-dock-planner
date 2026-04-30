@@ -15,6 +15,7 @@ interface EditorCanvasProps {
   onObjectClick: (objectId: string) => void;
   onObjectPositionChange: (objectId: string, point: Point) => void;
   onObjectSizeChange: (objectId: string, size: { width: number; height: number }) => void;
+  onObjectRotationChange: (objectId: string, rotation: number) => void;
   zoom: number;
   onZoomChange: (nextZoom: number) => void;
 }
@@ -23,6 +24,7 @@ const GRID_SIZE = 40;
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 3;
 const MIN_OBJECT_SIZE = 10;
+const ROTATION_HANDLE_OFFSET = 28;
 
 function clampZoom(value: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
@@ -39,6 +41,7 @@ export function EditorCanvas({
   onObjectClick,
   onObjectPositionChange,
   onObjectSizeChange,
+  onObjectRotationChange,
   zoom,
   onZoomChange,
 }: EditorCanvasProps) {
@@ -227,6 +230,7 @@ export function EditorCanvas({
                 key={object.id}
                 x={object.x}
                 y={object.y}
+                rotation={object.rotation}
                 draggable={isDraggable}
                 onClick={() => onObjectClick(object.id)}
                 onTap={() => onObjectClick(object.id)}
@@ -249,7 +253,6 @@ export function EditorCanvas({
                   y={0}
                   width={object.width}
                   height={object.height}
-                  rotation={object.rotation}
                   fill={object.color}
                   stroke={isSelected ? '#1d4ed8' : '#334155'}
                   strokeWidth={isSelected ? 3 : 1}
@@ -266,36 +269,64 @@ export function EditorCanvas({
                   listening={false}
                 />
                 {isSelected && (
-                  <Circle
-                    x={object.width}
-                    y={object.height}
-                    radius={7}
-                    fill="#ffffff"
-                    stroke="#1d4ed8"
-                    strokeWidth={2}
-                    draggable
-                    dragOnTop={false}
-                    onMouseDown={(event) => event.cancelBubble = true}
-                    onTouchStart={(event) => event.cancelBubble = true}
-                    onDragMove={(event) => {
-                      const nextWidth = Math.max(MIN_OBJECT_SIZE, event.target.x());
-                      const nextHeight = Math.max(MIN_OBJECT_SIZE, event.target.y());
-                      onObjectClick(object.id);
-                      onObjectSizeChange(object.id, {
-                        width: nextWidth,
-                        height: nextHeight,
-                      });
-                    }}
-                    onDragEnd={(event) => {
-                      const nextWidth = Math.max(MIN_OBJECT_SIZE, event.target.x());
-                      const nextHeight = Math.max(MIN_OBJECT_SIZE, event.target.y());
-                      onObjectClick(object.id);
-                      onObjectSizeChange(object.id, {
-                        width: nextWidth,
-                        height: nextHeight,
-                      });
-                    }}
-                  />
+                  <>
+                    <Line
+                      points={[object.width / 2, 0, object.width / 2, -ROTATION_HANDLE_OFFSET]}
+                      stroke="#1d4ed8"
+                      strokeWidth={2}
+                      listening={false}
+                    />
+                    <Circle
+                      x={object.width / 2}
+                      y={-ROTATION_HANDLE_OFFSET}
+                      radius={8}
+                      fill="#ffffff"
+                      stroke="#1d4ed8"
+                      strokeWidth={2}
+                      draggable
+                      dragOnTop={false}
+                      onMouseDown={(event) => (event.cancelBubble = true)}
+                      onTouchStart={(event) => (event.cancelBubble = true)}
+                      onDragMove={(event) => {
+                        onObjectClick(object.id);
+                        onObjectRotationChange(object.id, getRotationFromHandle(object, event));
+                      }}
+                      onDragEnd={(event) => {
+                        onObjectClick(object.id);
+                        onObjectRotationChange(object.id, getRotationFromHandle(object, event));
+                      }}
+                    />
+                    <Circle
+                      x={object.width}
+                      y={object.height}
+                      radius={7}
+                      fill="#ffffff"
+                      stroke="#1d4ed8"
+                      strokeWidth={2}
+                      draggable
+                      dragOnTop={false}
+                      onMouseDown={(event) => (event.cancelBubble = true)}
+                      onTouchStart={(event) => (event.cancelBubble = true)}
+                      onDragMove={(event) => {
+                        const nextWidth = Math.max(MIN_OBJECT_SIZE, event.target.x());
+                        const nextHeight = Math.max(MIN_OBJECT_SIZE, event.target.y());
+                        onObjectClick(object.id);
+                        onObjectSizeChange(object.id, {
+                          width: nextWidth,
+                          height: nextHeight,
+                        });
+                      }}
+                      onDragEnd={(event) => {
+                        const nextWidth = Math.max(MIN_OBJECT_SIZE, event.target.x());
+                        const nextHeight = Math.max(MIN_OBJECT_SIZE, event.target.y());
+                        onObjectClick(object.id);
+                        onObjectSizeChange(object.id, {
+                          width: nextWidth,
+                          height: nextHeight,
+                        });
+                      }}
+                    />
+                  </>
                 )}
               </Group>
             );
@@ -305,3 +336,13 @@ export function EditorCanvas({
     </div>
   );
 }
+  const getRotationFromHandle = (object: DockObject, event: KonvaEventObject<DragEvent>) => {
+    const handle = event.target;
+    const handlePosition = handle.getAbsolutePosition();
+    const centerPoint = {
+      x: object.x + object.width / 2,
+      y: object.y + object.height / 2,
+    };
+    const radians = Math.atan2(handlePosition.y - centerPoint.y, handlePosition.x - centerPoint.x);
+    return (radians * 180) / Math.PI + 90;
+  };
