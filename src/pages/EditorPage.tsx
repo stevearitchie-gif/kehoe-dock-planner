@@ -6,6 +6,11 @@ import { EditorCanvas } from '@/features/editor/components/EditorCanvas';
 import type { DockObject, DockProject, Point, ProjectScale, UnitType } from '@/types/dock';
 
 const MIN_OBJECT_SIZE = 10;
+const GRID_SIZE = 40;
+
+function snapToGrid(value: number): number {
+  return Math.round(value / GRID_SIZE) * GRID_SIZE;
+}
 
 function buildEditorProject(projectId: string | undefined): DockProject {
   return {
@@ -131,8 +136,8 @@ export function EditorPage() {
         const nextObject: DockObject = {
           id: crypto.randomUUID(),
           type: activeTool,
-          x: point.x,
-          y: point.y,
+          x: snapToGrid(point.x),
+          y: snapToGrid(point.y),
           width: 120,
           height: 40,
           rotation: 0,
@@ -169,8 +174,8 @@ export function EditorPage() {
         object.id === objectId
           ? {
               ...object,
-              x: point.x,
-              y: point.y,
+              x: snapToGrid(point.x),
+              y: snapToGrid(point.y),
             }
           : object,
       ),
