@@ -312,6 +312,70 @@ export function EditorCanvas({
                     />
                     <Circle
                       x={object.width}
+                      y={object.height / 2}
+                      radius={7}
+                      fill="#ffffff"
+                      stroke="#1d4ed8"
+                      strokeWidth={2}
+                      draggable
+                      dragOnTop={false}
+                      dragBoundFunc={(position) => ({
+                        x: position.x,
+                        y: object.height / 2,
+                      })}
+                      onMouseDown={(event) => (event.cancelBubble = true)}
+                      onTouchStart={(event) => (event.cancelBubble = true)}
+                      onDragMove={(event) => {
+                        const nextWidth = Math.max(MIN_OBJECT_SIZE, event.target.x());
+                        onObjectClick(object.id);
+                        onObjectSizeChange(object.id, {
+                          width: nextWidth,
+                          height: object.height,
+                        });
+                      }}
+                      onDragEnd={(event) => {
+                        const nextWidth = Math.max(MIN_OBJECT_SIZE, event.target.x());
+                        onObjectClick(object.id);
+                        onObjectSizeChange(object.id, {
+                          width: nextWidth,
+                          height: object.height,
+                        });
+                      }}
+                    />
+                    <Circle
+                      x={object.width / 2}
+                      y={object.height}
+                      radius={7}
+                      fill="#ffffff"
+                      stroke="#1d4ed8"
+                      strokeWidth={2}
+                      draggable
+                      dragOnTop={false}
+                      dragBoundFunc={(position) => ({
+                        x: object.width / 2,
+                        y: position.y,
+                      })}
+                      onMouseDown={(event) => (event.cancelBubble = true)}
+                      onTouchStart={(event) => (event.cancelBubble = true)}
+                      onDragMove={(event) => {
+                        const nextHeight = Math.max(MIN_OBJECT_SIZE, event.target.y());
+                        onObjectClick(object.id);
+                        onObjectSizeChange(object.id, {
+                          width: object.width,
+                          height: nextHeight,
+                        });
+                      }}
+                      onDragEnd={(event) => {
+                        const nextHeight = Math.max(MIN_OBJECT_SIZE, event.target.y());
+                        onObjectClick(object.id);
+                        onObjectSizeChange(object.id, {
+                          width: object.width,
+                          height: nextHeight,
+                        });
+                      }}
+                    />
+                    <Circle
+                      x={object.width}
                       y={object.height}
                       radius={7}
                       fill="#ffffff"
