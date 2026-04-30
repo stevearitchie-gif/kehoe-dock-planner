@@ -282,6 +282,13 @@ export function EditorPage() {
     }));
   };
 
+  const handleSelectedObjectLabelChange = (value: string) => {
+    updateSelectedObject((object) => ({
+      ...object,
+      label: value,
+    }));
+  };
+
   const handleScaleLengthChange = (value: string) => {
     const parsedValue = Number(value);
 
@@ -472,9 +479,31 @@ export function EditorPage() {
                 {selectedObject && (
                   <div className="mt-2 space-y-3 text-sm text-slate-700">
                     <p>Type: {selectedObject.type}</p>
-                    <p>Label: {selectedObject.label}</p>
-                    <p>X: {selectedObject.x.toFixed(2)}</p>
-                    <p>Y: {selectedObject.y.toFixed(2)}</p>
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Label</span>
+                      <input
+                        type="text"
+                        value={selectedObject.label}
+                        onChange={(event) => handleSelectedObjectLabelChange(event.target.value)}
+                        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">X</span>
+                      <input
+                        value={selectedObject.x.toFixed(2)}
+                        readOnly
+                        className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Y</span>
+                      <input
+                        value={selectedObject.y.toFixed(2)}
+                        readOnly
+                        className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700"
+                      />
+                    </label>
                     <label className="block">
                       <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Width</span>
                       <input
