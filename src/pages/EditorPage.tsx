@@ -264,15 +264,15 @@ export function EditorPage() {
                 <div className="mt-3 flex gap-2">
                   <button
                     type="button"
-                    onClick={handleFinishShoreline}
                     className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    onClick={handleFinishShoreline}
                   >
                     Finish Shoreline
                   </button>
                   <button
                     type="button"
-                    onClick={handleClearShoreline}
                     className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    onClick={handleClearShoreline}
                   >
                     Clear Shoreline
                   </button>
