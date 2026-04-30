@@ -5,6 +5,8 @@ import editorTools, { coreToolModes, objectToolModes, toolLabels, type ToolMode 
 import { EditorCanvas } from '@/features/editor/components/EditorCanvas';
 import type { DockObject, DockProject, Point, ProjectScale, UnitType } from '@/types/dock';
 
+const MIN_OBJECT_SIZE = 10;
+
 function buildEditorProject(projectId: string | undefined): DockProject {
   return {
     id: projectId ?? 'local-editor-project',
@@ -193,6 +195,54 @@ export function EditorPage() {
     setSelectedObjectId(null);
   };
 
+  const updateSelectedObject = (updater: (object: DockObject) => DockObject) => {
+    if (!selectedObjectId) {
+      return;
+    }
+
+    setProject((prev) => ({
+      ...prev,
+      updatedAt: new Date().toISOString(),
+      objects: prev.objects.map((object) => (object.id === selectedObjectId ? updater(object) : object)),
+    }));
+  };
+
+  const handleSelectedObjectWidthChange = (value: string) => {
+    const parsedValue = Number(value);
+    if (!Number.isFinite(parsedValue)) {
+      return;
+    }
+
+    updateSelectedObject((object) => ({
+      ...object,
+      width: Math.max(MIN_OBJECT_SIZE, parsedValue),
+    }));
+  };
+
+  const handleSelectedObjectHeightChange = (value: string) => {
+    const parsedValue = Number(value);
+    if (!Number.isFinite(parsedValue)) {
+      return;
+    }
+
+    updateSelectedObject((object) => ({
+      ...object,
+      height: Math.max(MIN_OBJECT_SIZE, parsedValue),
+    }));
+  };
+
+  const handleSelectedObjectRotationChange = (value: string) => {
+    const parsedValue = Number(value);
+    if (!Number.isFinite(parsedValue)) {
+      return;
+    }
+
+    updateSelectedObject((object) => ({
+      ...object,
+      rotation: parsedValue,
+    }));
+  };
+
   const handleScaleLengthChange = (value: string) => {
     const parsedValue = Number(value);
 
@@ -357,14 +407,43 @@ export function EditorPage() {
                 <h3 className="text-sm font-semibold text-slate-800">Selected Object</h3>
                 {!selectedObject && <p className="mt-1 text-sm text-slate-600">No object selected.</p>}
                 {selectedObject && (
-                  <div className="mt-2 space-y-1 text-sm text-slate-700">
+                  <div className="mt-2 space-y-3 text-sm text-slate-700">
                     <p>Type: {selectedObject.type}</p>
                     <p>Label: {selectedObject.label}</p>
                     <p>X: {selectedObject.x.toFixed(2)}</p>
                     <p>Y: {selectedObject.y.toFixed(2)}</p>
-                    <p>Width: {selectedObject.width}</p>
-                    <p>Height: {selectedObject.height}</p>
-                    <p>Rotation: {selectedObject.rotation}</p>
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Width</span>
+                      <input
+                        type="number"
+                        min={MIN_OBJECT_SIZE}
+                        step="any"
+                        value={selectedObject.width}
+                        onChange={(event) => handleSelectedObjectWidthChange(event.target.value)}
+                        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Height</span>
+                      <input
+                        type="number"
+                        min={MIN_OBJECT_SIZE}
+                        step="any"
+                        value={selectedObject.height}
+                        onChange={(event) => handleSelectedObjectHeightChange(event.target.value)}
+                        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Rotation (degrees)</span>
+                      <input
+                        type="number"
+                        step="any"
+                        value={selectedObject.rotation}
+                        onChange={(event) => handleSelectedObjectRotationChange(event.target.value)}
+                        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                      />
+                    </label>
                   </div>
                 )}
                 <button
