@@ -16,6 +16,7 @@ interface EditorCanvasProps {
   onObjectPositionChange: (objectId: string, point: Point) => void;
   onObjectSizeChange: (objectId: string, size: { width: number; height: number }) => void;
   onObjectRotationChange: (objectId: string, rotation: number) => void;
+  isSnapToGridEnabled: boolean;
   zoom: number;
   onZoomChange: (nextZoom: number) => void;
 }
@@ -46,6 +47,7 @@ export function EditorCanvas({
   onObjectPositionChange,
   onObjectSizeChange,
   onObjectRotationChange,
+  isSnapToGridEnabled,
   zoom,
   onZoomChange,
 }: EditorCanvasProps) {
@@ -236,10 +238,14 @@ export function EditorCanvas({
                 y={object.y}
                 rotation={object.rotation}
                 draggable={isDraggable}
-                dragBoundFunc={(position) => ({
-                  x: snapToGrid(position.x),
-                  y: snapToGrid(position.y),
-                })}
+                dragBoundFunc={
+                  isSnapToGridEnabled
+                    ? (position) => ({
+                        x: snapToGrid(position.x),
+                        y: snapToGrid(position.y),
+                      })
+                    : undefined
+                }
                 onClick={() => onObjectClick(object.id)}
                 onTap={() => onObjectClick(object.id)}
                 onDragStart={() => onObjectClick(object.id)}

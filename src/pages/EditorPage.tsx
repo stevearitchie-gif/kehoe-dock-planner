@@ -50,6 +50,7 @@ export function EditorPage() {
   const [activeTool, setActiveTool] = useState<ToolMode>('select');
   const [scalePoints, setScalePoints] = useState<Point[]>([]);
   const [zoom, setZoom] = useState(1);
+  const [isSnapToGridEnabled, setIsSnapToGridEnabled] = useState(true);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const objectUrlRef = useRef<string | null>(null);
   const isCoreTool = (tool: ToolMode): tool is (typeof coreToolModes)[number] => coreToolModes.includes(tool as (typeof coreToolModes)[number]);
@@ -136,8 +137,8 @@ export function EditorPage() {
         const nextObject: DockObject = {
           id: crypto.randomUUID(),
           type: activeTool,
-          x: snapToGrid(point.x),
-          y: snapToGrid(point.y),
+          x: isSnapToGridEnabled ? snapToGrid(point.x) : point.x,
+          y: isSnapToGridEnabled ? snapToGrid(point.y) : point.y,
           width: 120,
           height: 40,
           rotation: 0,
@@ -174,8 +175,8 @@ export function EditorPage() {
         object.id === objectId
           ? {
               ...object,
-              x: snapToGrid(point.x),
-              y: snapToGrid(point.y),
+              x: isSnapToGridEnabled ? snapToGrid(point.x) : point.x,
+              y: isSnapToGridEnabled ? snapToGrid(point.y) : point.y,
             }
           : object,
       ),
@@ -411,6 +412,7 @@ export function EditorPage() {
               onObjectPositionChange={handleObjectPositionChange}
               onObjectSizeChange={handleObjectSizeChange}
               onObjectRotationChange={handleObjectRotationChange}
+              isSnapToGridEnabled={isSnapToGridEnabled}
               zoom={zoom}
               onZoomChange={setZoom}
             />
@@ -441,6 +443,27 @@ export function EditorPage() {
                 >
                   Clear Site Image
                 </button>
+              </div>
+
+              <div className="rounded-md border border-slate-200 p-3">
+                <h3 className="text-sm font-semibold text-slate-800">Snap to Grid</h3>
+                <p className="mt-1 text-sm text-slate-600">Control snapping for dock placement and dragging.</p>
+                <div className="mt-3 flex items-center justify-between rounded-md border border-slate-200 px-3 py-2">
+                  <span className="text-sm font-medium text-slate-700">{isSnapToGridEnabled ? 'On' : 'Off'}</span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={isSnapToGridEnabled}
+                    onClick={() => setIsSnapToGridEnabled((previous) => !previous)}
+                    className={`rounded-md border px-3 py-1.5 text-sm ${
+                      isSnapToGridEnabled
+                        ? 'border-brand-600 bg-brand-50 text-brand-700'
+                        : 'border-slate-300 bg-white text-slate-700'
+                    }`}
+                  >
+                    {isSnapToGridEnabled ? 'Turn Off' : 'Turn On'}
+                  </button>
+                </div>
               </div>
 
               <div className="rounded-md border border-slate-200 p-3">
