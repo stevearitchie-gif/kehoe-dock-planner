@@ -13,6 +13,7 @@ interface EditorCanvasProps {
   backgroundImageUrl?: string;
   onCanvasPointClick: (point: Point) => void;
   onObjectClick: (objectId: string) => void;
+  onObjectPositionChange: (objectId: string, point: Point) => void;
   zoom: number;
   onZoomChange: (nextZoom: number) => void;
 }
@@ -34,6 +35,7 @@ export function EditorCanvas({
   backgroundImageUrl,
   onCanvasPointClick,
   onObjectClick,
+  onObjectPositionChange,
   zoom,
   onZoomChange,
 }: EditorCanvasProps) {
@@ -215,23 +217,43 @@ export function EditorCanvas({
         <Layer>
           {objects.map((object) => {
             const isSelected = object.id === selectedObjectId;
+            const isDraggable = activeTool === 'select' && !object.locked;
 
             return (
-              <Group key={object.id}>
+              <Group
+                key={object.id}
+                x={object.x}
+                y={object.y}
+                draggable={isDraggable}
+                onClick={() => onObjectClick(object.id)}
+                onTap={() => onObjectClick(object.id)}
+                onDragStart={() => onObjectClick(object.id)}
+                onDragMove={(event) => {
+                  onObjectPositionChange(object.id, {
+                    x: event.target.x(),
+                    y: event.target.y(),
+                  });
+                }}
+                onDragEnd={(event) => {
+                  onObjectPositionChange(object.id, {
+                    x: event.target.x(),
+                    y: event.target.y(),
+                  });
+                }}
+              >
                 <Rect
-                  x={object.x}
-                  y={object.y}
+                  x={0}
+                  y={0}
                   width={object.width}
                   height={object.height}
                   rotation={object.rotation}
                   fill={object.color}
                   stroke={isSelected ? '#1d4ed8' : '#334155'}
                   strokeWidth={isSelected ? 3 : 1}
-                  onClick={() => onObjectClick(object.id)}
                 />
                 <Text
-                  x={object.x}
-                  y={object.y + object.height / 2 - 7}
+                  x={0}
+                  y={object.height / 2 - 7}
                   width={object.width}
                   align="center"
                   verticalAlign="middle"

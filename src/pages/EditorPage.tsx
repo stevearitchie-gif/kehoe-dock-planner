@@ -159,6 +159,22 @@ export function EditorPage() {
     setSelectedObjectId(objectId);
   };
 
+  const handleObjectPositionChange = (objectId: string, point: Point) => {
+    setProject((prev) => ({
+      ...prev,
+      updatedAt: new Date().toISOString(),
+      objects: prev.objects.map((object) =>
+        object.id === objectId
+          ? {
+              ...object,
+              x: point.x,
+              y: point.y,
+            }
+          : object,
+      ),
+    }));
+  };
+
   const selectedObject = useMemo(
     () => project.objects.find((object) => object.id === selectedObjectId) ?? null,
     [project.objects, selectedObjectId],
@@ -304,6 +320,7 @@ export function EditorPage() {
               backgroundImageUrl={project.backgroundImageUrl}
               onCanvasPointClick={handleCanvasPointClick}
               onObjectClick={handleObjectClick}
+              onObjectPositionChange={handleObjectPositionChange}
               zoom={zoom}
               onZoomChange={setZoom}
             />
