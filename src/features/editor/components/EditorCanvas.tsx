@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Circle, Image, Layer, Line, Stage } from 'react-konva';
+import { Circle, Group, Image, Layer, Line, Rect, Stage, Text } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import type { Point } from '@/types/dock';
+import type { DockObject, Point } from '@/types/dock';
 import type { ToolMode } from '@/features/editor/toolDefinitions';
 
 interface EditorCanvasProps {
   activeTool: ToolMode;
   scalePoints: Point[];
   shorelinePoints: Point[];
+  objects: DockObject[];
+  selectedObjectId: string | null;
   backgroundImageUrl?: string;
   onCanvasPointClick: (point: Point) => void;
+  onObjectClick: (objectId: string) => void;
   zoom: number;
   onZoomChange: (nextZoom: number) => void;
 }
@@ -26,8 +29,11 @@ export function EditorCanvas({
   activeTool,
   scalePoints,
   shorelinePoints,
+  objects,
+  selectedObjectId,
   backgroundImageUrl,
   onCanvasPointClick,
+  onObjectClick,
   zoom,
   onZoomChange,
 }: EditorCanvasProps) {
@@ -129,7 +135,7 @@ export function EditorCanvas({
   const isPanTool = activeTool === 'pan';
 
   const handlePointerDown = (event: KonvaEventObject<MouseEvent>) => {
-    if (activeTool !== 'scale' && activeTool !== 'shoreline') {
+    if (activeTool !== 'scale' && activeTool !== 'shoreline' && activeTool !== 'floating_dock' && activeTool !== 'stationary_dock') {
       return;
     }
 
@@ -204,6 +210,39 @@ export function EditorCanvas({
           {scalePoints.map((point) => (
             <Circle key={`${point.x}-${point.y}`} x={point.x} y={point.y} radius={5} fill="#1d4ed8" />
           ))}
+        </Layer>
+
+        <Layer>
+          {objects.map((object) => {
+            const isSelected = object.id === selectedObjectId;
+
+            return (
+              <Group key={object.id}>
+                <Rect
+                  x={object.x}
+                  y={object.y}
+                  width={object.width}
+                  height={object.height}
+                  rotation={object.rotation}
+                  fill={object.color}
+                  stroke={isSelected ? '#1d4ed8' : '#334155'}
+                  strokeWidth={isSelected ? 3 : 1}
+                  onClick={() => onObjectClick(object.id)}
+                />
+                <Text
+                  x={object.x}
+                  y={object.y + object.height / 2 - 7}
+                  width={object.width}
+                  align="center"
+                  verticalAlign="middle"
+                  text={object.label}
+                  fontSize={12}
+                  fill="#0f172a"
+                  listening={false}
+                />
+              </Group>
+            );
+          })}
         </Layer>
       </Stage>
     </div>

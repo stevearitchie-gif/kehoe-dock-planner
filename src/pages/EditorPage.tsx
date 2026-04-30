@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
-import editorTools, { coreToolModes, type ToolMode } from '@/features/editor/toolDefinitions';
+import editorTools, { coreToolModes, objectToolModes, toolLabels, type ToolMode } from '@/features/editor/toolDefinitions';
 import { EditorCanvas } from '@/features/editor/components/EditorCanvas';
-import type { DockProject, Point, ProjectScale, UnitType } from '@/types/dock';
+import type { DockObject, DockProject, Point, ProjectScale, UnitType } from '@/types/dock';
 
 function buildEditorProject(projectId: string | undefined): DockProject {
   return {
@@ -43,7 +43,11 @@ export function EditorPage() {
   const [activeTool, setActiveTool] = useState<ToolMode>('select');
   const [scalePoints, setScalePoints] = useState<Point[]>([]);
   const [zoom, setZoom] = useState(1);
+  const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const objectUrlRef = useRef<string | null>(null);
+  const isCoreTool = (tool: ToolMode): tool is (typeof coreToolModes)[number] => coreToolModes.includes(tool as (typeof coreToolModes)[number]);
+  const isObjectTool = (tool: ToolMode): tool is (typeof objectToolModes)[number] =>
+    objectToolModes.includes(tool as (typeof objectToolModes)[number]);
 
   useEffect(() => {
     return () => {
@@ -85,7 +89,7 @@ export function EditorPage() {
   };
 
   const handleToolClick = (toolLabel: string) => {
-    if (!coreToolModes.includes(toolLabel as ToolMode)) {
+    if (!editorTools.includes(toolLabel as ToolMode)) {
       return;
     }
 
@@ -115,7 +119,62 @@ export function EditorPage() {
         updatedAt: new Date().toISOString(),
         shorelinePoints: [...prev.shorelinePoints, point],
       }));
+      return;
     }
+
+    if (activeTool === 'floating_dock' || activeTool === 'stationary_dock') {
+      setProject((prev) => {
+        const sameTypeCount = prev.objects.filter((object) => object.type === activeTool).length;
+        const objectTypeName = activeTool === 'floating_dock' ? 'Floating Dock' : 'Stationary Dock';
+        const nextObject: DockObject = {
+          id: crypto.randomUUID(),
+          type: activeTool,
+          x: point.x,
+          y: point.y,
+          width: 120,
+          height: 40,
+          rotation: 0,
+          label: `${objectTypeName} ${sameTypeCount + 1}`,
+          color: activeTool === 'floating_dock' ? '#86efac' : '#fcd34d',
+          zIndex: prev.objects.length + 1,
+          locked: false,
+        };
+
+        setSelectedObjectId(nextObject.id);
+
+        return {
+          ...prev,
+          updatedAt: new Date().toISOString(),
+          objects: [...prev.objects, nextObject],
+        };
+      });
+    }
+  };
+
+  const handleObjectClick = (objectId: string) => {
+    if (activeTool !== 'select') {
+      return;
+    }
+
+    setSelectedObjectId(objectId);
+  };
+
+  const selectedObject = useMemo(
+    () => project.objects.find((object) => object.id === selectedObjectId) ?? null,
+    [project.objects, selectedObjectId],
+  );
+
+  const handleDeleteSelectedObject = () => {
+    if (!selectedObjectId) {
+      return;
+    }
+
+    setProject((prev) => ({
+      ...prev,
+      updatedAt: new Date().toISOString(),
+      objects: prev.objects.filter((object) => object.id !== selectedObjectId),
+    }));
+    setSelectedObjectId(null);
   };
 
   const handleScaleLengthChange = (value: string) => {
@@ -214,21 +273,21 @@ export function EditorPage() {
             <div className="grid grid-cols-1 gap-2">
               {editorTools.map((tool) => {
                 const isActive = tool === activeTool;
-                const isCoreTool = coreToolModes.includes(tool as ToolMode);
+                const isEnabled = isCoreTool(tool) || isObjectTool(tool);
 
                 return (
                   <button
                     key={tool}
                     type="button"
                     onClick={() => handleToolClick(tool)}
-                    disabled={!isCoreTool}
+                    disabled={!isEnabled}
                     className={`rounded-md border px-3 py-2 text-left text-sm ${
                       isActive
                         ? 'border-brand-600 bg-brand-50 text-brand-700'
                         : 'border-slate-200 text-slate-700 hover:bg-slate-100'
-                    } ${!isCoreTool ? 'cursor-not-allowed opacity-50' : ''}`}
+                    } ${!isEnabled ? 'cursor-not-allowed opacity-50' : ''}`}
                   >
-                    {tool}
+                    {toolLabels[tool]}
                   </button>
                 );
               })}
@@ -240,8 +299,11 @@ export function EditorPage() {
               activeTool={activeTool}
               scalePoints={scalePoints}
               shorelinePoints={project.shorelinePoints}
+              objects={project.objects}
+              selectedObjectId={selectedObjectId}
               backgroundImageUrl={project.backgroundImageUrl}
               onCanvasPointClick={handleCanvasPointClick}
+              onObjectClick={handleObjectClick}
               zoom={zoom}
               onZoomChange={setZoom}
             />
@@ -276,7 +338,26 @@ export function EditorPage() {
 
               <div className="rounded-md border border-slate-200 p-3">
                 <h3 className="text-sm font-semibold text-slate-800">Selected Object</h3>
-                <p className="mt-1 text-sm text-slate-600">No object selected.</p>
+                {!selectedObject && <p className="mt-1 text-sm text-slate-600">No object selected.</p>}
+                {selectedObject && (
+                  <div className="mt-2 space-y-1 text-sm text-slate-700">
+                    <p>Type: {selectedObject.type}</p>
+                    <p>Label: {selectedObject.label}</p>
+                    <p>X: {selectedObject.x.toFixed(2)}</p>
+                    <p>Y: {selectedObject.y.toFixed(2)}</p>
+                    <p>Width: {selectedObject.width}</p>
+                    <p>Height: {selectedObject.height}</p>
+                    <p>Rotation: {selectedObject.rotation}</p>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={handleDeleteSelectedObject}
+                  disabled={!selectedObject}
+                  className="mt-3 w-full rounded-md border border-rose-300 px-3 py-2 text-sm text-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Delete Selected Object
+                </button>
               </div>
 
               <div className="rounded-md border border-slate-200 p-3">
