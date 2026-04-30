@@ -14,6 +14,7 @@ interface EditorCanvasProps {
   onCanvasPointClick: (point: Point) => void;
   onObjectClick: (objectId: string) => void;
   onObjectPositionChange: (objectId: string, point: Point) => void;
+  onObjectSizeChange: (objectId: string, size: { width: number; height: number }) => void;
   zoom: number;
   onZoomChange: (nextZoom: number) => void;
 }
@@ -21,6 +22,7 @@ interface EditorCanvasProps {
 const GRID_SIZE = 40;
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 3;
+const MIN_OBJECT_SIZE = 10;
 
 function clampZoom(value: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
@@ -36,6 +38,7 @@ export function EditorCanvas({
   onCanvasPointClick,
   onObjectClick,
   onObjectPositionChange,
+  onObjectSizeChange,
   zoom,
   onZoomChange,
 }: EditorCanvasProps) {
@@ -262,6 +265,38 @@ export function EditorCanvas({
                   fill="#0f172a"
                   listening={false}
                 />
+                {isSelected && (
+                  <Circle
+                    x={object.width}
+                    y={object.height}
+                    radius={7}
+                    fill="#ffffff"
+                    stroke="#1d4ed8"
+                    strokeWidth={2}
+                    draggable
+                    dragOnTop={false}
+                    onMouseDown={(event) => event.cancelBubble = true}
+                    onTouchStart={(event) => event.cancelBubble = true}
+                    onDragMove={(event) => {
+                      const nextWidth = Math.max(MIN_OBJECT_SIZE, event.target.x());
+                      const nextHeight = Math.max(MIN_OBJECT_SIZE, event.target.y());
+                      onObjectClick(object.id);
+                      onObjectSizeChange(object.id, {
+                        width: nextWidth,
+                        height: nextHeight,
+                      });
+                    }}
+                    onDragEnd={(event) => {
+                      const nextWidth = Math.max(MIN_OBJECT_SIZE, event.target.x());
+                      const nextHeight = Math.max(MIN_OBJECT_SIZE, event.target.y());
+                      onObjectClick(object.id);
+                      onObjectSizeChange(object.id, {
+                        width: nextWidth,
+                        height: nextHeight,
+                      });
+                    }}
+                  />
+                )}
               </Group>
             );
           })}

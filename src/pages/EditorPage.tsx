@@ -177,6 +177,23 @@ export function EditorPage() {
     }));
   };
 
+  const handleObjectSizeChange = (objectId: string, size: { width: number; height: number }) => {
+    setSelectedObjectId(objectId);
+    setProject((prev) => ({
+      ...prev,
+      updatedAt: new Date().toISOString(),
+      objects: prev.objects.map((object) =>
+        object.id === objectId
+          ? {
+              ...object,
+              width: Math.max(MIN_OBJECT_SIZE, size.width),
+              height: Math.max(MIN_OBJECT_SIZE, size.height),
+            }
+          : object,
+      ),
+    }));
+  };
+
   const selectedObject = useMemo(
     () => project.objects.find((object) => object.id === selectedObjectId) ?? null,
     [project.objects, selectedObjectId],
@@ -371,6 +388,7 @@ export function EditorPage() {
               onCanvasPointClick={handleCanvasPointClick}
               onObjectClick={handleObjectClick}
               onObjectPositionChange={handleObjectPositionChange}
+              onObjectSizeChange={handleObjectSizeChange}
               zoom={zoom}
               onZoomChange={setZoom}
             />
