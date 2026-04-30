@@ -30,6 +30,10 @@ function clampZoom(value: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
 }
 
+function snapToGrid(value: number): number {
+  return Math.round(value / GRID_SIZE) * GRID_SIZE;
+}
+
 export function EditorCanvas({
   activeTool,
   scalePoints,
@@ -232,6 +236,10 @@ export function EditorCanvas({
                 y={object.y}
                 rotation={object.rotation}
                 draggable={isDraggable}
+                dragBoundFunc={(position) => ({
+                  x: snapToGrid(position.x),
+                  y: snapToGrid(position.y),
+                })}
                 onClick={() => onObjectClick(object.id)}
                 onTap={() => onObjectClick(object.id)}
                 onDragStart={() => onObjectClick(object.id)}
