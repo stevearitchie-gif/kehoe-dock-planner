@@ -337,14 +337,14 @@ export function EditorPage() {
                     onClick={handleFinishShoreline}
                     className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
                   >
-                    Finish
+                    Finish Shoreline
                   </button>
                   <button
                     type="button"
                     onClick={handleClearShoreline}
                     className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
                   >
-                    Clear
+                    Clear Shoreline
                   </button>
                 </div>
               </div>
