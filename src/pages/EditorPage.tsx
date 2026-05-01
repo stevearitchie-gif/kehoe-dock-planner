@@ -7,6 +7,7 @@ import type { DockObject, DockProject, Point, ProjectScale, UnitType } from '@/t
 
 const MIN_OBJECT_SIZE = 10;
 const GRID_SIZE = 40;
+const DUPLICATE_OFFSET = 40;
 
 function snapToGrid(value: number): number {
   return Math.round(value / GRID_SIZE) * GRID_SIZE;
@@ -220,6 +221,37 @@ export function EditorPage() {
     () => project.objects.find((object) => object.id === selectedObjectId) ?? null,
     [project.objects, selectedObjectId],
   );
+
+  const handleDuplicateSelectedObject = () => {
+    if (!selectedObjectId) {
+      return;
+    }
+
+    setProject((prev) => {
+      const sourceObject = prev.objects.find((object) => object.id === selectedObjectId);
+      if (!sourceObject) {
+        return prev;
+      }
+
+      const duplicatedX = sourceObject.x + DUPLICATE_OFFSET;
+      const duplicatedY = sourceObject.y + DUPLICATE_OFFSET;
+      const duplicatedObject: DockObject = {
+        ...sourceObject,
+        id: crypto.randomUUID(),
+        x: isSnapToGridEnabled ? snapToGrid(duplicatedX) : duplicatedX,
+        y: isSnapToGridEnabled ? snapToGrid(duplicatedY) : duplicatedY,
+        zIndex: prev.objects.length + 1,
+      };
+
+      setSelectedObjectId(duplicatedObject.id);
+
+      return {
+        ...prev,
+        updatedAt: new Date().toISOString(),
+        objects: [...prev.objects, duplicatedObject],
+      };
+    });
+  };
 
   const handleDeleteSelectedObject = () => {
     if (!selectedObjectId) {
@@ -538,6 +570,14 @@ export function EditorPage() {
                     </label>
                   </div>
                 )}
+                <button
+                  type="button"
+                  onClick={handleDuplicateSelectedObject}
+                  disabled={!selectedObject}
+                  className="mt-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Duplicate Selected Object
+                </button>
                 <button
                   type="button"
                   onClick={handleDeleteSelectedObject}
