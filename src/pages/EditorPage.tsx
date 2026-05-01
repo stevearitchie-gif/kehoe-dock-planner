@@ -139,6 +139,7 @@ export function EditorPage() {
       'ramp_without_rails',
       'steps',
       'roof_overlay',
+      'boat_lift',
     ] as const;
 
     if (placementTools.includes(activeTool as (typeof placementTools)[number])) {
@@ -152,6 +153,7 @@ export function EditorPage() {
           ramp_without_rails: 'Ramp Without Rails',
           steps: 'Steps',
           roof_overlay: 'Roof Overlay',
+          boat_lift: 'Boat Lift',
         };
         const objectSizeByTool: Record<typeof placementTool, { width: number; height: number }> = {
           floating_dock: { width: 120, height: 40 },
@@ -160,6 +162,7 @@ export function EditorPage() {
           ramp_without_rails: { width: 100, height: 24 },
           steps: { width: 60, height: 40 },
           roof_overlay: { width: 140, height: 80 },
+          boat_lift: { width: 80, height: 30 },
         };
         const objectColorByTool: Record<typeof placementTool, string> = {
           floating_dock: '#86efac',
@@ -168,6 +171,7 @@ export function EditorPage() {
           ramp_without_rails: '#c4b5fd',
           steps: '#fda4af',
           roof_overlay: '#94a3b8',
+          boat_lift: '#67e8f9',
         };
 
         const nextObject: DockObject = {
