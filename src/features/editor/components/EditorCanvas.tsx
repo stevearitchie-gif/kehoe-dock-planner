@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Circle, Group, Image, Layer, Line, Rect, Stage, Text } from 'react-konva';
+import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { DockObject, Point } from '@/types/dock';
 import type { ToolMode } from '@/features/editor/toolDefinitions';
@@ -33,6 +33,24 @@ function clampZoom(value: number): number {
 
 function snapToGrid(value: number): number {
   return Math.round(value / GRID_SIZE) * GRID_SIZE;
+}
+
+function getObjectOpacity(opacity?: number): number {
+  if (typeof opacity !== 'number' || Number.isNaN(opacity)) {
+    return 1;
+  }
+
+  return Math.max(0, Math.min(1, opacity));
+}
+
+function getRotationFromHandle(
+  object: DockObject,
+  event: KonvaEventObject<MouseEvent | TouchEvent | DragEvent>,
+): number {
+  const localX = event.target.x();
+  const localY = event.target.y();
+  const angleRadians = Math.atan2(localY, localX - object.width / 2);
+  return (angleRadians * 180) / Math.PI + 90;
 }
 
 export function EditorCanvas({
@@ -74,7 +92,10 @@ export function EditorCanvas({
     });
 
     observer.observe(element);
-    return () => observer.disconnect();
+
+    return () => {
+      observer.disconnect();
+    };
   }, []);
 
   useEffect(() => {
@@ -84,51 +105,19 @@ export function EditorCanvas({
     }
 
     const image = new window.Image();
-    image.src = backgroundImageUrl;
     image.onload = () => {
       setBackgroundImage(image);
     };
     image.onerror = () => {
       setBackgroundImage(null);
     };
-  }, [backgroundImageUrl]);
+    image.src = backgroundImageUrl;
 
-  const gridLines = useMemo(() => {
-    const lines: number[][] = [];
-    const xLineCount = Math.ceil(canvasSize.width / GRID_SIZE);
-    const yLineCount = Math.ceil(canvasSize.height / GRID_SIZE);
-
-    for (let ix = 0; ix <= xLineCount; ix += 1) {
-      const x = ix * GRID_SIZE;
-      lines.push([x, 0, x, canvasSize.height]);
-    }
-
-    for (let iy = 0; iy <= yLineCount; iy += 1) {
-      const y = iy * GRID_SIZE;
-      lines.push([0, y, canvasSize.width, y]);
-    }
-
-    return lines;
-  }, [canvasSize.height, canvasSize.width]);
-
-  const fittedBackgroundImage = useMemo(() => {
-    if (!backgroundImage) {
-      return null;
-    }
-
-    const widthRatio = canvasSize.width / backgroundImage.width;
-    const heightRatio = canvasSize.height / backgroundImage.height;
-    const scale = Math.min(widthRatio, heightRatio);
-    const width = backgroundImage.width * scale;
-    const height = backgroundImage.height * scale;
-
-    return {
-      x: (canvasSize.width - width) / 2,
-      y: (canvasSize.height - height) / 2,
-      width,
-      height,
+    return () => {
+      image.onload = null;
+      image.onerror = null;
     };
-  }, [backgroundImage, canvasSize.height, canvasSize.width]);
+  }, [backgroundImageUrl]);
 
   const scaleLinePoints = useMemo(() => {
     if (scalePoints.length < 2) {
@@ -148,8 +137,8 @@ export function EditorCanvas({
 
   const isPanTool = activeTool === 'pan';
 
-  const handlePointerDown = (event: KonvaEventObject<MouseEvent>) => {
-    const pointTools = [
+  const handlePointerDown = (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
+    const pointTools: ToolMode[] = [
       'scale',
       'shoreline',
       'floating_dock',
@@ -187,35 +176,22 @@ export function EditorCanvas({
   };
 
   return (
-    <div ref={containerRef} className="h-full w-full rounded-lg border border-slate-200 bg-white shadow-sm">
+    <div ref={containerRef} className="h-full w-full overflow-hidden rounded-md border border-slate-200 bg-white">
       <Stage
         width={canvasSize.width}
         height={canvasSize.height}
-        draggable={isPanTool}
         scaleX={zoom}
         scaleY={zoom}
-        onWheel={handleWheel}
+        draggable={isPanTool}
         onMouseDown={handlePointerDown}
-        className="cursor-crosshair"
+        onTouchStart={handlePointerDown}
+        onWheel={handleWheel}
       >
-        <Layer listening={false}>
-          {backgroundImage && fittedBackgroundImage && (
-            <Image
-              image={backgroundImage}
-              x={fittedBackgroundImage.x}
-              y={fittedBackgroundImage.y}
-              width={fittedBackgroundImage.width}
-              height={fittedBackgroundImage.height}
-              listening={false}
-            />
-          )}
-        </Layer>
-
-        <Layer listening={false}>
-          {gridLines.map((linePoints) => (
-            <Line key={linePoints.join('-')} points={linePoints} stroke="#e2e8f0" strokeWidth={1} />
-          ))}
-        </Layer>
+        {backgroundImage && (
+          <Layer listening={false}>
+            <KonvaImage image={backgroundImage} x={0} y={0} />
+          </Layer>
+        )}
 
         <Layer listening={false}>
           {shorelineLinePoints && (
@@ -242,6 +218,10 @@ export function EditorCanvas({
           {objects.map((object) => {
             const isSelected = object.id === selectedObjectId;
             const isDraggable = activeTool === 'select' && !object.locked;
+            const objectOpacity = getObjectOpacity(object.opacity);
+
+            const cornerRadius =
+              object.type === 'ramp_with_rails' || object.type === 'ramp_without_rails' ? 4 : 0;
 
             return (
               <Group
@@ -274,89 +254,120 @@ export function EditorCanvas({
                   });
                 }}
               >
-                <Rect
-                  x={0}
-                  y={0}
-                  width={object.width}
-                  height={object.height}
-                  fill={object.color}
-                  stroke={isSelected ? '#1d4ed8' : '#334155'}
-                  strokeWidth={isSelected ? 3 : 1}
-                  cornerRadius={object.type === 'ramp_with_rails' || object.type === 'ramp_without_rails' ? 4 : 0}
-                />
-                {object.type === 'ramp_with_rails' && (
-                  <>
-                    <Line points={[8, 4, 8, object.height - 4]} stroke="#1e3a8a" strokeWidth={2} listening={false} />
-                    <Line
-                      points={[object.width - 8, 4, object.width - 8, object.height - 4]}
-                      stroke="#1e3a8a"
-                      strokeWidth={2}
-                      listening={false}
-                    />
-                  </>
-                )}
+                <Group opacity={objectOpacity} listening={false}>
+                  <Rect
+                    x={0}
+                    y={0}
+                    width={object.width}
+                    height={object.height}
+                    fill={object.color}
+                    stroke="#334155"
+                    strokeWidth={1}
+                    dash={object.type === 'roof_overlay' ? [10, 6] : undefined}
+                    cornerRadius={cornerRadius}
+                  />
 
-                {object.type === 'steps' && (
-                  <>
-                    {[1, 2, 3].map((stepIndex) => {
-                      const y = (object.height * stepIndex) / 4;
-                      return (
-                        <Line
-                          key={`${object.id}-step-line-${stepIndex}`}
-                          points={[6, y, object.width - 6, y]}
-                          stroke="#9f1239"
-                          strokeWidth={1.5}
-                          listening={false}
-                        />
-                      );
-                    })}
-                  </>
-                )}
+                  {object.type === 'ramp_with_rails' && (
+                    <>
+                      <Line
+                        points={[8, 4, 8, object.height - 4]}
+                        stroke="#1e3a8a"
+                        strokeWidth={2}
+                      />
+                      <Line
+                        points={[object.width - 8, 4, object.width - 8, object.height - 4]}
+                        stroke="#1e3a8a"
+                        strokeWidth={2}
+                      />
+                    </>
+                  )}
 
+                  {object.type === 'steps' && (
+                    <>
+                      {[1, 2, 3].map((stepIndex) => {
+                        const y = (object.height * stepIndex) / 4;
+                        return (
+                          <Line
+                            key={`${object.id}-step-line-${stepIndex}`}
+                            points={[6, y, object.width - 6, y]}
+                            stroke="#9f1239"
+                            strokeWidth={1.5}
+                          />
+                        );
+                      })}
+                    </>
+                  )}
 
-                {object.type === 'boat_lift' && (
-                  <>
-                    <Line
-                      points={[10, object.height / 2, object.width - 10, object.height / 2]}
-                      stroke="#0e7490"
-                      strokeWidth={2}
-                      listening={false}
-                    />
-                    <Line
-                      points={[object.width * 0.33, 6, object.width * 0.33, object.height - 6]}
-                      stroke="#155e75"
-                      strokeWidth={1.5}
-                      dash={[4, 3]}
-                      listening={false}
-                    />
-                    <Line
-                      points={[object.width * 0.66, 6, object.width * 0.66, object.height - 6]}
-                      stroke="#155e75"
-                      strokeWidth={1.5}
-                      dash={[4, 3]}
-                      listening={false}
-                    />
-                  </>
-                )}
-                <Text
-                  x={0}
-                  y={object.height / 2 - 7}
-                  width={object.width}
-                  align="center"
-                  verticalAlign="middle"
-                  text={object.label}
-                  fontSize={12}
-                  fill="#0f172a"
-                  listening={false}
-                />
+                  {object.type === 'roof_overlay' && (
+                    <>
+                      <Line
+                        points={[6, 6, object.width - 6, object.height - 6]}
+                        stroke="#475569"
+                        strokeWidth={1.5}
+                      />
+                      <Line
+                        points={[object.width - 6, 6, 6, object.height - 6]}
+                        stroke="#475569"
+                        strokeWidth={1.5}
+                      />
+                    </>
+                  )}
+
+                  {object.type === 'boat_lift' && (
+                    <>
+                      <Line
+                        points={[10, object.height / 2, object.width - 10, object.height / 2]}
+                        stroke="#0e7490"
+                        strokeWidth={2}
+                      />
+                      <Line
+                        points={[object.width * 0.33, 6, object.width * 0.33, object.height - 6]}
+                        stroke="#155e75"
+                        strokeWidth={1.5}
+                        dash={[4, 3]}
+                      />
+                      <Line
+                        points={[object.width * 0.66, 6, object.width * 0.66, object.height - 6]}
+                        stroke="#155e75"
+                        strokeWidth={1.5}
+                        dash={[4, 3]}
+                      />
+                    </>
+                  )}
+
+                  <Text
+                    x={0}
+                    y={object.height / 2 - 7}
+                    width={object.width}
+                    align="center"
+                    verticalAlign="middle"
+                    text={object.label}
+                    fontSize={12}
+                    fill="#0f172a"
+                  />
+                </Group>
+
                 {isSelected && (
                   <>
+                    <Rect
+                      x={0}
+                      y={0}
+                      width={object.width}
+                      height={object.height}
+                      stroke="#1d4ed8"
+                      strokeWidth={3}
+                      fillEnabled={false}
+                      cornerRadius={cornerRadius}
+                      listening={false}
+                    />
+
                     <Line
                       points={[object.width / 2, 0, object.width / 2, -ROTATION_HANDLE_OFFSET]}
                       stroke="#1d4ed8"
                       strokeWidth={2}
                       listening={false}
                     />
+
                     <Circle
                       x={object.width / 2}
                       y={-ROTATION_HANDLE_OFFSET}
@@ -377,6 +388,7 @@ export function EditorCanvas({
                         onObjectRotationChange(object.id, getRotationFromHandle(object, event));
                       }}
                     />
+
                     <Circle
                       x={object.width}
                       y={object.height / 2}
@@ -409,6 +421,7 @@ export function EditorCanvas({
                         });
                       }}
                     />
+
                     <Circle
                       x={object.width / 2}
                       y={object.height}
@@ -441,6 +454,7 @@ export function EditorCanvas({
                         });
                       }}
                     />
+
                     <Circle
                       x={object.width}
                       y={object.height}
@@ -481,13 +495,3 @@ export function EditorCanvas({
     </div>
   );
 }
-  const getRotationFromHandle = (object: DockObject, event: KonvaEventObject<DragEvent>) => {
-    const handle = event.target;
-    const handlePosition = handle.getAbsolutePosition();
-    const centerPoint = {
-      x: object.x + object.width / 2,
-      y: object.y + object.height / 2,
-    };
-    const radians = Math.atan2(handlePosition.y - centerPoint.y, handlePosition.x - centerPoint.x);
-    return (radians * 180) / Math.PI + 90;
-  };
