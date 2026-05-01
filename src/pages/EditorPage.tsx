@@ -132,47 +132,54 @@ export function EditorPage() {
       return;
     }
 
-    if (
-      activeTool === 'floating_dock' ||
-      activeTool === 'stationary_dock' ||
-      activeTool === 'ramp_with_rails' ||
-      activeTool === 'ramp_without_rails' ||
-      activeTool === 'steps'
-    ) {
+    const placementTools = [
+      'floating_dock',
+      'stationary_dock',
+      'ramp_with_rails',
+      'ramp_without_rails',
+      'steps',
+      'roof_overlay',
+    ] as const;
+
+    if (placementTools.includes(activeTool as (typeof placementTools)[number])) {
       setProject((prev) => {
-        const sameTypeCount = prev.objects.filter((object) => object.type === activeTool).length;
-        const objectTypeNameByTool: Record<typeof activeTool, string> = {
+        const placementTool = activeTool as (typeof placementTools)[number];
+        const sameTypeCount = prev.objects.filter((object) => object.type === placementTool).length;
+        const objectTypeNameByTool: Record<typeof placementTool, string> = {
           floating_dock: 'Floating Dock',
           stationary_dock: 'Stationary Dock',
           ramp_with_rails: 'Ramp With Rails',
           ramp_without_rails: 'Ramp Without Rails',
           steps: 'Steps',
+          roof_overlay: 'Roof Overlay',
         };
-        const objectSizeByTool: Record<typeof activeTool, { width: number; height: number }> = {
+        const objectSizeByTool: Record<typeof placementTool, { width: number; height: number }> = {
           floating_dock: { width: 120, height: 40 },
           stationary_dock: { width: 120, height: 40 },
           ramp_with_rails: { width: 100, height: 24 },
           ramp_without_rails: { width: 100, height: 24 },
           steps: { width: 60, height: 40 },
+          roof_overlay: { width: 140, height: 80 },
         };
-        const objectColorByTool: Record<typeof activeTool, string> = {
+        const objectColorByTool: Record<typeof placementTool, string> = {
           floating_dock: '#86efac',
           stationary_dock: '#fcd34d',
           ramp_with_rails: '#93c5fd',
           ramp_without_rails: '#c4b5fd',
           steps: '#fda4af',
+          roof_overlay: '#94a3b8',
         };
 
         const nextObject: DockObject = {
           id: crypto.randomUUID(),
-          type: activeTool,
+          type: placementTool,
           x: isSnapToGridEnabled ? snapToGrid(point.x) : point.x,
           y: isSnapToGridEnabled ? snapToGrid(point.y) : point.y,
-          width: objectSizeByTool[activeTool].width,
-          height: objectSizeByTool[activeTool].height,
+          width: objectSizeByTool[placementTool].width,
+          height: objectSizeByTool[placementTool].height,
           rotation: 0,
-          label: `${objectTypeNameByTool[activeTool]} ${sameTypeCount + 1}`,
-          color: objectColorByTool[activeTool],
+          label: `${objectTypeNameByTool[placementTool]} ${sameTypeCount + 1}`,
+          color: objectColorByTool[placementTool],
           zIndex: prev.objects.length + 1,
           locked: false,
         };
