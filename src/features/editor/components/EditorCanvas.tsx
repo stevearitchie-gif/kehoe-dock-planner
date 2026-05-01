@@ -158,6 +158,7 @@ export function EditorCanvas({
       'ramp_without_rails',
       'steps',
       'roof_overlay',
+      'boat_lift',
     ];
 
     if (!pointTools.includes(activeTool)) {
@@ -309,6 +310,32 @@ export function EditorCanvas({
                         />
                       );
                     })}
+                  </>
+                )}
+
+
+                {object.type === 'boat_lift' && (
+                  <>
+                    <Line
+                      points={[10, object.height / 2, object.width - 10, object.height / 2]}
+                      stroke="#0e7490"
+                      strokeWidth={2}
+                      listening={false}
+                    />
+                    <Line
+                      points={[object.width * 0.33, 6, object.width * 0.33, object.height - 6]}
+                      stroke="#155e75"
+                      strokeWidth={1.5}
+                      dash={[4, 3]}
+                      listening={false}
+                    />
+                    <Line
+                      points={[object.width * 0.66, 6, object.width * 0.66, object.height - 6]}
+                      stroke="#155e75"
+                      strokeWidth={1.5}
+                      dash={[4, 3]}
+                      listening={false}
+                    />
                   </>
                 )}
                 <Text
