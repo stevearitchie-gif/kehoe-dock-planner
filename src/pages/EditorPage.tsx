@@ -32,6 +32,18 @@ function getPixelsFromPoints(points: Point[]): number {
   return Math.hypot(points[1].x - points[0].x, points[1].y - points[0].y);
 }
 
+
+function normalizeObjectZIndices(objects: DockObject[]): DockObject[] {
+  return objects.map((object, index) => ({
+    ...object,
+    zIndex: index + 1,
+  }));
+}
+
+function getObjectsSortedByZIndex(objects: DockObject[]): DockObject[] {
+  return [...objects].sort((a, b) => a.zIndex - b.zIndex);
+}
+
 function getPolylineLength(points: Point[]): number {
   if (points.length < 2) {
     return 0;
@@ -193,7 +205,7 @@ export function EditorPage() {
         return {
           ...prev,
           updatedAt: new Date().toISOString(),
-          objects: [...prev.objects, nextObject],
+          objects: normalizeObjectZIndices([...prev.objects, nextObject]),
         };
       });
     }
@@ -256,14 +268,70 @@ export function EditorPage() {
     }));
   };
 
+  const sortedObjects = useMemo(() => getObjectsSortedByZIndex(project.objects), [project.objects]);
+
   const selectedObject = useMemo(
     () => project.objects.find((object) => object.id === selectedObjectId) ?? null,
     [project.objects, selectedObjectId],
   );
 
+  const selectedObjectIndex = useMemo(
+    () => sortedObjects.findIndex((object) => object.id === selectedObjectId),
+    [selectedObjectId, sortedObjects],
+  );
+
+  const isSelectedObjectOnTop = selectedObjectIndex === sortedObjects.length - 1;
+  const isSelectedObjectOnBottom = selectedObjectIndex === 0;
+
   useEffect(() => {
     setIsDeleteConfirmationVisible(false);
   }, [selectedObjectId]);
+
+  const handleBringSelectedObjectForward = () => {
+    if (!selectedObjectId || isSelectedObjectOnTop || selectedObjectIndex < 0) {
+      return;
+    }
+
+    setProject((prev) => {
+      const orderedObjects = getObjectsSortedByZIndex(prev.objects);
+      const index = orderedObjects.findIndex((object) => object.id === selectedObjectId);
+      if (index < 0 || index >= orderedObjects.length - 1) {
+        return prev;
+      }
+
+      const nextObjects = [...orderedObjects];
+      [nextObjects[index], nextObjects[index + 1]] = [nextObjects[index + 1], nextObjects[index]];
+
+      return {
+        ...prev,
+        updatedAt: new Date().toISOString(),
+        objects: normalizeObjectZIndices(nextObjects),
+      };
+    });
+  };
+
+  const handleSendSelectedObjectBackward = () => {
+    if (!selectedObjectId || isSelectedObjectOnBottom || selectedObjectIndex <= 0) {
+      return;
+    }
+
+    setProject((prev) => {
+      const orderedObjects = getObjectsSortedByZIndex(prev.objects);
+      const index = orderedObjects.findIndex((object) => object.id === selectedObjectId);
+      if (index <= 0) {
+        return prev;
+      }
+
+      const nextObjects = [...orderedObjects];
+      [nextObjects[index - 1], nextObjects[index]] = [nextObjects[index], nextObjects[index - 1]];
+
+      return {
+        ...prev,
+        updatedAt: new Date().toISOString(),
+        objects: normalizeObjectZIndices(nextObjects),
+      };
+    });
+  };
 
   const handleDuplicateSelectedObject = () => {
     if (!selectedObjectId) {
@@ -291,7 +359,7 @@ export function EditorPage() {
       return {
         ...prev,
         updatedAt: new Date().toISOString(),
-        objects: [...prev.objects, duplicatedObject],
+        objects: normalizeObjectZIndices([...prev.objects, duplicatedObject]),
       };
     });
   };
@@ -312,7 +380,7 @@ export function EditorPage() {
     setProject((prev) => ({
       ...prev,
       updatedAt: new Date().toISOString(),
-      objects: prev.objects.filter((object) => object.id !== selectedObjectId),
+      objects: normalizeObjectZIndices(prev.objects.filter((object) => object.id !== selectedObjectId)),
     }));
     setIsDeleteConfirmationVisible(false);
     setSelectedObjectId(null);
@@ -499,7 +567,7 @@ export function EditorPage() {
               activeTool={activeTool}
               scalePoints={scalePoints}
               shorelinePoints={project.shorelinePoints}
-              objects={project.objects}
+              objects={sortedObjects}
               selectedObjectId={selectedObjectId}
               backgroundImageUrl={project.backgroundImageUrl}
               onCanvasPointClick={handleCanvasPointClick}
@@ -624,6 +692,24 @@ export function EditorPage() {
                         className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
                       />
                     </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={handleSendSelectedObjectBackward}
+                        disabled={isSelectedObjectOnBottom}
+                        className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Send Backward
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleBringSelectedObjectForward}
+                        disabled={isSelectedObjectOnTop}
+                        className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Bring Forward
+                      </button>
+                    </div>
                   </div>
                 )}
                 <button
