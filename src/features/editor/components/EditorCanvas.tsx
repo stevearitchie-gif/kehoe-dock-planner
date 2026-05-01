@@ -149,15 +149,18 @@ export function EditorCanvas({
   const isPanTool = activeTool === 'pan';
 
   const handlePointerDown = (event: KonvaEventObject<MouseEvent>) => {
-    if (
-      activeTool !== 'scale' &&
-      activeTool !== 'shoreline' &&
-      activeTool !== 'floating_dock' &&
-      activeTool !== 'stationary_dock' &&
-      activeTool !== 'ramp_with_rails' &&
-      activeTool !== 'ramp_without_rails' &&
-      activeTool !== 'steps'
-    ) {
+    const pointTools = [
+      'scale',
+      'shoreline',
+      'floating_dock',
+      'stationary_dock',
+      'ramp_with_rails',
+      'ramp_without_rails',
+      'steps',
+      'roof_overlay',
+    ];
+
+    if (!pointTools.includes(activeTool)) {
       return;
     }
 
