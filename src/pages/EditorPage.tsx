@@ -132,7 +132,13 @@ export function EditorPage() {
       return;
     }
 
-    if (activeTool === 'floating_dock' || activeTool === 'stationary_dock' || activeTool === 'ramp_with_rails' || activeTool === 'ramp_without_rails') {
+    if (
+      activeTool === 'floating_dock' ||
+      activeTool === 'stationary_dock' ||
+      activeTool === 'ramp_with_rails' ||
+      activeTool === 'ramp_without_rails' ||
+      activeTool === 'steps'
+    ) {
       setProject((prev) => {
         const sameTypeCount = prev.objects.filter((object) => object.type === activeTool).length;
         const objectTypeNameByTool: Record<typeof activeTool, string> = {
@@ -140,18 +146,21 @@ export function EditorPage() {
           stationary_dock: 'Stationary Dock',
           ramp_with_rails: 'Ramp With Rails',
           ramp_without_rails: 'Ramp Without Rails',
+          steps: 'Steps',
         };
         const objectSizeByTool: Record<typeof activeTool, { width: number; height: number }> = {
           floating_dock: { width: 120, height: 40 },
           stationary_dock: { width: 120, height: 40 },
           ramp_with_rails: { width: 100, height: 24 },
           ramp_without_rails: { width: 100, height: 24 },
+          steps: { width: 60, height: 40 },
         };
         const objectColorByTool: Record<typeof activeTool, string> = {
           floating_dock: '#86efac',
           stationary_dock: '#fcd34d',
           ramp_with_rails: '#93c5fd',
           ramp_without_rails: '#c4b5fd',
+          steps: '#fda4af',
         };
 
         const nextObject: DockObject = {

@@ -149,7 +149,15 @@ export function EditorCanvas({
   const isPanTool = activeTool === 'pan';
 
   const handlePointerDown = (event: KonvaEventObject<MouseEvent>) => {
-    if (activeTool !== 'scale' && activeTool !== 'shoreline' && activeTool !== 'floating_dock' && activeTool !== 'stationary_dock' && activeTool !== 'ramp_with_rails' && activeTool !== 'ramp_without_rails') {
+    if (
+      activeTool !== 'scale' &&
+      activeTool !== 'shoreline' &&
+      activeTool !== 'floating_dock' &&
+      activeTool !== 'stationary_dock' &&
+      activeTool !== 'ramp_with_rails' &&
+      activeTool !== 'ramp_without_rails' &&
+      activeTool !== 'steps'
+    ) {
       return;
     }
 
@@ -281,6 +289,23 @@ export function EditorCanvas({
                       strokeWidth={2}
                       listening={false}
                     />
+                  </>
+                )}
+
+                {object.type === 'steps' && (
+                  <>
+                    {[1, 2, 3].map((stepIndex) => {
+                      const y = (object.height * stepIndex) / 4;
+                      return (
+                        <Line
+                          key={`${object.id}-step-line-${stepIndex}`}
+                          points={[6, y, object.width - 6, y]}
+                          stroke="#9f1239"
+                          strokeWidth={1.5}
+                          listening={false}
+                        />
+                      );
+                    })}
                   </>
                 )}
                 <Text
