@@ -53,6 +53,7 @@ export function EditorPage() {
   const [zoom, setZoom] = useState(1);
   const [isSnapToGridEnabled, setIsSnapToGridEnabled] = useState(true);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
+  const [isDeleteConfirmationVisible, setIsDeleteConfirmationVisible] = useState(false);
   const objectUrlRef = useRef<string | null>(null);
   const isCoreTool = (tool: ToolMode): tool is (typeof coreToolModes)[number] => coreToolModes.includes(tool as (typeof coreToolModes)[number]);
   const isObjectTool = (tool: ToolMode): tool is (typeof objectToolModes)[number] =>
@@ -222,6 +223,10 @@ export function EditorPage() {
     [project.objects, selectedObjectId],
   );
 
+  useEffect(() => {
+    setIsDeleteConfirmationVisible(false);
+  }, [selectedObjectId]);
+
   const handleDuplicateSelectedObject = () => {
     if (!selectedObjectId) {
       return;
@@ -254,6 +259,14 @@ export function EditorPage() {
   };
 
   const handleDeleteSelectedObject = () => {
+    if (!selectedObject) {
+      return;
+    }
+
+    setIsDeleteConfirmationVisible(true);
+  };
+
+  const handleConfirmDeleteSelectedObject = () => {
     if (!selectedObjectId) {
       return;
     }
@@ -263,7 +276,12 @@ export function EditorPage() {
       updatedAt: new Date().toISOString(),
       objects: prev.objects.filter((object) => object.id !== selectedObjectId),
     }));
+    setIsDeleteConfirmationVisible(false);
     setSelectedObjectId(null);
+  };
+
+  const handleCancelDeleteSelectedObject = () => {
+    setIsDeleteConfirmationVisible(false);
   };
 
   const updateSelectedObject = (updater: (object: DockObject) => DockObject) => {
@@ -586,6 +604,30 @@ export function EditorPage() {
                 >
                   Delete Selected Object
                 </button>
+                {isDeleteConfirmationVisible && selectedObject && (
+                  <div className="mt-3 rounded-md border border-rose-300 bg-rose-50 p-3">
+                    <p className="text-sm font-medium text-rose-800">Confirm delete</p>
+                    <p className="mt-1 text-sm text-rose-700">
+                      Delete <span className="font-semibold">{selectedObject.label}</span>?
+                    </p>
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={handleConfirmDeleteSelectedObject}
+                        className="rounded-md bg-rose-600 px-3 py-2 text-sm text-white hover:bg-rose-700"
+                      >
+                        Confirm Delete
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCancelDeleteSelectedObject}
+                        className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="rounded-md border border-slate-200 p-3">
