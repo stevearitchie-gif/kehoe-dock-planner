@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text } from 'react-konva';
+import type { Stage as KonvaStage } from 'konva/lib/Stage';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { DockObject, Point } from '@/types/dock';
 import type { ToolMode } from '@/features/editor/toolDefinitions';
@@ -20,6 +21,8 @@ interface EditorCanvasProps {
   zoom: number;
   onZoomChange: (nextZoom: number) => void;
 }
+
+type ResizeHandle = 'right' | 'bottom' | 'corner';
 
 const GRID_SIZE = 40;
 const MIN_ZOOM = 0.2;
@@ -43,13 +46,33 @@ function getObjectOpacity(opacity?: number): number {
   return Math.max(0, Math.min(1, opacity));
 }
 
-function getRotationFromHandle(
-  object: DockObject,
-  event: KonvaEventObject<MouseEvent | TouchEvent | DragEvent>,
-): number {
-  const localX = event.target.x();
-  const localY = event.target.y();
-  const angleRadians = Math.atan2(localY, localX - object.width / 2);
+function degreesToRadians(value: number): number {
+  return (value * Math.PI) / 180;
+}
+
+function getStagePointerPoint(stage: KonvaStage): Point | null {
+  const pointerPosition = stage.getPointerPosition();
+  if (!pointerPosition) {
+    return null;
+  }
+
+  return stage.getAbsoluteTransform().copy().invert().point(pointerPosition);
+}
+
+function getObjectLocalPoint(object: DockObject, stagePoint: Point): Point {
+  const radians = degreesToRadians(-object.rotation);
+  const dx = stagePoint.x - object.x;
+  const dy = stagePoint.y - object.y;
+
+  return {
+    x: dx * Math.cos(radians) - dy * Math.sin(radians),
+    y: dx * Math.sin(radians) + dy * Math.cos(radians),
+  };
+}
+
+function getRotationFromHandle(object: DockObject, stagePoint: Point): number {
+  const localPoint = getObjectLocalPoint(object, stagePoint);
+  const angleRadians = Math.atan2(localPoint.y, localPoint.x - object.width / 2);
   return (angleRadians * 180) / Math.PI + 90;
 }
 
@@ -70,8 +93,10 @@ export function EditorCanvas({
   onZoomChange,
 }: EditorCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const stageRef = useRef<KonvaStage | null>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 800 });
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null);
+  const [resizeSession, setResizeSession] = useState<{ objectId: string; handle: ResizeHandle } | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -175,16 +200,89 @@ export function EditorCanvas({
     onZoomChange(clampZoom(zoom * factor));
   };
 
+  const beginResize = (
+    event: KonvaEventObject<MouseEvent | TouchEvent>,
+    objectId: string,
+    handle: ResizeHandle,
+  ) => {
+    event.cancelBubble = true;
+    event.evt.preventDefault();
+    onObjectClick(objectId);
+    setResizeSession({ objectId, handle });
+  };
+
+  const endResize = () => {
+    setResizeSession(null);
+  };
+
+  const handleStagePointerMove = (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
+    if (!resizeSession) {
+      return;
+    }
+
+    const stage = stageRef.current ?? event.target.getStage();
+    if (!stage) {
+      return;
+    }
+
+    const stagePoint = getStagePointerPoint(stage);
+    if (!stagePoint) {
+      return;
+    }
+
+    const object = objects.find((item) => item.id === resizeSession.objectId);
+    if (!object) {
+      return;
+    }
+
+    const localPoint = getObjectLocalPoint(object, stagePoint);
+
+    if (resizeSession.handle === 'right') {
+      const nextWidth = Math.max(MIN_OBJECT_SIZE, localPoint.x);
+      onObjectClick(object.id);
+      onObjectSizeChange(object.id, {
+        width: nextWidth,
+        height: object.height,
+      });
+      return;
+    }
+
+    if (resizeSession.handle === 'bottom') {
+      const nextHeight = Math.max(MIN_OBJECT_SIZE, localPoint.y);
+      onObjectClick(object.id);
+      onObjectSizeChange(object.id, {
+        width: object.width,
+        height: nextHeight,
+      });
+      return;
+    }
+
+    const nextWidth = Math.max(MIN_OBJECT_SIZE, localPoint.x);
+    const nextHeight = Math.max(MIN_OBJECT_SIZE, localPoint.y);
+
+    onObjectClick(object.id);
+    onObjectSizeChange(object.id, {
+      width: nextWidth,
+      height: nextHeight,
+    });
+  };
+
   return (
     <div ref={containerRef} className="h-full w-full overflow-hidden rounded-md border border-slate-200 bg-white">
       <Stage
+        ref={stageRef}
         width={canvasSize.width}
         height={canvasSize.height}
         scaleX={zoom}
         scaleY={zoom}
-        draggable={isPanTool}
+        draggable={isPanTool && !resizeSession}
         onMouseDown={handlePointerDown}
         onTouchStart={handlePointerDown}
+        onMouseMove={handleStagePointerMove}
+        onTouchMove={handleStagePointerMove}
+        onMouseUp={endResize}
+        onTouchEnd={endResize}
+        onMouseLeave={endResize}
         onWheel={handleWheel}
       >
         {backgroundImage && (
@@ -217,9 +315,8 @@ export function EditorCanvas({
         <Layer>
           {objects.map((object) => {
             const isSelected = object.id === selectedObjectId;
-            const isDraggable = activeTool === 'select' && !object.locked;
+            const isDraggable = activeTool === 'select' && !object.locked && !resizeSession;
             const objectOpacity = getObjectOpacity(object.opacity);
-
             const cornerRadius =
               object.type === 'ramp_with_rails' || object.type === 'ramp_without_rails' ? 4 : 0;
 
@@ -269,11 +366,7 @@ export function EditorCanvas({
 
                   {object.type === 'ramp_with_rails' && (
                     <>
-                      <Line
-                        points={[8, 4, 8, object.height - 4]}
-                        stroke="#1e3a8a"
-                        strokeWidth={2}
-                      />
+                      <Line points={[8, 4, 8, object.height - 4]} stroke="#1e3a8a" strokeWidth={2} />
                       <Line
                         points={[object.width - 8, 4, object.width - 8, object.height - 4]}
                         stroke="#1e3a8a"
@@ -300,16 +393,8 @@ export function EditorCanvas({
 
                   {object.type === 'roof_overlay' && (
                     <>
-                      <Line
-                        points={[6, 6, object.width - 6, object.height - 6]}
-                        stroke="#475569"
-                        strokeWidth={1.5}
-                      />
-                      <Line
-                        points={[object.width - 6, 6, 6, object.height - 6]}
-                        stroke="#475569"
-                        strokeWidth={1.5}
-                      />
+                      <Line points={[6, 6, object.width - 6, object.height - 6]} stroke="#475569" strokeWidth={1.5} />
+                      <Line points={[object.width - 6, 6, 6, object.height - 6]} stroke="#475569" strokeWidth={1.5} />
                     </>
                   )}
 
@@ -377,15 +462,39 @@ export function EditorCanvas({
                       strokeWidth={2}
                       draggable
                       dragOnTop={false}
-                      onMouseDown={(event) => (event.cancelBubble = true)}
-                      onTouchStart={(event) => (event.cancelBubble = true)}
+                      onMouseDown={(event) => {
+                        event.cancelBubble = true;
+                      }}
+                      onTouchStart={(event) => {
+                        event.cancelBubble = true;
+                      }}
                       onDragMove={(event) => {
+                        const stage = stageRef.current ?? event.target.getStage();
+                        if (!stage) {
+                          return;
+                        }
+
+                        const stagePoint = getStagePointerPoint(stage);
+                        if (!stagePoint) {
+                          return;
+                        }
+
                         onObjectClick(object.id);
-                        onObjectRotationChange(object.id, getRotationFromHandle(object, event));
+                        onObjectRotationChange(object.id, getRotationFromHandle(object, stagePoint));
                       }}
                       onDragEnd={(event) => {
+                        const stage = stageRef.current ?? event.target.getStage();
+                        if (!stage) {
+                          return;
+                        }
+
+                        const stagePoint = getStagePointerPoint(stage);
+                        if (!stagePoint) {
+                          return;
+                        }
+
                         onObjectClick(object.id);
-                        onObjectRotationChange(object.id, getRotationFromHandle(object, event));
+                        onObjectRotationChange(object.id, getRotationFromHandle(object, stagePoint));
                       }}
                     />
 
@@ -396,30 +505,8 @@ export function EditorCanvas({
                       fill="#ffffff"
                       stroke="#1d4ed8"
                       strokeWidth={2}
-                      draggable
-                      dragOnTop={false}
-                      dragBoundFunc={(position) => ({
-                        x: position.x,
-                        y: object.height / 2,
-                      })}
-                      onMouseDown={(event) => (event.cancelBubble = true)}
-                      onTouchStart={(event) => (event.cancelBubble = true)}
-                      onDragMove={(event) => {
-                        const nextWidth = Math.max(MIN_OBJECT_SIZE, event.target.x());
-                        onObjectClick(object.id);
-                        onObjectSizeChange(object.id, {
-                          width: nextWidth,
-                          height: object.height,
-                        });
-                      }}
-                      onDragEnd={(event) => {
-                        const nextWidth = Math.max(MIN_OBJECT_SIZE, event.target.x());
-                        onObjectClick(object.id);
-                        onObjectSizeChange(object.id, {
-                          width: nextWidth,
-                          height: object.height,
-                        });
-                      }}
+                      onMouseDown={(event) => beginResize(event, object.id, 'right')}
+                      onTouchStart={(event) => beginResize(event, object.id, 'right')}
                     />
 
                     <Circle
@@ -429,30 +516,8 @@ export function EditorCanvas({
                       fill="#ffffff"
                       stroke="#1d4ed8"
                       strokeWidth={2}
-                      draggable
-                      dragOnTop={false}
-                      dragBoundFunc={(position) => ({
-                        x: object.width / 2,
-                        y: position.y,
-                      })}
-                      onMouseDown={(event) => (event.cancelBubble = true)}
-                      onTouchStart={(event) => (event.cancelBubble = true)}
-                      onDragMove={(event) => {
-                        const nextHeight = Math.max(MIN_OBJECT_SIZE, event.target.y());
-                        onObjectClick(object.id);
-                        onObjectSizeChange(object.id, {
-                          width: object.width,
-                          height: nextHeight,
-                        });
-                      }}
-                      onDragEnd={(event) => {
-                        const nextHeight = Math.max(MIN_OBJECT_SIZE, event.target.y());
-                        onObjectClick(object.id);
-                        onObjectSizeChange(object.id, {
-                          width: object.width,
-                          height: nextHeight,
-                        });
-                      }}
+                      onMouseDown={(event) => beginResize(event, object.id, 'bottom')}
+                      onTouchStart={(event) => beginResize(event, object.id, 'bottom')}
                     />
 
                     <Circle
@@ -462,28 +527,8 @@ export function EditorCanvas({
                       fill="#ffffff"
                       stroke="#1d4ed8"
                       strokeWidth={2}
-                      draggable
-                      dragOnTop={false}
-                      onMouseDown={(event) => (event.cancelBubble = true)}
-                      onTouchStart={(event) => (event.cancelBubble = true)}
-                      onDragMove={(event) => {
-                        const nextWidth = Math.max(MIN_OBJECT_SIZE, event.target.x());
-                        const nextHeight = Math.max(MIN_OBJECT_SIZE, event.target.y());
-                        onObjectClick(object.id);
-                        onObjectSizeChange(object.id, {
-                          width: nextWidth,
-                          height: nextHeight,
-                        });
-                      }}
-                      onDragEnd={(event) => {
-                        const nextWidth = Math.max(MIN_OBJECT_SIZE, event.target.x());
-                        const nextHeight = Math.max(MIN_OBJECT_SIZE, event.target.y());
-                        onObjectClick(object.id);
-                        onObjectSizeChange(object.id, {
-                          width: nextWidth,
-                          height: nextHeight,
-                        });
-                      }}
+                      onMouseDown={(event) => beginResize(event, object.id, 'corner')}
+                      onTouchStart={(event) => beginResize(event, object.id, 'corner')}
                     />
                   </>
                 )}

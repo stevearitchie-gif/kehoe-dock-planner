@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { useAuth } from '@/components/auth/useAuth';
 import { AppShell } from '@/components/layout/AppShell';
 import editorTools, { coreToolModes, objectToolModes, toolLabels, type ToolMode } from '@/features/editor/toolDefinitions';
 import { EditorCanvas } from '@/features/editor/components/EditorCanvas';
+import { getProject, saveProject } from '@/features/projects/projectService';
 import type { DockObject, DockProject, Point, ProjectScale, UnitType } from '@/types/dock';
 
 const MIN_OBJECT_SIZE = 10;
@@ -72,6 +74,8 @@ function getPolylineLength(points: Point[]): number {
 
 export function EditorPage() {
   const { projectId } = useParams<{ projectId: string }>();
+  const { user } = useAuth();
+
   const [project, setProject] = useState<DockProject>(() => buildEditorProject(projectId));
   const [activeTool, setActiveTool] = useState<ToolMode>('select');
   const [scalePoints, setScalePoints] = useState<Point[]>([]);
@@ -79,7 +83,11 @@ export function EditorPage() {
   const [isSnapToGridEnabled, setIsSnapToGridEnabled] = useState(true);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [isDeleteConfirmationVisible, setIsDeleteConfirmationVisible] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const objectUrlRef = useRef<string | null>(null);
+
+  const effectiveUserId = user?.uid ?? 'local-test-user';
 
   const isCoreTool = (tool: ToolMode): tool is (typeof coreToolModes)[number] =>
     coreToolModes.includes(tool as (typeof coreToolModes)[number]);
@@ -95,28 +103,52 @@ export function EditorPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let isActive = true;
+
+    if (!projectId) {
+      return;
+    }
+
+    getProject(effectiveUserId, projectId).then((savedProject) => {
+      if (!isActive) {
+        return;
+      }
+
+      if (savedProject) {
+        setProject(savedProject);
+      } else {
+        setProject(buildEditorProject(projectId));
+      }
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [effectiveUserId, projectId]);
+
   const projectName = project.name;
 
   const measuredPixels = useMemo(() => getPixelsFromPoints(scalePoints), [scalePoints]);
 
   const currentScale: ProjectScale = useMemo(
     () => ({
-      pixels: measuredPixels,
+      pixels: measuredPixels > 0 ? measuredPixels : project.scale?.pixels ?? 0,
       realLength: project.scale?.realLength ?? 0,
       unit: project.scale?.unit ?? 'ft',
     }),
-    [measuredPixels, project.scale?.realLength, project.scale?.unit],
+    [measuredPixels, project.scale?.pixels, project.scale?.realLength, project.scale?.unit],
   );
 
   const shorelineLengthPixels = useMemo(() => getPolylineLength(project.shorelinePoints), [project.shorelinePoints]);
 
   const estimatedShorelineLength = useMemo(() => {
-    if (project.scale && project.scale.pixels > 0 && project.scale.realLength > 0) {
-      return (shorelineLengthPixels / project.scale.pixels) * project.scale.realLength;
+    if (currentScale.pixels > 0 && currentScale.realLength > 0) {
+      return (shorelineLengthPixels / currentScale.pixels) * currentScale.realLength;
     }
 
     return null;
-  }, [project.scale, shorelineLengthPixels]);
+  }, [currentScale.pixels, currentScale.realLength, shorelineLengthPixels]);
 
   const sortedObjects = useMemo(() => getObjectsSortedByZIndex(project.objects), [project.objects]);
 
@@ -247,6 +279,8 @@ export function EditorPage() {
           objects: normalizeObjectZIndices([...prev.objects, nextObject]),
         };
       });
+
+      setActiveTool('select');
     }
   };
 
@@ -543,6 +577,27 @@ export function EditorPage() {
     }));
   };
 
+  const handleSaveProject = async () => {
+    const projectToSave: DockProject = {
+      ...project,
+      updatedAt: new Date().toISOString(),
+      scale: currentScale,
+    };
+
+    setProject(projectToSave);
+    setIsSaving(true);
+    setSaveMessage(null);
+
+    try {
+      await saveProject(effectiveUserId, projectToSave);
+      setSaveMessage('Saved');
+    } catch {
+      setSaveMessage('Save failed');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <AppShell className="h-screen overflow-hidden">
       <div className="flex h-full min-h-0 flex-col">
@@ -552,7 +607,14 @@ export function EditorPage() {
             <h1 className="text-lg font-semibold text-slate-900">{projectName}</h1>
           </div>
           <div className="flex items-center gap-2">
-            <button className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700">Save</button>
+            <button
+              type="button"
+              onClick={handleSaveProject}
+              disabled={isSaving}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSaving ? 'Saving...' : 'Save'}
+            </button>
             <button className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700">
               Export PDF
             </button>
@@ -566,6 +628,12 @@ export function EditorPage() {
             </Link>
           </div>
         </header>
+
+        {saveMessage && (
+          <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700">
+            {saveMessage}
+          </div>
+        )}
 
         <main className="grid h-full min-h-0 grid-cols-[240px_1fr_300px]">
           <aside className="overflow-y-auto border-r border-slate-200 bg-white p-3">
@@ -898,7 +966,7 @@ export function EditorPage() {
 
                 {estimatedShorelineLength !== null && (
                   <p className="mt-1 text-sm text-slate-600">
-                    Estimated real length: {estimatedShorelineLength.toFixed(2)} {project.scale?.unit}
+                    Estimated real length: {estimatedShorelineLength.toFixed(2)} {currentScale.unit}
                   </p>
                 )}
 
