@@ -8,9 +8,23 @@ import type { DockObject, DockProject, Point, ProjectScale, UnitType } from '@/t
 const MIN_OBJECT_SIZE = 10;
 const GRID_SIZE = 40;
 const DUPLICATE_OFFSET = 40;
+const DEFAULT_OBJECT_OPACITY = 1;
+const DEFAULT_ROOF_OVERLAY_OPACITY = 0.35;
 
 function snapToGrid(value: number): number {
   return Math.round(value / GRID_SIZE) * GRID_SIZE;
+}
+
+function clampOpacity(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function getDefaultOpacityByType(type: DockObject['type']): number {
+  return type === 'roof_overlay' ? DEFAULT_ROOF_OVERLAY_OPACITY : DEFAULT_OBJECT_OPACITY;
+}
+
+function getObjectOpacity(object: DockObject): number {
+  return clampOpacity(object.opacity ?? getDefaultOpacityByType(object.type));
 }
 
 function buildEditorProject(projectId: string | undefined): DockProject {
@@ -31,7 +45,6 @@ function getPixelsFromPoints(points: Point[]): number {
 
   return Math.hypot(points[1].x - points[0].x, points[1].y - points[0].y);
 }
-
 
 function normalizeObjectZIndices(objects: DockObject[]): DockObject[] {
   return objects.map((object, index) => ({
@@ -67,7 +80,10 @@ export function EditorPage() {
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [isDeleteConfirmationVisible, setIsDeleteConfirmationVisible] = useState(false);
   const objectUrlRef = useRef<string | null>(null);
-  const isCoreTool = (tool: ToolMode): tool is (typeof coreToolModes)[number] => coreToolModes.includes(tool as (typeof coreToolModes)[number]);
+
+  const isCoreTool = (tool: ToolMode): tool is (typeof coreToolModes)[number] =>
+    coreToolModes.includes(tool as (typeof coreToolModes)[number]);
+
   const isObjectTool = (tool: ToolMode): tool is (typeof objectToolModes)[number] =>
     objectToolModes.includes(tool as (typeof objectToolModes)[number]);
 
@@ -101,6 +117,25 @@ export function EditorPage() {
 
     return null;
   }, [project.scale, shorelineLengthPixels]);
+
+  const sortedObjects = useMemo(() => getObjectsSortedByZIndex(project.objects), [project.objects]);
+
+  const selectedObject = useMemo(
+    () => project.objects.find((object) => object.id === selectedObjectId) ?? null,
+    [project.objects, selectedObjectId],
+  );
+
+  const selectedObjectIndex = useMemo(
+    () => sortedObjects.findIndex((object) => object.id === selectedObjectId),
+    [selectedObjectId, sortedObjects],
+  );
+
+  const isSelectedObjectOnTop = selectedObjectIndex === sortedObjects.length - 1;
+  const isSelectedObjectOnBottom = selectedObjectIndex === 0;
+
+  useEffect(() => {
+    setIsDeleteConfirmationVisible(false);
+  }, [selectedObjectId]);
 
   const setProjectScale = (nextScale: ProjectScale) => {
     setProject((prev) => ({
@@ -158,7 +193,8 @@ export function EditorPage() {
       setProject((prev) => {
         const placementTool = activeTool as (typeof placementTools)[number];
         const sameTypeCount = prev.objects.filter((object) => object.type === placementTool).length;
-        const objectTypeNameByTool: Record<typeof placementTool, string> = {
+
+        const objectTypeNameByTool: Record<(typeof placementTools)[number], string> = {
           floating_dock: 'Floating Dock',
           stationary_dock: 'Stationary Dock',
           ramp_with_rails: 'Ramp With Rails',
@@ -167,7 +203,8 @@ export function EditorPage() {
           roof_overlay: 'Roof Overlay',
           boat_lift: 'Boat Lift',
         };
-        const objectSizeByTool: Record<typeof placementTool, { width: number; height: number }> = {
+
+        const objectSizeByTool: Record<(typeof placementTools)[number], { width: number; height: number }> = {
           floating_dock: { width: 120, height: 40 },
           stationary_dock: { width: 120, height: 40 },
           ramp_with_rails: { width: 100, height: 24 },
@@ -176,7 +213,8 @@ export function EditorPage() {
           roof_overlay: { width: 140, height: 80 },
           boat_lift: { width: 80, height: 30 },
         };
-        const objectColorByTool: Record<typeof placementTool, string> = {
+
+        const objectColorByTool: Record<(typeof placementTools)[number], string> = {
           floating_dock: '#86efac',
           stationary_dock: '#fcd34d',
           ramp_with_rails: '#93c5fd',
@@ -194,6 +232,7 @@ export function EditorPage() {
           width: objectSizeByTool[placementTool].width,
           height: objectSizeByTool[placementTool].height,
           rotation: 0,
+          opacity: getDefaultOpacityByType(placementTool),
           label: `${objectTypeNameByTool[placementTool]} ${sameTypeCount + 1}`,
           color: objectColorByTool[placementTool],
           zIndex: prev.objects.length + 1,
@@ -267,25 +306,6 @@ export function EditorPage() {
       ),
     }));
   };
-
-  const sortedObjects = useMemo(() => getObjectsSortedByZIndex(project.objects), [project.objects]);
-
-  const selectedObject = useMemo(
-    () => project.objects.find((object) => object.id === selectedObjectId) ?? null,
-    [project.objects, selectedObjectId],
-  );
-
-  const selectedObjectIndex = useMemo(
-    () => sortedObjects.findIndex((object) => object.id === selectedObjectId),
-    [selectedObjectId, sortedObjects],
-  );
-
-  const isSelectedObjectOnTop = selectedObjectIndex === sortedObjects.length - 1;
-  const isSelectedObjectOnBottom = selectedObjectIndex === 0;
-
-  useEffect(() => {
-    setIsDeleteConfirmationVisible(false);
-  }, [selectedObjectId]);
 
   const handleBringSelectedObjectForward = () => {
     if (!selectedObjectId || isSelectedObjectOnTop || selectedObjectIndex < 0) {
@@ -438,6 +458,18 @@ export function EditorPage() {
     }));
   };
 
+  const handleSelectedObjectOpacityChange = (value: string) => {
+    const parsedValue = Number(value);
+    if (!Number.isFinite(parsedValue)) {
+      return;
+    }
+
+    updateSelectedObject((object) => ({
+      ...object,
+      opacity: clampOpacity(parsedValue),
+    }));
+  };
+
   const handleSelectedObjectLabelChange = (value: string) => {
     updateSelectedObject((object) => ({
       ...object,
@@ -513,7 +545,7 @@ export function EditorPage() {
 
   return (
     <AppShell className="h-screen overflow-hidden">
-      <div className="flex h-full flex-col">
+      <div className="flex h-full min-h-0 flex-col">
         <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
           <div>
             <p className="text-xs uppercase tracking-wider text-slate-500">Kehoe Dock Planner</p>
@@ -535,8 +567,8 @@ export function EditorPage() {
           </div>
         </header>
 
-        <main className="grid h-full grid-cols-[240px_1fr_300px]">
-          <aside className="border-r border-slate-200 bg-white p-3">
+        <main className="grid h-full min-h-0 grid-cols-[240px_1fr_300px]">
+          <aside className="overflow-y-auto border-r border-slate-200 bg-white p-3">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Tools</p>
             <div className="grid grid-cols-1 gap-2">
               {editorTools.map((tool) => {
@@ -562,7 +594,7 @@ export function EditorPage() {
             </div>
           </aside>
 
-          <section className="bg-slate-50 p-4">
+          <section className="min-h-0 bg-slate-50 p-4">
             <EditorCanvas
               activeTool={activeTool}
               scalePoints={scalePoints}
@@ -581,16 +613,19 @@ export function EditorPage() {
             />
           </section>
 
-          <aside className="border-l border-slate-200 bg-white p-4">
+          <aside className="overflow-y-auto border-l border-slate-200 bg-white p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Properties</p>
-            <div className="mt-3 space-y-3">
+
+            <div className="mt-3 space-y-3 pb-6">
               <div className="rounded-md border border-slate-200 p-3">
                 <h3 className="text-sm font-semibold text-slate-800">Site Image</h3>
                 <p className="mt-1 text-sm text-slate-600">
                   Upload a single site image to use as the canvas background.
                 </p>
                 <label className="mt-3 block">
-                  <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Upload Site Image</span>
+                  <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Upload Site Image
+                  </span>
                   <input
                     type="file"
                     accept="image/*"
@@ -632,11 +667,15 @@ export function EditorPage() {
               <div className="rounded-md border border-slate-200 p-3">
                 <h3 className="text-sm font-semibold text-slate-800">Selected Object</h3>
                 {!selectedObject && <p className="mt-1 text-sm text-slate-600">No object selected.</p>}
+
                 {selectedObject && (
                   <div className="mt-2 space-y-3 text-sm text-slate-700">
                     <p>Type: {selectedObject.type}</p>
+
                     <label className="block">
-                      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Label</span>
+                      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Label
+                      </span>
                       <input
                         type="text"
                         value={selectedObject.label}
@@ -644,24 +683,33 @@ export function EditorPage() {
                         className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
                       />
                     </label>
+
                     <label className="block">
-                      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">X</span>
+                      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                        X
+                      </span>
                       <input
                         value={selectedObject.x.toFixed(2)}
                         readOnly
                         className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700"
                       />
                     </label>
+
                     <label className="block">
-                      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Y</span>
+                      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Y
+                      </span>
                       <input
                         value={selectedObject.y.toFixed(2)}
                         readOnly
                         className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700"
                       />
                     </label>
+
                     <label className="block">
-                      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Width</span>
+                      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Width
+                      </span>
                       <input
                         type="number"
                         min={MIN_OBJECT_SIZE}
@@ -671,8 +719,11 @@ export function EditorPage() {
                         className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
                       />
                     </label>
+
                     <label className="block">
-                      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Height</span>
+                      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Height
+                      </span>
                       <input
                         type="number"
                         min={MIN_OBJECT_SIZE}
@@ -682,8 +733,11 @@ export function EditorPage() {
                         className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
                       />
                     </label>
+
                     <label className="block">
-                      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Rotation (degrees)</span>
+                      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Rotation (degrees)
+                      </span>
                       <input
                         type="number"
                         step="any"
@@ -692,6 +746,38 @@ export function EditorPage() {
                         className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
                       />
                     </label>
+
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Opacity
+                      </span>
+                      <div className="space-y-2">
+                        <input
+                          type="range"
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          value={getObjectOpacity(selectedObject)}
+                          onChange={(event) => handleSelectedObjectOpacityChange(event.target.value)}
+                          className="w-full"
+                        />
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={0}
+                            max={1}
+                            step={0.01}
+                            value={Number(getObjectOpacity(selectedObject).toFixed(2))}
+                            onChange={(event) => handleSelectedObjectOpacityChange(event.target.value)}
+                            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                          />
+                          <span className="min-w-[52px] text-right text-xs text-slate-500">
+                            {Math.round(getObjectOpacity(selectedObject) * 100)}%
+                          </span>
+                        </div>
+                      </div>
+                    </label>
+
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
@@ -712,6 +798,7 @@ export function EditorPage() {
                     </div>
                   </div>
                 )}
+
                 <button
                   type="button"
                   onClick={handleDuplicateSelectedObject}
@@ -720,6 +807,7 @@ export function EditorPage() {
                 >
                   Duplicate Selected Object
                 </button>
+
                 <button
                   type="button"
                   onClick={handleDeleteSelectedObject}
@@ -728,6 +816,7 @@ export function EditorPage() {
                 >
                   Delete Selected Object
                 </button>
+
                 {isDeleteConfirmationVisible && selectedObject && (
                   <div className="mt-3 rounded-md border border-rose-300 bg-rose-50 p-3">
                     <p className="text-sm font-medium text-rose-800">Confirm delete</p>
@@ -762,7 +851,9 @@ export function EditorPage() {
 
                 <div className="mt-3 grid gap-3">
                   <label className="text-sm text-slate-700">
-                    <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Measured Pixels</span>
+                    <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Measured Pixels
+                    </span>
                     <input
                       className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700"
                       value={currentScale.pixels.toFixed(2)}
@@ -771,7 +862,9 @@ export function EditorPage() {
                   </label>
 
                   <label className="text-sm text-slate-700">
-                    <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Real Length</span>
+                    <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Real Length
+                    </span>
                     <input
                       type="number"
                       min={0}
@@ -783,7 +876,9 @@ export function EditorPage() {
                   </label>
 
                   <label className="text-sm text-slate-700">
-                    <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Unit</span>
+                    <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Unit
+                    </span>
                     <select
                       value={currentScale.unit}
                       onChange={(event) => handleScaleUnitChange(event.target.value as UnitType)}
@@ -800,6 +895,7 @@ export function EditorPage() {
                 <h3 className="text-sm font-semibold text-slate-800">Shoreline</h3>
                 <p className="mt-1 text-sm text-slate-600">Point count: {project.shorelinePoints.length}</p>
                 <p className="mt-1 text-sm text-slate-600">Total length: {shorelineLengthPixels.toFixed(2)} px</p>
+
                 {estimatedShorelineLength !== null && (
                   <p className="mt-1 text-sm text-slate-600">
                     Estimated real length: {estimatedShorelineLength.toFixed(2)} {project.scale?.unit}

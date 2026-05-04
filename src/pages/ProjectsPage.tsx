@@ -3,8 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/components/auth/useAuth';
 import { AppShell } from '@/components/layout/AppShell';
 import { ProjectsTable } from '@/components/projects/ProjectsTable';
-import { listProjects } from '@/features/projects/projectService';
+import { createProject, listProjects } from '@/features/projects/projectService';
 import { DockProject } from '@/types/dock';
+
+function buildNewProject(): DockProject {
+  const now = new Date().toISOString();
+
+  return {
+    id: crypto.randomUUID(),
+    name: 'Untitled Project',
+    createdAt: now,
+    updatedAt: now,
+    shorelinePoints: [],
+    objects: [],
+  };
+}
 
 export function ProjectsPage() {
   const navigate = useNavigate();
@@ -12,23 +25,31 @@ export function ProjectsPage() {
   const [projects, setProjects] = useState<DockProject[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!user) {
-      return;
-    }
+  const effectiveUserId = user?.uid ?? 'local-test-user';
 
-    listProjects(user.uid).then((projectList) => {
+  useEffect(() => {
+    listProjects(effectiveUserId).then((projectList) => {
       setProjects(projectList);
       if (projectList.length > 0) {
         setSelectedProjectId(projectList[0].id);
       }
     });
-  }, [user]);
+  }, [effectiveUserId]);
 
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === selectedProjectId) ?? null,
     [projects, selectedProjectId],
   );
+
+  const handleCreateProject = async () => {
+    const newProject = buildNewProject();
+
+    await createProject(effectiveUserId, newProject);
+
+    setProjects((prev) => [newProject, ...prev]);
+    setSelectedProjectId(newProject.id);
+    navigate(`/editor/${newProject.id}`);
+  };
 
   return (
     <AppShell>
@@ -55,7 +76,10 @@ export function ProjectsPage() {
         />
 
         <div className="mt-4 flex gap-3">
-          <button className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+          <button
+            className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+            onClick={handleCreateProject}
+          >
             New Project
           </button>
           <button
