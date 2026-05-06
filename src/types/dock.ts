@@ -29,6 +29,8 @@ export interface DockObject {
   zIndex: number;
   locked: boolean;
   opacity?: number;
+  labelOffsetX?: number;
+  labelOffsetY?: number;
   metadata?: {
     elevation?: number;
     material?: string;

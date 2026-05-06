@@ -17,6 +17,7 @@ interface EditorCanvasProps {
   onObjectPositionChange: (objectId: string, point: Point) => void;
   onObjectSizeChange: (objectId: string, size: { width: number; height: number }) => void;
   onObjectRotationChange: (objectId: string, rotation: number) => void;
+  onObjectLabelOffsetChange: (objectId: string, offset: Point) => void;
   isSnapToGridEnabled: boolean;
   zoom: number;
   onZoomChange: (nextZoom: number) => void;
@@ -43,6 +44,8 @@ const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 3;
 const MIN_OBJECT_SIZE = 10;
 const ROTATION_HANDLE_OFFSET = 28;
+const LABEL_BOX_MIN_WIDTH = 120;
+const LABEL_BOX_HEIGHT = 24;
 
 function clampZoom(value: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
@@ -114,6 +117,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     onObjectPositionChange,
     onObjectSizeChange,
     onObjectRotationChange,
+    onObjectLabelOffsetChange,
     isSnapToGridEnabled,
     zoom,
     onZoomChange,
@@ -441,6 +445,14 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 ? interactionSession.previewRotation
                 : object.rotation;
 
+            const labelWidth = Math.max(object.width, LABEL_BOX_MIN_WIDTH);
+            const labelHeight = LABEL_BOX_HEIGHT;
+            const defaultLabelX = object.width / 2 - labelWidth / 2;
+            const defaultLabelY = object.height / 2 - labelHeight / 2;
+            const labelX = defaultLabelX + (object.labelOffsetX ?? 0);
+            const labelY = defaultLabelY + (object.labelOffsetY ?? 0);
+            const isLabelDraggable = isSelected && activeTool === 'select' && !object.locked && !interactionSession;
+
             return (
               <Group
                 key={object.id}
@@ -535,10 +547,54 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                     </>
                   )}
 
-                  <Text
+                </Group>
+
+                <Group
+                  x={labelX}
+                  y={labelY}
+                  draggable={isLabelDraggable}
+                  onClick={(event) => {
+                    event.cancelBubble = true;
+                    onObjectClick(object.id);
+                  }}
+                  onTap={(event) => {
+                    event.cancelBubble = true;
+                    onObjectClick(object.id);
+                  }}
+                  onMouseDown={(event) => {
+                    event.cancelBubble = true;
+                    onObjectClick(object.id);
+                  }}
+                  onDragStart={(event) => {
+                    event.cancelBubble = true;
+                    onObjectClick(object.id);
+                  }}
+                  onDragMove={(event) => {
+                    event.cancelBubble = true;
+                  }}
+                  onDragEnd={(event) => {
+                    event.cancelBubble = true;
+                    onObjectLabelOffsetChange(object.id, {
+                      x: event.target.x() - defaultLabelX,
+                      y: event.target.y() - defaultLabelY,
+                    });
+                  }}
+                >
+                  <Rect
                     x={0}
-                    y={object.height / 2 - 7}
-                    width={object.width}
+                    y={0}
+                    width={labelWidth}
+                    height={labelHeight}
+                    fill="#ffffff"
+                    opacity={0.001}
+                    strokeWidth={0}
+                    cornerRadius={4}
+                  />
+                  <Text
+                    x={4}
+                    y={4}
+                    width={labelWidth - 8}
+                    height={labelHeight - 8}
                     align="center"
                     verticalAlign="middle"
                     text={object.label}

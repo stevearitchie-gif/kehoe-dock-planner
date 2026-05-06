@@ -874,6 +874,30 @@ export function EditorPage() {
     }));
   };
 
+  const handleObjectLabelOffsetChange = (objectId: string, offset: Point) => {
+    setProject((prev) => ({
+      ...prev,
+      updatedAt: new Date().toISOString(),
+      objects: prev.objects.map((object) =>
+        object.id === objectId
+          ? {
+              ...object,
+              labelOffsetX: Math.abs(offset.x) < 0.5 ? undefined : offset.x,
+              labelOffsetY: Math.abs(offset.y) < 0.5 ? undefined : offset.y,
+            }
+          : object,
+      ),
+    }));
+  };
+
+  const handleResetSelectedObjectLabelPosition = () => {
+    updateSelectedObject((object) => ({
+      ...object,
+      labelOffsetX: undefined,
+      labelOffsetY: undefined,
+    }));
+  };
+
   const handleSelectedObjectColorChange = (value: string) => {
     updateSelectedObject((object) => ({
       ...object,
@@ -1164,6 +1188,7 @@ export function EditorPage() {
               onObjectPositionChange={handleObjectPositionChange}
               onObjectSizeChange={handleObjectSizeChange}
               onObjectRotationChange={handleObjectRotationChange}
+              onObjectLabelOffsetChange={handleObjectLabelOffsetChange}
               isSnapToGridEnabled={isSnapToGridEnabled}
               zoom={zoom}
               onZoomChange={setZoom}
@@ -1285,6 +1310,23 @@ export function EditorPage() {
                         className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
                       />
                     </label>
+
+                    <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Label Position
+                      </p>
+                      <p className="mt-1 text-xs text-slate-600">
+                        Select an object, then drag its label on the canvas to place it outside the element.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleResetSelectedObjectLabelPosition}
+                        disabled={!selectedObject.labelOffsetX && !selectedObject.labelOffsetY}
+                        className="mt-3 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Reset Label Inside Element
+                      </button>
+                    </div>
 
                     <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
                       <div className="flex items-center justify-between gap-3">
