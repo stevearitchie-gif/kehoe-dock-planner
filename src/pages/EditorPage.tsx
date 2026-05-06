@@ -3,7 +3,14 @@ import { deleteObject, getDownloadURL, ref as storageRef, uploadBytes } from 'fi
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '@/components/auth/useAuth';
 import { AppShell } from '@/components/layout/AppShell';
-import editorTools, { coreToolModes, objectToolModes, toolLabels, type ToolMode } from '@/features/editor/toolDefinitions';
+import editorTools, {
+  coreToolModes,
+  dockElementToolModes,
+  genericShapeToolModes,
+  objectToolModes,
+  toolLabels,
+  type ToolMode,
+} from '@/features/editor/toolDefinitions';
 import { EditorCanvas, type EditorCanvasHandle } from '@/features/editor/components/EditorCanvas';
 import { getProject, saveProject } from '@/features/projects/projectService';
 import { storage } from '@/lib/firebase';
@@ -354,6 +361,7 @@ export function EditorPage() {
   const [zoom, setZoom] = useState(1);
   const [isSnapToGridEnabled, setIsSnapToGridEnabled] = useState(true);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
+  const [isShapeSelectorOpen, setIsShapeSelectorOpen] = useState(false);
   const [isDeleteConfirmationVisible, setIsDeleteConfirmationVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingSiteImage, setIsUploadingSiteImage] = useState(false);
@@ -1298,27 +1306,95 @@ export function EditorPage() {
         <main className="grid h-full min-h-0 w-full min-w-0 overflow-hidden grid-cols-[240px_minmax(0,1fr)_300px]">
           <aside className="min-w-0 overflow-y-auto border-r border-slate-200 bg-white p-3">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Tools</p>
-            <div className="grid grid-cols-1 gap-2">
-              {editorTools.map((tool) => {
-                const isActive = tool === activeTool;
-                const isEnabled = isCoreTool(tool) || isObjectTool(tool);
 
-                return (
-                  <button
-                    key={tool}
-                    type="button"
-                    onClick={() => handleToolClick(tool)}
-                    disabled={!isEnabled}
-                    className={`rounded-md border px-3 py-2 text-left text-sm ${
-                      isActive
-                        ? 'border-brand-600 bg-brand-50 text-brand-700'
-                        : 'border-slate-200 text-slate-700 hover:bg-slate-100'
-                    } ${!isEnabled ? 'cursor-not-allowed opacity-50' : ''}`}
-                  >
-                    {toolLabels[tool]}
-                  </button>
-                );
-              })}
+            <div className="space-y-4">
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Core Tools</p>
+                <div className="grid grid-cols-1 gap-2">
+                  {coreToolModes.map((tool) => {
+                    const isActive = tool === activeTool;
+                    const isEnabled = isCoreTool(tool) || isObjectTool(tool);
+
+                    return (
+                      <button
+                        key={tool}
+                        type="button"
+                        onClick={() => handleToolClick(tool)}
+                        disabled={!isEnabled}
+                        className={`rounded-md border px-3 py-2 text-left text-sm ${
+                          isActive
+                            ? 'border-brand-600 bg-brand-50 text-brand-700'
+                            : 'border-slate-200 text-slate-700 hover:bg-slate-100'
+                        } ${!isEnabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                      >
+                        {toolLabels[tool]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Dock Elements</p>
+                <div className="grid grid-cols-1 gap-2">
+                  {dockElementToolModes.map((tool) => {
+                    const isActive = tool === activeTool;
+                    const isEnabled = isCoreTool(tool) || isObjectTool(tool);
+
+                    return (
+                      <button
+                        key={tool}
+                        type="button"
+                        onClick={() => handleToolClick(tool)}
+                        disabled={!isEnabled}
+                        className={`rounded-md border px-3 py-2 text-left text-sm ${
+                          isActive
+                            ? 'border-brand-600 bg-brand-50 text-brand-700'
+                            : 'border-slate-200 text-slate-700 hover:bg-slate-100'
+                        } ${!isEnabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                      >
+                        {toolLabels[tool]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Shapes</p>
+                <button
+                  type="button"
+                  onClick={() => setIsShapeSelectorOpen((previous) => !previous)}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-100"
+                >
+                  {isShapeSelectorOpen ? 'Hide Shapes' : 'Choose Shape'}
+                </button>
+
+                {isShapeSelectorOpen && (
+                  <div className="mt-2 grid grid-cols-1 gap-2 rounded-md border border-slate-200 bg-slate-50 p-2">
+                    {genericShapeToolModes.map((tool) => {
+                      const isActive = tool === activeTool;
+                      const isEnabled = isCoreTool(tool) || isObjectTool(tool);
+
+                      return (
+                        <button
+                          key={tool}
+                          type="button"
+                          onClick={() => handleToolClick(tool)}
+                          disabled={!isEnabled}
+                          className={`rounded-md border px-3 py-2 text-left text-sm ${
+                            isActive
+                              ? 'border-brand-600 bg-brand-50 text-brand-700'
+                              : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                          } ${!isEnabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                        >
+                          {toolLabels[tool]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </aside>
 

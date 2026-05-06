@@ -1,6 +1,6 @@
 export const coreToolModes = ['select', 'pan', 'scale', 'shoreline'] as const;
 
-export const objectToolModes = [
+export const dockElementToolModes = [
   'floating_dock',
   'stationary_dock',
   'ramp_with_rails',
@@ -9,6 +9,9 @@ export const objectToolModes = [
   'roof_overlay',
   'boat_lift',
   'dimension_line',
+] as const;
+
+export const genericShapeToolModes = [
   'shape_rectangle',
   'shape_rounded_rectangle',
   'shape_oval',
@@ -22,6 +25,8 @@ export const objectToolModes = [
   'shape_arrow_line',
   'shape_double_arrow_line',
 ] as const;
+
+export const objectToolModes = [...dockElementToolModes, ...genericShapeToolModes] as const;
 
 export type ToolMode = (typeof coreToolModes)[number] | (typeof objectToolModes)[number];
 
