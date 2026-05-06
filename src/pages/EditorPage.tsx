@@ -19,6 +19,19 @@ const MAX_ZOOM = 3;
 const ZOOM_STEP = 0.1;
 const MAX_SITE_IMAGE_BYTES = 10 * 1024 * 1024;
 
+const OBJECT_COLOR_PRESETS = [
+  { label: 'Cedar Dock', value: '#b77945' },
+  { label: 'Pressure Treated', value: '#8f9779' },
+  { label: 'Grey Composite', value: '#9ca3af' },
+  { label: 'Tan Composite', value: '#c2a878' },
+  { label: 'Aluminum', value: '#cbd5e1' },
+  { label: 'Black Hardware', value: '#1f2937' },
+  { label: 'Safety Orange', value: '#f97316' },
+  { label: 'Roof Grey', value: '#64748b' },
+  { label: 'Water Blue', value: '#38bdf8' },
+  { label: 'White', value: '#f8fafc' },
+];
+
 function snapToGrid(value: number): number {
   return Math.round(value / GRID_SIZE) * GRID_SIZE;
 }
@@ -861,6 +874,13 @@ export function EditorPage() {
     }));
   };
 
+  const handleSelectedObjectColorChange = (value: string) => {
+    updateSelectedObject((object) => ({
+      ...object,
+      color: value,
+    }));
+  };
+
   const handleScaleLengthChange = (value: string) => {
     const parsedValue = Number(value);
 
@@ -1265,6 +1285,52 @@ export function EditorPage() {
                         className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
                       />
                     </label>
+
+                    <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Element Colour
+                          </p>
+                          <p className="mt-1 text-xs text-slate-600">
+                            Choose a custom colour or use a realistic material preset.
+                          </p>
+                        </div>
+                        <input
+                          type="color"
+                          value={selectedObject.color}
+                          onChange={(event) => handleSelectedObjectColorChange(event.target.value)}
+                          className="h-10 w-12 cursor-pointer rounded-md border border-slate-300 bg-white p-1"
+                          aria-label="Selected object colour"
+                        />
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        {OBJECT_COLOR_PRESETS.map((preset) => {
+                          const isSelectedColour =
+                            selectedObject.color.toLowerCase() === preset.value.toLowerCase();
+
+                          return (
+                            <button
+                              key={preset.value}
+                              type="button"
+                              onClick={() => handleSelectedObjectColorChange(preset.value)}
+                              className={`flex items-center gap-2 rounded-md border px-2 py-2 text-left text-xs ${
+                                isSelectedColour
+                                  ? 'border-brand-600 bg-brand-50 text-brand-700'
+                                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                              }`}
+                            >
+                              <span
+                                className="h-4 w-4 shrink-0 rounded border border-slate-300"
+                                style={{ backgroundColor: preset.value }}
+                              />
+                              <span className="truncate">{preset.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
 
                     <label className="block">
                       <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
