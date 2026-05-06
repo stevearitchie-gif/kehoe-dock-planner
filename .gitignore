@@ -5,3 +5,15 @@ node_modules
 .DS_Store
 .env
 .env.*
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# Generated config output
+vite.config.js
+vite.config.d.ts
+
+# Accidental scratch files
+,
+0
+1

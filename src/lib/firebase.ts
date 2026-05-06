@@ -1,15 +1,15 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore/lite';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: 'YOUR_API_KEY',
-  authDomain: 'YOUR_AUTH_DOMAIN',
-  projectId: 'YOUR_PROJECT_ID',
-  storageBucket: 'YOUR_STORAGE_BUCKET',
-  messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-  appId: 'YOUR_APP_ID',
+  apiKey: 'AIzaSyBY-xxqiLjFUbyXbyK1NemYlZeENc_DD3E',
+  authDomain: 'kehoe-dock-planner.firebaseapp.com',
+  projectId: 'kehoe-dock-planner',
+  storageBucket: 'kehoe-dock-planner.firebasestorage.app',
+  messagingSenderId: '719636145592',
+  appId: '1:719636145592:web:12b63cb76abbd13b9a5b4d',
 };
 
 const app = initializeApp(firebaseConfig);

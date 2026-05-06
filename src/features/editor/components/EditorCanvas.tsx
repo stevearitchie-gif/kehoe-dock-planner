@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text } from 'react-konva';
 import type { Stage as KonvaStage } from 'konva/lib/Stage';
 import type { KonvaEventObject } from 'konva/lib/Node';
@@ -22,7 +22,21 @@ interface EditorCanvasProps {
   onZoomChange: (nextZoom: number) => void;
 }
 
+export interface EditorCanvasHandle {
+  exportAsImage: (pixelRatio?: number) => string | null;
+}
+
 type ResizeHandle = 'right' | 'bottom' | 'corner';
+
+type InteractionSession =
+  | { type: 'resize'; objectId: string; handle: ResizeHandle }
+  | {
+      type: 'rotate';
+      objectId: string;
+      startRotation: number;
+      startAngle: number;
+      previewRotation: number;
+    };
 
 const GRID_SIZE = 40;
 const MIN_ZOOM = 0.2;
@@ -70,33 +84,59 @@ function getObjectLocalPoint(object: DockObject, stagePoint: Point): Point {
   };
 }
 
-function getRotationFromHandle(object: DockObject, stagePoint: Point): number {
+function getAngleFromStagePoint(object: DockObject, stagePoint: Point): number {
   const localPoint = getObjectLocalPoint(object, stagePoint);
   const angleRadians = Math.atan2(localPoint.y, localPoint.x - object.width / 2);
   return (angleRadians * 180) / Math.PI + 90;
 }
 
-export function EditorCanvas({
-  activeTool,
-  scalePoints,
-  shorelinePoints,
-  objects,
-  selectedObjectId,
-  backgroundImageUrl,
-  onCanvasPointClick,
-  onObjectClick,
-  onObjectPositionChange,
-  onObjectSizeChange,
-  onObjectRotationChange,
-  isSnapToGridEnabled,
-  zoom,
-  onZoomChange,
-}: EditorCanvasProps) {
+function normalizeAngleDelta(delta: number): number {
+  let normalized = delta;
+  while (normalized > 180) {
+    normalized -= 360;
+  }
+  while (normalized < -180) {
+    normalized += 360;
+  }
+  return normalized;
+}
+
+export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function EditorCanvas(
+  {
+    activeTool,
+    scalePoints,
+    shorelinePoints,
+    objects,
+    selectedObjectId,
+    backgroundImageUrl,
+    onCanvasPointClick,
+    onObjectClick,
+    onObjectPositionChange,
+    onObjectSizeChange,
+    onObjectRotationChange,
+    isSnapToGridEnabled,
+    zoom,
+    onZoomChange,
+  },
+  ref,
+) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<KonvaStage | null>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 800 });
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null);
-  const [resizeSession, setResizeSession] = useState<{ objectId: string; handle: ResizeHandle } | null>(null);
+  const [interactionSession, setInteractionSession] = useState<InteractionSession | null>(null);
+  const [stagePosition, setStagePosition] = useState<Point>({ x: 0, y: 0 });
+
+  useImperativeHandle(ref, () => ({
+    exportAsImage(pixelRatio = 2) {
+      return (
+        stageRef.current?.toDataURL({
+          pixelRatio,
+          mimeType: 'image/png',
+        }) ?? null
+      );
+    },
+  }));
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -143,6 +183,12 @@ export function EditorCanvas({
       image.onerror = null;
     };
   }, [backgroundImageUrl]);
+
+  useEffect(() => {
+    if (zoom <= 1) {
+      setStagePosition({ x: 0, y: 0 });
+    }
+  }, [zoom]);
 
   const scaleLinePoints = useMemo(() => {
     if (scalePoints.length < 2) {
@@ -208,15 +254,44 @@ export function EditorCanvas({
     event.cancelBubble = true;
     event.evt.preventDefault();
     onObjectClick(objectId);
-    setResizeSession({ objectId, handle });
+    setInteractionSession({ type: 'resize', objectId, handle });
   };
 
-  const endResize = () => {
-    setResizeSession(null);
+  const beginRotate = (event: KonvaEventObject<MouseEvent | TouchEvent>, object: DockObject) => {
+    event.cancelBubble = true;
+    event.evt.preventDefault();
+
+    const stage = stageRef.current ?? event.target.getStage();
+    if (!stage) {
+      return;
+    }
+
+    const stagePoint = getStagePointerPoint(stage);
+    if (!stagePoint) {
+      return;
+    }
+
+    onObjectClick(object.id);
+
+    setInteractionSession({
+      type: 'rotate',
+      objectId: object.id,
+      startRotation: object.rotation,
+      startAngle: getAngleFromStagePoint(object, stagePoint),
+      previewRotation: object.rotation,
+    });
+  };
+
+  const endInteraction = () => {
+    if (interactionSession?.type === 'rotate') {
+      onObjectRotationChange(interactionSession.objectId, interactionSession.previewRotation);
+    }
+
+    setInteractionSession(null);
   };
 
   const handleStagePointerMove = (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
-    if (!resizeSession) {
+    if (!interactionSession) {
       return;
     }
 
@@ -230,14 +305,33 @@ export function EditorCanvas({
       return;
     }
 
-    const object = objects.find((item) => item.id === resizeSession.objectId);
+    const object = objects.find((item) => item.id === interactionSession.objectId);
     if (!object) {
+      return;
+    }
+
+    if (interactionSession.type === 'rotate') {
+      const currentAngle = getAngleFromStagePoint(object, stagePoint);
+      const angleDelta = normalizeAngleDelta(currentAngle - interactionSession.startAngle);
+      const nextRotation = interactionSession.startRotation + angleDelta;
+
+      setInteractionSession((prev) => {
+        if (!prev || prev.type !== 'rotate' || prev.objectId !== object.id) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          previewRotation: nextRotation,
+        };
+      });
+
       return;
     }
 
     const localPoint = getObjectLocalPoint(object, stagePoint);
 
-    if (resizeSession.handle === 'right') {
+    if (interactionSession.handle === 'right') {
       const nextWidth = Math.max(MIN_OBJECT_SIZE, localPoint.x);
       onObjectClick(object.id);
       onObjectSizeChange(object.id, {
@@ -247,7 +341,7 @@ export function EditorCanvas({
       return;
     }
 
-    if (resizeSession.handle === 'bottom') {
+    if (interactionSession.handle === 'bottom') {
       const nextHeight = Math.max(MIN_OBJECT_SIZE, localPoint.y);
       onObjectClick(object.id);
       onObjectSizeChange(object.id, {
@@ -273,16 +367,38 @@ export function EditorCanvas({
         ref={stageRef}
         width={canvasSize.width}
         height={canvasSize.height}
+        x={stagePosition.x}
+        y={stagePosition.y}
         scaleX={zoom}
         scaleY={zoom}
-        draggable={isPanTool && !resizeSession}
+        draggable={isPanTool && !interactionSession}
+        onDragMove={(event) => {
+          if (!isPanTool) {
+            return;
+          }
+
+          setStagePosition({
+            x: event.target.x(),
+            y: event.target.y(),
+          });
+        }}
+        onDragEnd={(event) => {
+          if (!isPanTool) {
+            return;
+          }
+
+          setStagePosition({
+            x: event.target.x(),
+            y: event.target.y(),
+          });
+        }}
         onMouseDown={handlePointerDown}
         onTouchStart={handlePointerDown}
         onMouseMove={handleStagePointerMove}
         onTouchMove={handleStagePointerMove}
-        onMouseUp={endResize}
-        onTouchEnd={endResize}
-        onMouseLeave={endResize}
+        onMouseUp={endInteraction}
+        onTouchEnd={endInteraction}
+        onMouseLeave={endInteraction}
         onWheel={handleWheel}
       >
         {backgroundImage && (
@@ -315,17 +431,22 @@ export function EditorCanvas({
         <Layer>
           {objects.map((object) => {
             const isSelected = object.id === selectedObjectId;
-            const isDraggable = activeTool === 'select' && !object.locked && !resizeSession;
+            const isDraggable = activeTool === 'select' && !object.locked && !interactionSession;
             const objectOpacity = getObjectOpacity(object.opacity);
             const cornerRadius =
               object.type === 'ramp_with_rails' || object.type === 'ramp_without_rails' ? 4 : 0;
+
+            const renderedRotation =
+              interactionSession?.type === 'rotate' && interactionSession.objectId === object.id
+                ? interactionSession.previewRotation
+                : object.rotation;
 
             return (
               <Group
                 key={object.id}
                 x={object.x}
                 y={object.y}
-                rotation={object.rotation}
+                rotation={renderedRotation}
                 draggable={isDraggable}
                 dragBoundFunc={
                   isSnapToGridEnabled
@@ -338,12 +459,6 @@ export function EditorCanvas({
                 onClick={() => onObjectClick(object.id)}
                 onTap={() => onObjectClick(object.id)}
                 onDragStart={() => onObjectClick(object.id)}
-                onDragMove={(event) => {
-                  onObjectPositionChange(object.id, {
-                    x: event.target.x(),
-                    y: event.target.y(),
-                  });
-                }}
                 onDragEnd={(event) => {
                   onObjectPositionChange(object.id, {
                     x: event.target.x(),
@@ -351,7 +466,7 @@ export function EditorCanvas({
                   });
                 }}
               >
-                <Group opacity={objectOpacity} listening={false}>
+                <Group opacity={objectOpacity}>
                   <Rect
                     x={0}
                     y={0}
@@ -460,42 +575,8 @@ export function EditorCanvas({
                       fill="#ffffff"
                       stroke="#1d4ed8"
                       strokeWidth={2}
-                      draggable
-                      dragOnTop={false}
-                      onMouseDown={(event) => {
-                        event.cancelBubble = true;
-                      }}
-                      onTouchStart={(event) => {
-                        event.cancelBubble = true;
-                      }}
-                      onDragMove={(event) => {
-                        const stage = stageRef.current ?? event.target.getStage();
-                        if (!stage) {
-                          return;
-                        }
-
-                        const stagePoint = getStagePointerPoint(stage);
-                        if (!stagePoint) {
-                          return;
-                        }
-
-                        onObjectClick(object.id);
-                        onObjectRotationChange(object.id, getRotationFromHandle(object, stagePoint));
-                      }}
-                      onDragEnd={(event) => {
-                        const stage = stageRef.current ?? event.target.getStage();
-                        if (!stage) {
-                          return;
-                        }
-
-                        const stagePoint = getStagePointerPoint(stage);
-                        if (!stagePoint) {
-                          return;
-                        }
-
-                        onObjectClick(object.id);
-                        onObjectRotationChange(object.id, getRotationFromHandle(object, stagePoint));
-                      }}
+                      onMouseDown={(event) => beginRotate(event, object)}
+                      onTouchStart={(event) => beginRotate(event, object)}
                     />
 
                     <Circle
@@ -539,4 +620,4 @@ export function EditorCanvas({
       </Stage>
     </div>
   );
-}
+});

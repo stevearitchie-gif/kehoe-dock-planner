@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '@/components/auth/useAuth';
 import { AppShell } from '@/components/layout/AppShell';
 import editorTools, { coreToolModes, objectToolModes, toolLabels, type ToolMode } from '@/features/editor/toolDefinitions';
-import { EditorCanvas } from '@/features/editor/components/EditorCanvas';
+import { EditorCanvas, type EditorCanvasHandle } from '@/features/editor/components/EditorCanvas';
 import { getProject, saveProject } from '@/features/projects/projectService';
 import type { DockObject, DockProject, Point, ProjectScale, UnitType } from '@/types/dock';
 
@@ -12,6 +12,9 @@ const GRID_SIZE = 40;
 const DUPLICATE_OFFSET = 40;
 const DEFAULT_OBJECT_OPACITY = 1;
 const DEFAULT_ROOF_OVERLAY_OPACITY = 0.35;
+const MIN_ZOOM = 0.2;
+const MAX_ZOOM = 3;
+const ZOOM_STEP = 0.1;
 
 function snapToGrid(value: number): number {
   return Math.round(value / GRID_SIZE) * GRID_SIZE;
@@ -19,6 +22,10 @@ function snapToGrid(value: number): number {
 
 function clampOpacity(value: number): number {
   return Math.max(0, Math.min(1, value));
+}
+
+function clampZoom(value: number): number {
+  return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value));
 }
 
 function getDefaultOpacityByType(type: DockObject['type']): number {
@@ -72,9 +79,168 @@ function getPolylineLength(points: Point[]): number {
   return totalLength;
 }
 
+function formatSavedTime(timestamp: string): string {
+  return new Date(timestamp).toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function waitForNextPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        resolve();
+      });
+    });
+  });
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function printImageInHiddenFrame(args: {
+  imageDataUrl: string;
+  projectName: string;
+  exportedAt: string;
+  scaleSummaryHtml: string;
+}): boolean {
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.style.visibility = 'hidden';
+  document.body.appendChild(iframe);
+
+  const frameWindow = iframe.contentWindow;
+  if (!frameWindow) {
+    iframe.remove();
+    return false;
+  }
+
+  const cleanup = () => {
+    window.setTimeout(() => {
+      iframe.remove();
+    }, 1000);
+  };
+
+  frameWindow.addEventListener(
+    'afterprint',
+    () => {
+      cleanup();
+    },
+    { once: true },
+  );
+
+  const printDoc = frameWindow.document;
+  printDoc.open();
+  printDoc.write(`
+    <!doctype html>
+    <html>
+      <head>
+        <title>${args.projectName}</title>
+        <meta charset="utf-8" />
+        <style>
+          body {
+            margin: 0;
+            padding: 24px;
+            font-family: Arial, sans-serif;
+            color: #0f172a;
+            background: #ffffff;
+          }
+          .page {
+            width: 100%;
+            max-width: 1100px;
+            margin: 0 auto;
+          }
+          .header {
+            margin-bottom: 16px;
+          }
+          .header h1 {
+            margin: 0 0 8px 0;
+            font-size: 24px;
+          }
+          .meta {
+            font-size: 13px;
+            color: #475569;
+            margin-bottom: 16px;
+          }
+          .meta p {
+            margin: 4px 0;
+          }
+          .canvas-image {
+            width: 100%;
+            height: auto;
+            border: 1px solid #cbd5e1;
+            display: block;
+          }
+          @media print {
+            body {
+              padding: 0;
+            }
+            .page {
+              max-width: none;
+            }
+            .canvas-image {
+              border: none;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="page">
+          <div class="header">
+            <h1>${args.projectName}</h1>
+            <div class="meta">
+              <p><strong>Exported:</strong> ${args.exportedAt}</p>
+              ${args.scaleSummaryHtml}
+            </div>
+          </div>
+          <img id="export-image" class="canvas-image" src="${args.imageDataUrl}" alt="${args.projectName}" />
+        </div>
+        <script>
+          const image = document.getElementById('export-image');
+          const startPrint = () => {
+            setTimeout(() => {
+              window.focus();
+              window.print();
+            }, 150);
+          };
+
+          if (image && !image.complete) {
+            image.addEventListener('load', startPrint, { once: true });
+            image.addEventListener('error', startPrint, { once: true });
+          } else {
+            startPrint();
+          }
+        </script>
+      </body>
+    </html>
+  `);
+  printDoc.close();
+
+  window.setTimeout(() => {
+    if (document.body.contains(iframe)) {
+      cleanup();
+    }
+  }, 60000);
+
+  return true;
+}
+
 export function EditorPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const { user } = useAuth();
+  const editorCanvasRef = useRef<EditorCanvasHandle | null>(null);
 
   const [project, setProject] = useState<DockProject>(() => buildEditorProject(projectId));
   const [activeTool, setActiveTool] = useState<ToolMode>('select');
@@ -84,10 +250,14 @@ export function EditorPage() {
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [isDeleteConfirmationVisible, setIsDeleteConfirmationVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [hasInitializedProject, setHasInitializedProject] = useState(false);
   const objectUrlRef = useRef<string | null>(null);
+  const lastSavedSnapshotRef = useRef<string>('');
 
-  const effectiveUserId = user?.uid ?? 'local-test-user';
+  const userId = user?.uid;
 
   const isCoreTool = (tool: ToolMode): tool is (typeof coreToolModes)[number] =>
     coreToolModes.includes(tool as (typeof coreToolModes)[number]);
@@ -107,27 +277,76 @@ export function EditorPage() {
     let isActive = true;
 
     if (!projectId) {
+      const blankProject = buildEditorProject(projectId);
+      setProject(blankProject);
+      lastSavedSnapshotRef.current = JSON.stringify(blankProject);
+      setLastSavedAt(null);
+      setIsDirty(false);
+      setSaveMessage(null);
+      setHasInitializedProject(true);
       return;
     }
 
-    getProject(effectiveUserId, projectId).then((savedProject) => {
-      if (!isActive) {
-        return;
-      }
+    if (!userId) {
+      const blankProject = buildEditorProject(projectId);
+      setProject(blankProject);
+      lastSavedSnapshotRef.current = JSON.stringify(blankProject);
+      setLastSavedAt(null);
+      setIsDirty(false);
+      setSaveMessage('You must be logged in to load this project.');
+      setHasInitializedProject(true);
+      return;
+    }
 
-      if (savedProject) {
-        setProject(savedProject);
-      } else {
-        setProject(buildEditorProject(projectId));
-      }
-    });
+    getProject(userId, projectId)
+      .then((savedProject) => {
+        if (!isActive) {
+          return;
+        }
+
+        const loadedProject = savedProject ?? buildEditorProject(projectId);
+        setProject(loadedProject);
+        lastSavedSnapshotRef.current = JSON.stringify(loadedProject);
+        setLastSavedAt(savedProject ? loadedProject.updatedAt : null);
+        setIsDirty(false);
+        setSaveMessage(null);
+        setHasInitializedProject(true);
+      })
+      .catch((error) => {
+        console.error('Failed to load project', error);
+
+        if (!isActive) {
+          return;
+        }
+
+        const blankProject = buildEditorProject(projectId);
+        setProject(blankProject);
+        lastSavedSnapshotRef.current = JSON.stringify(blankProject);
+        setLastSavedAt(null);
+        setIsDirty(false);
+        setSaveMessage('Project load failed');
+        setHasInitializedProject(true);
+      });
 
     return () => {
       isActive = false;
     };
-  }, [effectiveUserId, projectId]);
+  }, [userId, projectId]);
 
-  const projectName = project.name;
+  useEffect(() => {
+    if (!hasInitializedProject) {
+      return;
+    }
+
+    const nextIsDirty = JSON.stringify(project) !== lastSavedSnapshotRef.current;
+    setIsDirty(nextIsDirty);
+
+    if (nextIsDirty && saveMessage) {
+      setSaveMessage(null);
+    }
+  }, [hasInitializedProject, project, saveMessage]);
+
+  const projectName = project.name.trim() || 'Untitled Project';
 
   const measuredPixels = useMemo(() => getPixelsFromPoints(scalePoints), [scalePoints]);
 
@@ -164,6 +383,24 @@ export function EditorPage() {
 
   const isSelectedObjectOnTop = selectedObjectIndex === sortedObjects.length - 1;
   const isSelectedObjectOnBottom = selectedObjectIndex === 0;
+  const canZoomOut = zoom > MIN_ZOOM;
+  const canZoomIn = zoom < MAX_ZOOM;
+
+  const statusMessage = useMemo(() => {
+    if (saveMessage) {
+      return saveMessage;
+    }
+
+    if (isDirty) {
+      return 'Unsaved changes';
+    }
+
+    if (lastSavedAt) {
+      return `Saved at ${formatSavedTime(lastSavedAt)}`;
+    }
+
+    return null;
+  }, [isDirty, lastSavedAt, saveMessage]);
 
   useEffect(() => {
     setIsDeleteConfirmationVisible(false);
@@ -183,6 +420,22 @@ export function EditorPage() {
     }
 
     setActiveTool(toolLabel as ToolMode);
+  };
+
+  const handleProjectNameChange = (value: string) => {
+    setProject((prev) => ({
+      ...prev,
+      name: value,
+      updatedAt: new Date().toISOString(),
+    }));
+  };
+
+  const handleZoomOut = () => {
+    setZoom((prev) => clampZoom(Number((prev - ZOOM_STEP).toFixed(2))));
+  };
+
+  const handleZoomIn = () => {
+    setZoom((prev) => clampZoom(Number((prev + ZOOM_STEP).toFixed(2))));
   };
 
   const handleCanvasPointClick = (point: Point) => {
@@ -578,8 +831,14 @@ export function EditorPage() {
   };
 
   const handleSaveProject = async () => {
+    if (!userId) {
+      setSaveMessage('Save failed: You must be logged in.');
+      return;
+    }
+
     const projectToSave: DockProject = {
       ...project,
+      name: projectName,
       updatedAt: new Date().toISOString(),
       scale: currentScale,
     };
@@ -589,12 +848,48 @@ export function EditorPage() {
     setSaveMessage(null);
 
     try {
-      await saveProject(effectiveUserId, projectToSave);
-      setSaveMessage('Saved');
-    } catch {
+      await saveProject(userId, projectToSave);
+      lastSavedSnapshotRef.current = JSON.stringify(projectToSave);
+      setIsDirty(false);
+      setLastSavedAt(projectToSave.updatedAt);
+      setSaveMessage(null);
+    } catch (error) {
+      console.error('Failed to save project', error);
       setSaveMessage('Save failed');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    const previousSelectedObjectId = selectedObjectId;
+    setSelectedObjectId(null);
+
+    await waitForNextPaint();
+
+    const imageDataUrl = editorCanvasRef.current?.exportAsImage(2) ?? null;
+
+    setSelectedObjectId(previousSelectedObjectId);
+
+    if (!imageDataUrl) {
+      setSaveMessage('Export failed');
+      return;
+    }
+
+    const scaleSummaryHtml =
+      currentScale.realLength > 0 && currentScale.pixels > 0
+        ? `<p><strong>Scale:</strong> ${currentScale.realLength} ${escapeHtml(currentScale.unit)}</p>`
+        : '';
+
+    const printed = printImageInHiddenFrame({
+      imageDataUrl,
+      projectName: escapeHtml(projectName),
+      exportedAt: escapeHtml(new Date().toLocaleString()),
+      scaleSummaryHtml,
+    });
+
+    if (!printed) {
+      setSaveMessage('Export failed');
     }
   };
 
@@ -610,33 +905,51 @@ export function EditorPage() {
             <button
               type="button"
               onClick={handleSaveProject}
-              disabled={isSaving}
+              disabled={isSaving || !isDirty || !userId}
               className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSaving ? 'Saving...' : 'Save'}
             </button>
-            <button className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700">
+            <button
+              type="button"
+              onClick={handleExportPdf}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+            >
               Export PDF
             </button>
-            <button className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700">-</button>
+            <button
+              type="button"
+              onClick={handleZoomOut}
+              disabled={!canZoomOut}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              -
+            </button>
             <button className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700">
               {(zoom * 100).toFixed(0)}%
             </button>
-            <button className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700">+</button>
+            <button
+              type="button"
+              onClick={handleZoomIn}
+              disabled={!canZoomIn}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              +
+            </button>
             <Link to="/projects" className="rounded-md bg-brand-600 px-3 py-2 text-sm text-white hover:bg-brand-700">
               Back to Projects
             </Link>
           </div>
         </header>
 
-        {saveMessage && (
+        {statusMessage && (
           <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700">
-            {saveMessage}
+            {statusMessage}
           </div>
         )}
 
-        <main className="grid h-full min-h-0 grid-cols-[240px_1fr_300px]">
-          <aside className="overflow-y-auto border-r border-slate-200 bg-white p-3">
+        <main className="grid h-full min-h-0 w-full min-w-0 overflow-hidden grid-cols-[240px_minmax(0,1fr)_300px]">
+          <aside className="min-w-0 overflow-y-auto border-r border-slate-200 bg-white p-3">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Tools</p>
             <div className="grid grid-cols-1 gap-2">
               {editorTools.map((tool) => {
@@ -662,8 +975,9 @@ export function EditorPage() {
             </div>
           </aside>
 
-          <section className="min-h-0 bg-slate-50 p-4">
+          <section className="min-h-0 min-w-0 overflow-hidden bg-slate-50 p-4">
             <EditorCanvas
+              ref={editorCanvasRef}
               activeTool={activeTool}
               scalePoints={scalePoints}
               shorelinePoints={project.shorelinePoints}
@@ -681,10 +995,26 @@ export function EditorPage() {
             />
           </section>
 
-          <aside className="overflow-y-auto border-l border-slate-200 bg-white p-4">
+          <aside className="min-w-0 overflow-y-auto border-l border-slate-200 bg-white p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Properties</p>
 
             <div className="mt-3 space-y-3 pb-6">
+              <div className="rounded-md border border-slate-200 p-3">
+                <h3 className="text-sm font-semibold text-slate-800">Project Details</h3>
+                <label className="mt-3 block">
+                  <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Project Name
+                  </span>
+                  <input
+                    type="text"
+                    value={project.name}
+                    onChange={(event) => handleProjectNameChange(event.target.value)}
+                    placeholder="Untitled Project"
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                  />
+                </label>
+              </div>
+
               <div className="rounded-md border border-slate-200 p-3">
                 <h3 className="text-sm font-semibold text-slate-800">Site Image</h3>
                 <p className="mt-1 text-sm text-slate-600">
