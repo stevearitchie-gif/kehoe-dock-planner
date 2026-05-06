@@ -1146,13 +1146,40 @@ export function EditorPage() {
               </div>
 
               <div className="rounded-md border border-slate-200 p-3">
-                <h3 className="text-sm font-semibold text-slate-800">Site Image</h3>
-                <p className="mt-1 text-sm text-slate-600">
-                  Upload a single site image to use as the canvas background.
-                </p>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-800">Site Image</h3>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Upload a single site image to use as the canvas background.
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  className={`mt-3 rounded-md border px-3 py-2 text-sm ${
+                    isUploadingSiteImage
+                      ? 'border-blue-200 bg-blue-50 text-blue-700'
+                      : project.backgroundImageUrl
+                        ? 'border-green-200 bg-green-50 text-green-700'
+                        : 'border-slate-200 bg-slate-50 text-slate-600'
+                  }`}
+                >
+                  {isUploadingSiteImage
+                    ? 'Uploading site image...'
+                    : project.backgroundImageUrl
+                      ? 'Site image attached.'
+                      : 'No site image attached.'}
+                </div>
+
+                {isDirty && (
+                  <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    You have unsaved changes. Click Save to keep the current site image update.
+                  </p>
+                )}
+
                 <label className="mt-3 block">
                   <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Upload Site Image
+                    {project.backgroundImageUrl ? 'Replace Site Image' : 'Upload Site Image'}
                   </span>
                   <input
                     type="file"
@@ -1162,13 +1189,14 @@ export function EditorPage() {
                     className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
                   />
                 </label>
+
                 <button
                   type="button"
                   onClick={handleClearSiteImage}
                   disabled={!project.backgroundImageUrl || isUploadingSiteImage}
-                  className="mt-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="mt-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Clear Site Image
+                  {isUploadingSiteImage ? 'Uploading...' : 'Clear Site Image'}
                 </button>
               </div>
 
