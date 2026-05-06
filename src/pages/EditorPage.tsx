@@ -610,13 +610,13 @@ export function EditorPage() {
         };
 
         const objectColorByTool: Record<(typeof placementTools)[number], string> = {
-          floating_dock: '#86efac',
-          stationary_dock: '#fcd34d',
-          ramp_with_rails: '#93c5fd',
-          ramp_without_rails: '#c4b5fd',
-          steps: '#fda4af',
-          roof_overlay: '#94a3b8',
-          boat_lift: '#67e8f9',
+          floating_dock: '#b77945',
+          stationary_dock: '#8f9779',
+          ramp_with_rails: '#c2a878',
+          ramp_without_rails: '#c2a878',
+          steps: '#9a6b3f',
+          roof_overlay: '#64748b',
+          boat_lift: '#cbd5e1',
         };
 
         const nextObject: DockObject = {
