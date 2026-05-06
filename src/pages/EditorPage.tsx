@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
+import { deleteObject, getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '@/components/auth/useAuth';
 import { AppShell } from '@/components/layout/AppShell';
@@ -43,6 +43,11 @@ function getSafeStorageFileName(fileName: string): string {
 function getSiteImageStoragePath(userId: string, projectId: string, fileName: string): string {
   const safeFileName = getSafeStorageFileName(fileName);
   return `users/${userId}/projects/${projectId}/site-images/${Date.now()}-${safeFileName}`;
+}
+
+async function deleteSiteImageByPath(pathToDelete: string): Promise<void> {
+  const imageRef = storageRef(storage, pathToDelete);
+  await deleteObject(imageRef);
 }
 
 function getDefaultOpacityByType(type: DockObject['type']): number {
@@ -302,6 +307,7 @@ export function EditorPage() {
   const [hasInitializedProject, setHasInitializedProject] = useState(false);
   const objectUrlRef = useRef<string | null>(null);
   const lastSavedSnapshotRef = useRef<string>('');
+  const pendingDeletedSiteImagePathsRef = useRef<string[]>([]);
 
   const userId = user?.uid;
 
@@ -310,6 +316,31 @@ export function EditorPage() {
 
   const isObjectTool = (tool: ToolMode): tool is (typeof objectToolModes)[number] =>
     objectToolModes.includes(tool as (typeof objectToolModes)[number]);
+
+  const queueSiteImagePathForDeletion = (pathToDelete: string | undefined) => {
+    if (!pathToDelete) {
+      return;
+    }
+
+    if (!pendingDeletedSiteImagePathsRef.current.includes(pathToDelete)) {
+      pendingDeletedSiteImagePathsRef.current.push(pathToDelete);
+    }
+  };
+
+  const deleteQueuedSiteImages = async () => {
+    const pathsToDelete = [...pendingDeletedSiteImagePathsRef.current];
+    pendingDeletedSiteImagePathsRef.current = [];
+
+    await Promise.allSettled(
+      pathsToDelete.map(async (pathToDelete) => {
+        try {
+          await deleteSiteImageByPath(pathToDelete);
+        } catch (error) {
+          console.warn('Failed to delete old site image', pathToDelete, error);
+        }
+      }),
+    );
+  };
 
   useEffect(() => {
     return () => {
@@ -881,12 +912,16 @@ export function EditorPage() {
         objectUrlRef.current = null;
       }
 
-      setProject((prev) => ({
-        ...prev,
-        updatedAt: new Date().toISOString(),
-        backgroundImageUrl: downloadUrl,
-        backgroundImagePath: storagePath,
-      }));
+      setProject((prev) => {
+        queueSiteImagePathForDeletion(prev.backgroundImagePath);
+
+        return {
+          ...prev,
+          updatedAt: new Date().toISOString(),
+          backgroundImageUrl: downloadUrl,
+          backgroundImagePath: storagePath,
+        };
+      });
 
       setSaveMessage('Site image uploaded. Save the project to keep this image.');
     } catch (error) {
@@ -903,12 +938,16 @@ export function EditorPage() {
       objectUrlRef.current = null;
     }
 
-    setProject((prev) => ({
-      ...prev,
-      updatedAt: new Date().toISOString(),
-      backgroundImageUrl: undefined,
-      backgroundImagePath: undefined,
-    }));
+    setProject((prev) => {
+      queueSiteImagePathForDeletion(prev.backgroundImagePath);
+
+      return {
+        ...prev,
+        updatedAt: new Date().toISOString(),
+        backgroundImageUrl: undefined,
+        backgroundImagePath: undefined,
+      };
+    });
   };
 
   const handleSaveProject = async () => {
@@ -930,6 +969,7 @@ export function EditorPage() {
 
     try {
       await saveProject(userId, projectToSave);
+      await deleteQueuedSiteImages();
       lastSavedSnapshotRef.current = JSON.stringify(projectToSave);
       setIsDirty(false);
       setLastSavedAt(projectToSave.updatedAt);
