@@ -144,10 +144,19 @@ export function ProjectsPage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-6xl p-8">
-        <header className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Projects</h1>
-            <p className="text-sm text-slate-600">Manage and open dock planning projects</p>
+        <header className="mb-6 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-36 items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 shadow-sm">
+              <img
+                src="/kehoe-header-logo.png"
+                alt="Kehoe Marine Construction"
+                className="max-h-10 w-auto object-contain"
+              />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Projects</h1>
+              <p className="text-sm text-slate-600">Manage and open dock planning projects</p>
+            </div>
           </div>
           <button
             className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
