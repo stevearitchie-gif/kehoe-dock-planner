@@ -163,7 +163,22 @@ function printImageInHiddenFrame(args: {
             margin: 0 auto;
           }
           .header {
-            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 18px;
+            border-bottom: 1px solid #cbd5e1;
+            padding-bottom: 14px;
+          }
+          .brand-logo {
+            max-width: 190px;
+            max-height: 70px;
+            object-fit: contain;
+          }
+          .header-copy {
+            flex: 1;
+            text-align: right;
           }
           .header h1 {
             margin: 0 0 8px 0;
@@ -172,7 +187,6 @@ function printImageInHiddenFrame(args: {
           .meta {
             font-size: 13px;
             color: #475569;
-            margin-bottom: 16px;
           }
           .meta p {
             margin: 4px 0;
@@ -199,16 +213,24 @@ function printImageInHiddenFrame(args: {
       <body>
         <div class="page">
           <div class="header">
-            <h1>${args.projectName}</h1>
-            <div class="meta">
-              <p><strong>Exported:</strong> ${args.exportedAt}</p>
-              ${args.scaleSummaryHtml}
+            <img
+              id="brand-logo"
+              class="brand-logo"
+              src="/kehoe-header-logo.png"
+              alt="Kehoe Marine Construction"
+            />
+            <div class="header-copy">
+              <h1>${args.projectName}</h1>
+              <div class="meta">
+                <p><strong>Exported:</strong> ${args.exportedAt}</p>
+                ${args.scaleSummaryHtml}
+              </div>
             </div>
           </div>
           <img id="export-image" class="canvas-image" src="${args.imageDataUrl}" alt="${args.projectName}" />
         </div>
         <script>
-          const image = document.getElementById('export-image');
+          const images = Array.from(document.images);
           const startPrint = () => {
             setTimeout(() => {
               window.focus();
@@ -216,12 +238,18 @@ function printImageInHiddenFrame(args: {
             }, 150);
           };
 
-          if (image && !image.complete) {
-            image.addEventListener('load', startPrint, { once: true });
-            image.addEventListener('error', startPrint, { once: true });
-          } else {
-            startPrint();
-          }
+          const imageLoadPromises = images.map((image) => {
+            if (image.complete) {
+              return Promise.resolve();
+            }
+
+            return new Promise((resolve) => {
+              image.addEventListener('load', resolve, { once: true });
+              image.addEventListener('error', resolve, { once: true });
+            });
+          });
+
+          Promise.all(imageLoadPromises).then(startPrint);
         </script>
       </body>
     </html>
