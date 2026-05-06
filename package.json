@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "deploy:rules": "firebase deploy --only firestore:rules",
-    "firebase:version": "firebase --version"
+    "firebase:version": "firebase --version",
+    "deploy:storage": "firebase deploy --only storage",
+    "deploy:rules:all": "firebase deploy --only firestore:rules,storage"
   },
   "dependencies": {
     "firebase": "^11.2.0",

@@ -52,6 +52,7 @@ export interface DockProject {
   createdAt: string;
   updatedAt: string;
   backgroundImageUrl?: string;
+  backgroundImagePath?: string;
   scale?: ProjectScale;
   shorelinePoints: Point[];
   objects: DockObject[];

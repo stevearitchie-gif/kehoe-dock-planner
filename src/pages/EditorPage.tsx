@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '@/components/auth/useAuth';
 import { AppShell } from '@/components/layout/AppShell';
 import editorTools, { coreToolModes, objectToolModes, toolLabels, type ToolMode } from '@/features/editor/toolDefinitions';
 import { EditorCanvas, type EditorCanvasHandle } from '@/features/editor/components/EditorCanvas';
 import { getProject, saveProject } from '@/features/projects/projectService';
+import { storage } from '@/lib/firebase';
 import type { DockObject, DockProject, Point, ProjectScale, UnitType } from '@/types/dock';
 
 const MIN_OBJECT_SIZE = 10;
@@ -15,6 +17,7 @@ const DEFAULT_ROOF_OVERLAY_OPACITY = 0.35;
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 3;
 const ZOOM_STEP = 0.1;
+const MAX_SITE_IMAGE_BYTES = 10 * 1024 * 1024;
 
 function snapToGrid(value: number): number {
   return Math.round(value / GRID_SIZE) * GRID_SIZE;
@@ -26,6 +29,20 @@ function clampOpacity(value: number): number {
 
 function clampZoom(value: number): number {
   return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value));
+}
+
+function getSafeStorageFileName(fileName: string): string {
+  return fileName
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '') || 'site-image';
+}
+
+function getSiteImageStoragePath(userId: string, projectId: string, fileName: string): string {
+  const safeFileName = getSafeStorageFileName(fileName);
+  return `users/${userId}/projects/${projectId}/site-images/${Date.now()}-${safeFileName}`;
 }
 
 function getDefaultOpacityByType(type: DockObject['type']): number {
@@ -278,6 +295,7 @@ export function EditorPage() {
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [isDeleteConfirmationVisible, setIsDeleteConfirmationVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingSiteImage, setIsUploadingSiteImage] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -822,27 +840,61 @@ export function EditorPage() {
     }));
   };
 
-  const handleSiteImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleSiteImageUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    event.target.value = '';
+
     if (!file) {
       return;
     }
 
-    const objectUrl = URL.createObjectURL(file);
-
-    if (objectUrlRef.current) {
-      URL.revokeObjectURL(objectUrlRef.current);
+    if (!userId) {
+      setSaveMessage('Image upload failed: You must be logged in.');
+      return;
     }
 
-    objectUrlRef.current = objectUrl;
+    if (!file.type.startsWith('image/')) {
+      setSaveMessage('Image upload failed: Please choose an image file.');
+      return;
+    }
 
-    setProject((prev) => ({
-      ...prev,
-      updatedAt: new Date().toISOString(),
-      backgroundImageUrl: objectUrl,
-    }));
+    if (file.size > MAX_SITE_IMAGE_BYTES) {
+      setSaveMessage('Image upload failed: Please choose an image smaller than 10 MB.');
+      return;
+    }
 
-    event.target.value = '';
+    const storagePath = getSiteImageStoragePath(userId, project.id, file.name);
+
+    setIsUploadingSiteImage(true);
+    setSaveMessage('Uploading site image...');
+
+    try {
+      const imageRef = storageRef(storage, storagePath);
+      await uploadBytes(imageRef, file, {
+        contentType: file.type,
+      });
+
+      const downloadUrl = await getDownloadURL(imageRef);
+
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
+
+      setProject((prev) => ({
+        ...prev,
+        updatedAt: new Date().toISOString(),
+        backgroundImageUrl: downloadUrl,
+        backgroundImagePath: storagePath,
+      }));
+
+      setSaveMessage('Site image uploaded. Save the project to keep this image.');
+    } catch (error) {
+      console.error('Failed to upload site image', error);
+      setSaveMessage('Image upload failed');
+    } finally {
+      setIsUploadingSiteImage(false);
+    }
   };
 
   const handleClearSiteImage = () => {
@@ -855,6 +907,7 @@ export function EditorPage() {
       ...prev,
       updatedAt: new Date().toISOString(),
       backgroundImageUrl: undefined,
+      backgroundImagePath: undefined,
     }));
   };
 
@@ -1065,13 +1118,14 @@ export function EditorPage() {
                     type="file"
                     accept="image/*"
                     onChange={handleSiteImageUpload}
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-700"
+                    disabled={isUploadingSiteImage}
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
                   />
                 </label>
                 <button
                   type="button"
                   onClick={handleClearSiteImage}
-                  disabled={!project.backgroundImageUrl}
+                  disabled={!project.backgroundImageUrl || isUploadingSiteImage}
                   className="mt-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Clear Site Image
