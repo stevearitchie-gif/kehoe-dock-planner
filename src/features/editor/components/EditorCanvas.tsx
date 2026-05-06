@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text } from 'react-konva';
+import { Circle, Ellipse, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text } from 'react-konva';
 import type { Stage as KonvaStage } from 'konva/lib/Stage';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { DockObject, Point, ProjectScale } from '@/types/dock';
@@ -31,7 +31,13 @@ export interface EditorCanvasHandle {
 type ResizeHandle = 'right' | 'bottom' | 'corner';
 
 type InteractionSession =
-  | { type: 'resize'; objectId: string; handle: ResizeHandle }
+  | {
+      type: 'resize';
+      objectId: string;
+      handle: ResizeHandle;
+      startWidth: number;
+      startHeight: number;
+    }
   | {
       type: 'rotate';
       objectId: string;
@@ -98,6 +104,62 @@ function getDimensionLineLabel(object: DockObject, scale: ProjectScale): string 
     scale.unit === 'm' ? realLengthInScaleUnits * 3.28084 : realLengthInScaleUnits;
 
   return formatFeetAndInches(totalFeet);
+}
+
+function getGenericShapePoints(object: DockObject): number[] | null {
+  const width = object.width;
+  const height = object.height;
+
+  switch (object.type) {
+    case 'shape_triangle':
+      return [width / 2, 0, width, height, 0, height];
+
+    case 'shape_diamond':
+      return [width / 2, 0, width, height / 2, width / 2, height, 0, height / 2];
+
+    case 'shape_parallelogram':
+      return [width * 0.22, 0, width, 0, width * 0.78, height, 0, height];
+
+    case 'shape_trapezoid':
+      return [width * 0.22, 0, width * 0.78, 0, width, height, 0, height];
+
+    case 'shape_hexagon':
+      return [
+        width * 0.25,
+        0,
+        width * 0.75,
+        0,
+        width,
+        height / 2,
+        width * 0.75,
+        height,
+        width * 0.25,
+        height,
+        0,
+        height / 2,
+      ];
+
+    case 'shape_right_arrow':
+      return [
+        0,
+        height * 0.25,
+        width * 0.68,
+        height * 0.25,
+        width * 0.68,
+        0,
+        width,
+        height / 2,
+        width * 0.68,
+        height,
+        width * 0.68,
+        height * 0.75,
+        0,
+        height * 0.75,
+      ];
+
+    default:
+      return null;
+  }
 }
 
 function degreesToRadians(value: number): number {
@@ -262,6 +324,18 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       'roof_overlay',
       'boat_lift',
       'dimension_line',
+      'shape_rectangle',
+      'shape_rounded_rectangle',
+      'shape_oval',
+      'shape_triangle',
+      'shape_diamond',
+      'shape_parallelogram',
+      'shape_trapezoid',
+      'shape_hexagon',
+      'shape_right_arrow',
+      'shape_line',
+      'shape_arrow_line',
+      'shape_double_arrow_line',
     ];
 
     if (!pointTools.includes(activeTool)) {
@@ -296,8 +370,20 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   ) => {
     event.cancelBubble = true;
     event.evt.preventDefault();
+
+    const object = objects.find((item) => item.id === objectId);
+    if (!object) {
+      return;
+    }
+
     onObjectClick(objectId);
-    setInteractionSession({ type: 'resize', objectId, handle });
+    setInteractionSession({
+      type: 'resize',
+      objectId,
+      handle,
+      startWidth: object.width,
+      startHeight: object.height,
+    });
   };
 
   const beginRotate = (event: KonvaEventObject<MouseEvent | TouchEvent>, object: DockObject) => {
@@ -394,14 +480,32 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       return;
     }
 
-    const nextWidth = Math.max(MIN_OBJECT_SIZE, localPoint.x);
-    const nextHeight = Math.max(MIN_OBJECT_SIZE, localPoint.y);
+    const desiredWidth = Math.max(MIN_OBJECT_SIZE, localPoint.x);
+    const desiredHeight = Math.max(MIN_OBJECT_SIZE, localPoint.y);
+    const aspectRatio =
+      interactionSession.startHeight > 0
+        ? interactionSession.startWidth / interactionSession.startHeight
+        : 1;
+
+    const heightFromWidth = Math.max(MIN_OBJECT_SIZE, desiredWidth / aspectRatio);
+    const widthFromHeight = Math.max(MIN_OBJECT_SIZE, desiredHeight * aspectRatio);
+
+    const widthDrivenDifference = Math.abs(desiredHeight - heightFromWidth);
+    const heightDrivenDifference = Math.abs(desiredWidth - widthFromHeight);
+
+    const nextSize =
+      widthDrivenDifference <= heightDrivenDifference
+        ? {
+            width: desiredWidth,
+            height: heightFromWidth,
+          }
+        : {
+            width: widthFromHeight,
+            height: desiredHeight,
+          };
 
     onObjectClick(object.id);
-    onObjectSizeChange(object.id, {
-      width: nextWidth,
-      height: nextHeight,
-    });
+    onObjectSizeChange(object.id, nextSize);
   };
 
   return (
@@ -568,6 +672,116 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                         strokeWidth={2}
                       />
                     </>
+                  ) : object.type === 'shape_line' ? (
+                    <>
+                      <Rect
+                        x={0}
+                        y={0}
+                        width={object.width}
+                        height={object.height}
+                        fill="#ffffff"
+                        opacity={0.001}
+                        strokeWidth={0}
+                      />
+                      <Line
+                        points={[0, object.height / 2, object.width, object.height / 2]}
+                        stroke={object.color}
+                        strokeWidth={2}
+                      />
+                    </>
+                  ) : object.type === 'shape_arrow_line' ? (
+                    <>
+                      <Rect
+                        x={0}
+                        y={0}
+                        width={object.width}
+                        height={object.height}
+                        fill="#ffffff"
+                        opacity={0.001}
+                        strokeWidth={0}
+                      />
+                      <Line
+                        points={[0, object.height / 2, object.width, object.height / 2]}
+                        stroke={object.color}
+                        strokeWidth={2}
+                      />
+                      <Line
+                        points={[object.width, object.height / 2, object.width - 10, object.height / 2 - 6]}
+                        stroke={object.color}
+                        strokeWidth={2}
+                      />
+                      <Line
+                        points={[object.width, object.height / 2, object.width - 10, object.height / 2 + 6]}
+                        stroke={object.color}
+                        strokeWidth={2}
+                      />
+                    </>
+                  ) : object.type === 'shape_double_arrow_line' ? (
+                    <>
+                      <Rect
+                        x={0}
+                        y={0}
+                        width={object.width}
+                        height={object.height}
+                        fill="#ffffff"
+                        opacity={0.001}
+                        strokeWidth={0}
+                      />
+                      <Line
+                        points={[0, object.height / 2, object.width, object.height / 2]}
+                        stroke={object.color}
+                        strokeWidth={2}
+                      />
+                      <Line
+                        points={[0, object.height / 2, 10, object.height / 2 - 6]}
+                        stroke={object.color}
+                        strokeWidth={2}
+                      />
+                      <Line
+                        points={[0, object.height / 2, 10, object.height / 2 + 6]}
+                        stroke={object.color}
+                        strokeWidth={2}
+                      />
+                      <Line
+                        points={[object.width, object.height / 2, object.width - 10, object.height / 2 - 6]}
+                        stroke={object.color}
+                        strokeWidth={2}
+                      />
+                      <Line
+                        points={[object.width, object.height / 2, object.width - 10, object.height / 2 + 6]}
+                        stroke={object.color}
+                        strokeWidth={2}
+                      />
+                    </>
+                  ) : object.type === 'shape_oval' ? (
+                    <Ellipse
+                      x={object.width / 2}
+                      y={object.height / 2}
+                      radiusX={object.width / 2}
+                      radiusY={object.height / 2}
+                      fill={object.color}
+                      stroke="#334155"
+                      strokeWidth={1}
+                    />
+                  ) : object.type === 'shape_rounded_rectangle' ? (
+                    <Rect
+                      x={0}
+                      y={0}
+                      width={object.width}
+                      height={object.height}
+                      fill={object.color}
+                      stroke="#334155"
+                      strokeWidth={1}
+                      cornerRadius={12}
+                    />
+                  ) : getGenericShapePoints(object) ? (
+                    <Line
+                      points={getGenericShapePoints(object) ?? []}
+                      closed
+                      fill={object.color}
+                      stroke="#334155"
+                      strokeWidth={1}
+                    />
                   ) : (
                     <Rect
                       x={0}

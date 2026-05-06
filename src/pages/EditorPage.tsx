@@ -634,6 +634,18 @@ export function EditorPage() {
       'roof_overlay',
       'boat_lift',
       'dimension_line',
+      'shape_rectangle',
+      'shape_rounded_rectangle',
+      'shape_oval',
+      'shape_triangle',
+      'shape_diamond',
+      'shape_parallelogram',
+      'shape_trapezoid',
+      'shape_hexagon',
+      'shape_right_arrow',
+      'shape_line',
+      'shape_arrow_line',
+      'shape_double_arrow_line',
     ] as const;
 
     if (placementTools.includes(activeTool as (typeof placementTools)[number])) {
@@ -650,6 +662,18 @@ export function EditorPage() {
           roof_overlay: 'Roof Overlay',
           boat_lift: 'Boat Lift',
           dimension_line: 'Dimension Line',
+          shape_rectangle: 'Rectangle',
+          shape_rounded_rectangle: 'Rounded Rectangle',
+          shape_oval: 'Oval',
+          shape_triangle: 'Triangle',
+          shape_diamond: 'Diamond',
+          shape_parallelogram: 'Parallelogram',
+          shape_trapezoid: 'Trapezoid',
+          shape_hexagon: 'Hexagon',
+          shape_right_arrow: 'Right Arrow',
+          shape_line: 'Line',
+          shape_arrow_line: 'Arrow Line',
+          shape_double_arrow_line: 'Double Arrow Line',
         };
 
         const objectSizeByTool: Record<(typeof placementTools)[number], { width: number; height: number }> = {
@@ -661,6 +685,18 @@ export function EditorPage() {
           roof_overlay: { width: 140, height: 80 },
           boat_lift: { width: 80, height: 30 },
           dimension_line: { width: 160, height: 24 },
+          shape_rectangle: { width: 100, height: 60 },
+          shape_rounded_rectangle: { width: 100, height: 60 },
+          shape_oval: { width: 100, height: 60 },
+          shape_triangle: { width: 90, height: 80 },
+          shape_diamond: { width: 90, height: 70 },
+          shape_parallelogram: { width: 110, height: 60 },
+          shape_trapezoid: { width: 110, height: 60 },
+          shape_hexagon: { width: 100, height: 70 },
+          shape_right_arrow: { width: 120, height: 60 },
+          shape_line: { width: 120, height: 24 },
+          shape_arrow_line: { width: 120, height: 24 },
+          shape_double_arrow_line: { width: 120, height: 24 },
         };
 
         const objectColorByTool: Record<(typeof placementTools)[number], string> = {
@@ -672,6 +708,18 @@ export function EditorPage() {
           roof_overlay: '#64748b',
           boat_lift: '#cbd5e1',
           dimension_line: '#0f172a',
+          shape_rectangle: '#dbeafe',
+          shape_rounded_rectangle: '#dbeafe',
+          shape_oval: '#dcfce7',
+          shape_triangle: '#fef3c7',
+          shape_diamond: '#ede9fe',
+          shape_parallelogram: '#e0f2fe',
+          shape_trapezoid: '#fce7f3',
+          shape_hexagon: '#ccfbf1',
+          shape_right_arrow: '#fed7aa',
+          shape_line: '#0f172a',
+          shape_arrow_line: '#0f172a',
+          shape_double_arrow_line: '#0f172a',
         };
 
         const nextObject: DockObject = {

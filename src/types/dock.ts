@@ -9,7 +9,19 @@ export type DockObjectType =
   | 'roof_overlay'
   | 'boat_lift'
   | 'text_note'
-  | 'dimension_line';
+  | 'dimension_line'
+  | 'shape_rectangle'
+  | 'shape_rounded_rectangle'
+  | 'shape_oval'
+  | 'shape_triangle'
+  | 'shape_diamond'
+  | 'shape_parallelogram'
+  | 'shape_trapezoid'
+  | 'shape_hexagon'
+  | 'shape_right_arrow'
+  | 'shape_line'
+  | 'shape_arrow_line'
+  | 'shape_double_arrow_line';
 
 export interface Point {
   x: number;
