@@ -1,5 +1,5 @@
 export const coreToolModes = ['select', 'pan', 'scale', 'shoreline'] as const;
-export const objectToolModes = ['floating_dock', 'stationary_dock', 'ramp_with_rails', 'ramp_without_rails', 'steps', 'roof_overlay', 'boat_lift'] as const;
+export const objectToolModes = ['floating_dock', 'stationary_dock', 'ramp_with_rails', 'ramp_without_rails', 'steps', 'roof_overlay', 'boat_lift', 'dimension_line'] as const;
 
 export type ToolMode = (typeof coreToolModes)[number] | (typeof objectToolModes)[number];
 
@@ -17,6 +17,7 @@ export const toolLabels: Record<ToolMode, string> = {
   steps: 'steps',
   roof_overlay: 'roof overlay',
   boat_lift: 'boat lift',
+  dimension_line: 'dimension line',
 };
 
 export default editorTools;

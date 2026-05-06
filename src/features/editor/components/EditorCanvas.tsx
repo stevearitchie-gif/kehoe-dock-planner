@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text } from 'react-konva';
 import type { Stage as KonvaStage } from 'konva/lib/Stage';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import type { DockObject, Point } from '@/types/dock';
+import type { DockObject, Point, ProjectScale } from '@/types/dock';
 import type { ToolMode } from '@/features/editor/toolDefinitions';
 
 interface EditorCanvasProps {
@@ -18,6 +18,7 @@ interface EditorCanvasProps {
   onObjectSizeChange: (objectId: string, size: { width: number; height: number }) => void;
   onObjectRotationChange: (objectId: string, rotation: number) => void;
   onObjectLabelOffsetChange: (objectId: string, offset: Point) => void;
+  currentScale: ProjectScale;
   isSnapToGridEnabled: boolean;
   zoom: number;
   onZoomChange: (nextZoom: number) => void;
@@ -61,6 +62,42 @@ function getObjectOpacity(opacity?: number): number {
   }
 
   return Math.max(0, Math.min(1, opacity));
+}
+
+function formatFeetAndInches(totalFeet: number): string {
+  if (!Number.isFinite(totalFeet) || totalFeet <= 0) {
+    return 'Set scale first';
+  }
+
+  const totalInches = Math.round(totalFeet * 12);
+  const feet = Math.floor(totalInches / 12);
+  const inches = totalInches % 12;
+
+  if (feet <= 0) {
+    return `${inches}"`;
+  }
+
+  if (inches === 0) {
+    return `${feet}'`;
+  }
+
+  return `${feet}' ${inches}"`;
+}
+
+function getDimensionLineLabel(object: DockObject, scale: ProjectScale): string {
+  if (object.type !== 'dimension_line') {
+    return object.label;
+  }
+
+  if (scale.pixels <= 0 || scale.realLength <= 0) {
+    return 'Set scale first';
+  }
+
+  const realLengthInScaleUnits = (object.width / scale.pixels) * scale.realLength;
+  const totalFeet =
+    scale.unit === 'm' ? realLengthInScaleUnits * 3.28084 : realLengthInScaleUnits;
+
+  return formatFeetAndInches(totalFeet);
 }
 
 function degreesToRadians(value: number): number {
@@ -118,6 +155,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     onObjectSizeChange,
     onObjectRotationChange,
     onObjectLabelOffsetChange,
+    currentScale,
     isSnapToGridEnabled,
     zoom,
     onZoomChange,
@@ -223,6 +261,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       'steps',
       'roof_overlay',
       'boat_lift',
+      'dimension_line',
     ];
 
     if (!pointTools.includes(activeTool)) {
@@ -448,7 +487,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
             const labelWidth = Math.max(object.width, LABEL_BOX_MIN_WIDTH);
             const labelHeight = LABEL_BOX_HEIGHT;
             const defaultLabelX = object.width / 2 - labelWidth / 2;
-            const defaultLabelY = object.height / 2 - labelHeight / 2;
+            const defaultLabelY =
+              object.type === 'dimension_line'
+                ? -labelHeight - 6
+                : object.height / 2 - labelHeight / 2;
             const labelX = defaultLabelX + (object.labelOffsetX ?? 0);
             const labelY = defaultLabelY + (object.labelOffsetY ?? 0);
             const isLabelDraggable = isSelected && activeTool === 'select' && !object.locked && !interactionSession;
@@ -479,17 +521,66 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 }}
               >
                 <Group opacity={objectOpacity}>
-                  <Rect
-                    x={0}
-                    y={0}
-                    width={object.width}
-                    height={object.height}
-                    fill={object.color}
-                    stroke="#334155"
-                    strokeWidth={1}
-                    dash={object.type === 'roof_overlay' ? [10, 6] : undefined}
-                    cornerRadius={cornerRadius}
-                  />
+                  {object.type === 'dimension_line' ? (
+                    <>
+                      <Rect
+                        x={0}
+                        y={0}
+                        width={object.width}
+                        height={object.height}
+                        fill="#ffffff"
+                        opacity={0.001}
+                        strokeWidth={0}
+                      />
+                      <Line
+                        points={[0, object.height / 2, object.width, object.height / 2]}
+                        stroke={object.color}
+                        strokeWidth={2}
+                      />
+                      <Line
+                        points={[0, object.height / 2 - 8, 0, object.height / 2 + 8]}
+                        stroke={object.color}
+                        strokeWidth={2}
+                      />
+                      <Line
+                        points={[object.width, object.height / 2 - 8, object.width, object.height / 2 + 8]}
+                        stroke={object.color}
+                        strokeWidth={2}
+                      />
+                      <Line
+                        points={[0, object.height / 2, 8, object.height / 2 - 5]}
+                        stroke={object.color}
+                        strokeWidth={2}
+                      />
+                      <Line
+                        points={[0, object.height / 2, 8, object.height / 2 + 5]}
+                        stroke={object.color}
+                        strokeWidth={2}
+                      />
+                      <Line
+                        points={[object.width, object.height / 2, object.width - 8, object.height / 2 - 5]}
+                        stroke={object.color}
+                        strokeWidth={2}
+                      />
+                      <Line
+                        points={[object.width, object.height / 2, object.width - 8, object.height / 2 + 5]}
+                        stroke={object.color}
+                        strokeWidth={2}
+                      />
+                    </>
+                  ) : (
+                    <Rect
+                      x={0}
+                      y={0}
+                      width={object.width}
+                      height={object.height}
+                      fill={object.color}
+                      stroke="#334155"
+                      strokeWidth={1}
+                      dash={object.type === 'roof_overlay' ? [10, 6] : undefined}
+                      cornerRadius={cornerRadius}
+                    />
+                  )}
 
                   {object.type === 'ramp_with_rails' && (
                     <>
@@ -597,7 +688,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                     height={labelHeight - 8}
                     align="center"
                     verticalAlign="middle"
-                    text={object.label}
+                    text={object.type === 'dimension_line' ? getDimensionLineLabel(object, currentScale) : object.label}
                     fontSize={12}
                     fill={object.labelColor ?? '#0f172a'}
                   />

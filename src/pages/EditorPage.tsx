@@ -18,6 +18,7 @@ const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 3;
 const ZOOM_STEP = 0.1;
 const MAX_SITE_IMAGE_BYTES = 10 * 1024 * 1024;
+const FEET_PER_METER = 3.28084;
 
 const OBJECT_COLOR_PRESETS = [
   { label: 'Cedar Dock', value: '#b77945' },
@@ -51,6 +52,39 @@ function clampOpacity(value: number): number {
 
 function clampZoom(value: number): number {
   return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value));
+}
+
+function getDimensionLengthPartsFromWidth(width: number, scale: ProjectScale) {
+  if (scale.pixels <= 0 || scale.realLength <= 0) {
+    return {
+      feet: 0,
+      inches: 0,
+      totalInches: 0,
+      canUseScale: false,
+    };
+  }
+
+  const realLengthInScaleUnits = (width / scale.pixels) * scale.realLength;
+  const totalFeet = scale.unit === 'm' ? realLengthInScaleUnits * FEET_PER_METER : realLengthInScaleUnits;
+  const totalInches = Math.max(0, Math.round(totalFeet * 12));
+
+  return {
+    feet: Math.floor(totalInches / 12),
+    inches: totalInches % 12,
+    totalInches,
+    canUseScale: true,
+  };
+}
+
+function getCanvasWidthFromFeetAndInches(feet: number, inches: number, scale: ProjectScale): number | null {
+  if (scale.pixels <= 0 || scale.realLength <= 0) {
+    return null;
+  }
+
+  const totalFeet = (Math.max(0, feet) * 12 + Math.max(0, inches)) / 12;
+  const lengthInScaleUnits = scale.unit === 'm' ? totalFeet / FEET_PER_METER : totalFeet;
+
+  return (lengthInScaleUnits / scale.realLength) * scale.pixels;
 }
 
 function getSafeStorageFileName(fileName: string): string {
@@ -475,6 +509,14 @@ export function EditorPage() {
     [project.objects, selectedObjectId],
   );
 
+  const selectedDimensionLength = useMemo(() => {
+    if (!selectedObject || selectedObject.type !== 'dimension_line') {
+      return null;
+    }
+
+    return getDimensionLengthPartsFromWidth(selectedObject.width, currentScale);
+  }, [currentScale, selectedObject]);
+
   const selectedObjectIndex = useMemo(
     () => sortedObjects.findIndex((object) => object.id === selectedObjectId),
     [selectedObjectId, sortedObjects],
@@ -591,6 +633,7 @@ export function EditorPage() {
       'steps',
       'roof_overlay',
       'boat_lift',
+      'dimension_line',
     ] as const;
 
     if (placementTools.includes(activeTool as (typeof placementTools)[number])) {
@@ -606,6 +649,7 @@ export function EditorPage() {
           steps: 'Steps',
           roof_overlay: 'Roof Overlay',
           boat_lift: 'Boat Lift',
+          dimension_line: 'Dimension Line',
         };
 
         const objectSizeByTool: Record<(typeof placementTools)[number], { width: number; height: number }> = {
@@ -616,6 +660,7 @@ export function EditorPage() {
           steps: { width: 60, height: 40 },
           roof_overlay: { width: 140, height: 80 },
           boat_lift: { width: 80, height: 30 },
+          dimension_line: { width: 160, height: 24 },
         };
 
         const objectColorByTool: Record<(typeof placementTools)[number], string> = {
@@ -626,6 +671,7 @@ export function EditorPage() {
           steps: '#9a6b3f',
           roof_overlay: '#64748b',
           boat_lift: '#cbd5e1',
+          dimension_line: '#0f172a',
         };
 
         const nextObject: DockObject = {
@@ -850,6 +896,44 @@ export function EditorPage() {
       ...object,
       height: Math.max(MIN_OBJECT_SIZE, parsedValue),
     }));
+  };
+
+  const handleSelectedDimensionLengthChange = (feet: number, inches: number) => {
+    const nextWidth = getCanvasWidthFromFeetAndInches(feet, inches, currentScale);
+
+    if (nextWidth === null) {
+      setSaveMessage('Set the project scale before sizing a dimension line by feet and inches.');
+      return;
+    }
+
+    updateSelectedObject((object) => ({
+      ...object,
+      width: Math.max(MIN_OBJECT_SIZE, nextWidth),
+    }));
+  };
+
+  const handleSelectedDimensionFeetChange = (value: string) => {
+    const parsedFeet = Number(value);
+    if (!Number.isFinite(parsedFeet)) {
+      return;
+    }
+
+    handleSelectedDimensionLengthChange(
+      Math.max(0, Math.floor(parsedFeet)),
+      selectedDimensionLength?.inches ?? 0,
+    );
+  };
+
+  const handleSelectedDimensionInchesChange = (value: string) => {
+    const parsedInches = Number(value);
+    if (!Number.isFinite(parsedInches)) {
+      return;
+    }
+
+    handleSelectedDimensionLengthChange(
+      selectedDimensionLength?.feet ?? 0,
+      Math.max(0, Math.min(11, Math.floor(parsedInches))),
+    );
   };
 
   const handleSelectedObjectRotationChange = (value: string) => {
@@ -1205,6 +1289,7 @@ export function EditorPage() {
               onObjectSizeChange={handleObjectSizeChange}
               onObjectRotationChange={handleObjectRotationChange}
               onObjectLabelOffsetChange={handleObjectLabelOffsetChange}
+              currentScale={currentScale}
               isSnapToGridEnabled={isSnapToGridEnabled}
               zoom={zoom}
               onZoomChange={setZoom}
@@ -1537,6 +1622,56 @@ export function EditorPage() {
                           />
                         </label>
                       </div>
+
+                      {selectedObject.type === 'dimension_line' && (
+                        <div className="mt-3 rounded-md border border-slate-200 bg-white p-3">
+                          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Dimension Length
+                          </p>
+                          <p className="mt-1 text-xs text-slate-600">
+                            Enter the real-world length for this dimension line in feet and inches.
+                          </p>
+
+                          {!selectedDimensionLength?.canUseScale && (
+                            <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                              Set the project scale first before entering a dimension length.
+                            </p>
+                          )}
+
+                          <div className="mt-3 grid grid-cols-2 gap-2">
+                            <label className="block">
+                              <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                Feet
+                              </span>
+                              <input
+                                type="number"
+                                min={0}
+                                step={1}
+                                value={selectedDimensionLength?.feet ?? 0}
+                                onChange={(event) => handleSelectedDimensionFeetChange(event.target.value)}
+                                disabled={!selectedDimensionLength?.canUseScale}
+                                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-70"
+                              />
+                            </label>
+
+                            <label className="block">
+                              <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                Inches
+                              </span>
+                              <input
+                                type="number"
+                                min={0}
+                                max={11}
+                                step={1}
+                                value={selectedDimensionLength?.inches ?? 0}
+                                onChange={(event) => handleSelectedDimensionInchesChange(event.target.value)}
+                                disabled={!selectedDimensionLength?.canUseScale}
+                                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-70"
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      )}
 
                       <label className="mt-3 block">
                         <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
