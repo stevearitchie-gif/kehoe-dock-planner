@@ -599,7 +599,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                     verticalAlign="middle"
                     text={object.label}
                     fontSize={12}
-                    fill="#0f172a"
+                    fill={object.labelColor ?? '#0f172a'}
                   />
                 </Group>
 
