@@ -468,16 +468,36 @@ export function EditorPage() {
       return saveMessage;
     }
 
+    return null;
+  }, [saveMessage]);
+
+  const saveStatusIndicator = useMemo(() => {
+    if (isSaving) {
+      return {
+        label: 'Saving...',
+        className: 'border-blue-200 bg-blue-50 text-blue-700',
+      };
+    }
+
     if (isDirty) {
-      return 'Unsaved changes';
+      return {
+        label: 'Unsaved changes',
+        className: 'border-amber-200 bg-amber-50 text-amber-800',
+      };
     }
 
     if (lastSavedAt) {
-      return `Saved at ${formatSavedTime(lastSavedAt)}`;
+      return {
+        label: `Saved at ${formatSavedTime(lastSavedAt)}`,
+        className: 'border-green-200 bg-green-50 text-green-700',
+      };
     }
 
-    return null;
-  }, [isDirty, lastSavedAt, saveMessage]);
+    return {
+      label: 'Not saved yet',
+      className: 'border-slate-200 bg-slate-50 text-slate-600',
+    };
+  }, [isDirty, isSaving, lastSavedAt]);
 
   useEffect(() => {
     setIsDeleteConfirmationVisible(false);
@@ -1029,6 +1049,11 @@ export function EditorPage() {
             <div className="min-w-0">
               <p className="text-xs uppercase tracking-wider text-slate-500">Kehoe Dock Planner</p>
               <h1 className="truncate text-lg font-semibold text-slate-900">{projectName}</h1>
+              <div
+                className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${saveStatusIndicator.className}`}
+              >
+                {saveStatusIndicator.label}
+              </div>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
