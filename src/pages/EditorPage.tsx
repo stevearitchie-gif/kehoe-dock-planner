@@ -49,6 +49,105 @@ const LABEL_COLOR_PRESETS = [
   { label: 'Green', value: '#16a34a' },
 ];
 
+type GenericShapeTool = (typeof genericShapeToolModes)[number];
+
+function ShapeToolPreview({ tool }: { tool: GenericShapeTool }) {
+  const stroke = '#334155';
+  const fill = '#e2e8f0';
+
+  switch (tool) {
+    case 'shape_rectangle':
+      return (
+        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+          <rect x="10" y="8" width="44" height="24" fill={fill} stroke={stroke} strokeWidth="2" />
+        </svg>
+      );
+
+    case 'shape_rounded_rectangle':
+      return (
+        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+          <rect x="10" y="8" width="44" height="24" rx="7" fill={fill} stroke={stroke} strokeWidth="2" />
+        </svg>
+      );
+
+    case 'shape_oval':
+      return (
+        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+          <ellipse cx="32" cy="20" rx="23" ry="12" fill={fill} stroke={stroke} strokeWidth="2" />
+        </svg>
+      );
+
+    case 'shape_triangle':
+      return (
+        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+          <polygon points="32,6 54,34 10,34" fill={fill} stroke={stroke} strokeWidth="2" />
+        </svg>
+      );
+
+    case 'shape_diamond':
+      return (
+        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+          <polygon points="32,5 56,20 32,35 8,20" fill={fill} stroke={stroke} strokeWidth="2" />
+        </svg>
+      );
+
+    case 'shape_parallelogram':
+      return (
+        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+          <polygon points="18,8 56,8 46,32 8,32" fill={fill} stroke={stroke} strokeWidth="2" />
+        </svg>
+      );
+
+    case 'shape_trapezoid':
+      return (
+        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+          <polygon points="20,8 44,8 56,32 8,32" fill={fill} stroke={stroke} strokeWidth="2" />
+        </svg>
+      );
+
+    case 'shape_hexagon':
+      return (
+        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+          <polygon points="18,8 46,8 58,20 46,32 18,32 6,20" fill={fill} stroke={stroke} strokeWidth="2" />
+        </svg>
+      );
+
+    case 'shape_right_arrow':
+      return (
+        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+          <polygon points="6,14 38,14 38,7 58,20 38,33 38,26 6,26" fill={fill} stroke={stroke} strokeWidth="2" />
+        </svg>
+      );
+
+    case 'shape_line':
+      return (
+        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+          <line x1="8" y1="20" x2="56" y2="20" stroke={stroke} strokeWidth="3" strokeLinecap="round" />
+        </svg>
+      );
+
+    case 'shape_arrow_line':
+      return (
+        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+          <line x1="8" y1="20" x2="54" y2="20" stroke={stroke} strokeWidth="3" strokeLinecap="round" />
+          <polyline points="46,12 56,20 46,28" fill="none" stroke={stroke} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+
+    case 'shape_double_arrow_line':
+      return (
+        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+          <line x1="10" y1="20" x2="54" y2="20" stroke={stroke} strokeWidth="3" strokeLinecap="round" />
+          <polyline points="18,12 8,20 18,28" fill="none" stroke={stroke} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          <polyline points="46,12 56,20 46,28" fill="none" stroke={stroke} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+
+    default:
+      return null;
+  }
+}
+
 function snapToGrid(value: number): number {
   return Math.round(value / GRID_SIZE) * GRID_SIZE;
 }
@@ -1371,7 +1470,7 @@ export function EditorPage() {
                 </button>
 
                 {isShapeSelectorOpen && (
-                  <div className="mt-2 grid grid-cols-1 gap-2 rounded-md border border-slate-200 bg-slate-50 p-2">
+                  <div className="mt-2 grid grid-cols-2 gap-2 rounded-md border border-slate-200 bg-slate-50 p-2">
                     {genericShapeToolModes.map((tool) => {
                       const isActive = tool === activeTool;
                       const isEnabled = isCoreTool(tool) || isObjectTool(tool);
@@ -1382,13 +1481,15 @@ export function EditorPage() {
                           type="button"
                           onClick={() => handleToolClick(tool)}
                           disabled={!isEnabled}
-                          className={`rounded-md border px-3 py-2 text-left text-sm ${
+                          title={toolLabels[tool]}
+                          className={`flex min-h-[78px] flex-col items-center justify-center gap-2 rounded-md border px-2 py-2 text-center text-xs ${
                             isActive
                               ? 'border-brand-600 bg-brand-50 text-brand-700'
                               : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
                           } ${!isEnabled ? 'cursor-not-allowed opacity-50' : ''}`}
                         >
-                          {toolLabels[tool]}
+                          <ShapeToolPreview tool={tool} />
+                          <span className="leading-tight">{toolLabels[tool]}</span>
                         </button>
                       );
                     })}
