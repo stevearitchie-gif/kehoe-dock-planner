@@ -41,6 +41,8 @@ export interface DockObject {
   zIndex: number;
   locked: boolean;
   opacity?: number;
+  strokeColor?: string;
+  strokeWidth?: number;
   labelOffsetX?: number;
   labelOffsetY?: number;
   labelColor?: string;

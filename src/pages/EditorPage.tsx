@@ -49,6 +49,15 @@ const LABEL_COLOR_PRESETS = [
   { label: 'Green', value: '#16a34a' },
 ];
 
+const OUTLINE_COLOR_PRESETS = [
+  { label: 'Slate', value: '#334155' },
+  { label: 'Black', value: '#0f172a' },
+  { label: 'White', value: '#ffffff' },
+  { label: 'Blue', value: '#2563eb' },
+  { label: 'Red', value: '#dc2626' },
+  { label: 'Orange', value: '#f97316' },
+];
+
 type GenericShapeTool = (typeof genericShapeToolModes)[number];
 
 function ShapeToolPreview({ tool }: { tool: GenericShapeTool }) {
@@ -218,6 +227,32 @@ function getDefaultOpacityByType(type: DockObject['type']): number {
 
 function getObjectOpacity(object: DockObject): number {
   return clampOpacity(object.opacity ?? getDefaultOpacityByType(object.type));
+}
+
+function getDefaultStrokeWidthByType(type: DockObject['type']): number {
+  return type === 'dimension_line' ||
+    type === 'shape_line' ||
+    type === 'shape_arrow_line' ||
+    type === 'shape_double_arrow_line'
+    ? 2
+    : 1;
+}
+
+function getDefaultStrokeColorByObject(object: DockObject): string {
+  return object.type === 'dimension_line' ||
+    object.type === 'shape_line' ||
+    object.type === 'shape_arrow_line' ||
+    object.type === 'shape_double_arrow_line'
+    ? object.color
+    : '#334155';
+}
+
+function getObjectStrokeWidthForControls(object: DockObject): number {
+  return object.strokeWidth ?? getDefaultStrokeWidthByType(object.type);
+}
+
+function getObjectStrokeColorForControls(object: DockObject): string {
+  return object.strokeColor ?? getDefaultStrokeColorByObject(object);
 }
 
 function buildEditorProject(projectId: string | undefined): DockProject {
@@ -1153,6 +1188,30 @@ export function EditorPage() {
     }));
   };
 
+  const handleSelectedObjectStrokeColorChange = (value: string) => {
+    updateSelectedObject((object) => ({
+      ...object,
+      strokeColor: value === getDefaultStrokeColorByObject(object) ? undefined : value,
+    }));
+  };
+
+  const handleSelectedObjectStrokeWidthChange = (value: string) => {
+    const parsedValue = Number(value);
+    if (!Number.isFinite(parsedValue)) {
+      return;
+    }
+
+    updateSelectedObject((object) => {
+      const nextStrokeWidth = Math.max(0, parsedValue);
+
+      return {
+        ...object,
+        strokeWidth:
+          nextStrokeWidth === getDefaultStrokeWidthByType(object.type) ? undefined : nextStrokeWidth,
+      };
+    });
+  };
+
   const handleSelectedObjectLabelColorChange = (value: string) => {
     updateSelectedObject((object) => ({
       ...object,
@@ -1758,6 +1817,84 @@ export function EditorPage() {
                           })}
                         </div>
                       </div>
+
+                      <div className="mt-3 rounded-md border border-slate-200 bg-white p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                              Outline Colour
+                            </p>
+                            <p className="mt-1 text-xs text-slate-600">
+                              Change the outline colour for shapes, lines, and dimension marks.
+                            </p>
+                          </div>
+                          <input
+                            type="color"
+                            value={getObjectStrokeColorForControls(selectedObject)}
+                            onChange={(event) => handleSelectedObjectStrokeColorChange(event.target.value)}
+                            className="h-10 w-12 cursor-pointer rounded-md border border-slate-300 bg-white p-1"
+                            aria-label="Selected object outline colour"
+                          />
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          {OUTLINE_COLOR_PRESETS.map((preset) => {
+                            const selectedStrokeColor = getObjectStrokeColorForControls(selectedObject);
+                            const isSelectedStrokeColour =
+                              selectedStrokeColor.toLowerCase() === preset.value.toLowerCase();
+
+                            return (
+                              <button
+                                key={preset.value}
+                                type="button"
+                                onClick={() => handleSelectedObjectStrokeColorChange(preset.value)}
+                                className={`flex items-center gap-2 rounded-md border px-2 py-2 text-left text-xs ${
+                                  isSelectedStrokeColour
+                                    ? 'border-brand-600 bg-brand-50 text-brand-700'
+                                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                                }`}
+                              >
+                                <span
+                                  className="h-4 w-4 shrink-0 rounded border border-slate-300"
+                                  style={{ backgroundColor: preset.value }}
+                                />
+                                <span className="truncate">{preset.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <label className="mt-3 block rounded-md border border-slate-200 bg-white p-3">
+                        <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                          Line Thickness
+                        </span>
+                        <div className="space-y-2">
+                          <input
+                            type="range"
+                            min={0}
+                            max={10}
+                            step={0.5}
+                            value={getObjectStrokeWidthForControls(selectedObject)}
+                            onChange={(event) => handleSelectedObjectStrokeWidthChange(event.target.value)}
+                            className="w-full"
+                          />
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min={0}
+                              max={20}
+                              step={0.5}
+                              value={getObjectStrokeWidthForControls(selectedObject)}
+                              onChange={(event) => handleSelectedObjectStrokeWidthChange(event.target.value)}
+                              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                            />
+                            <span className="min-w-[52px] text-right text-xs text-slate-500">
+                              {getObjectStrokeWidthForControls(selectedObject)}px
+                            </span>
+                          </div>
+                        </div>
+                      </label>
 
                       <label className="mt-3 block rounded-md border border-slate-200 bg-white p-3">
                         <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">

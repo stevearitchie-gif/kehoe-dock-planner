@@ -70,6 +70,18 @@ function getObjectOpacity(opacity?: number): number {
   return Math.max(0, Math.min(1, opacity));
 }
 
+function getObjectStrokeColor(object: DockObject, fallback = '#334155'): string {
+  return object.strokeColor ?? fallback;
+}
+
+function getObjectStrokeWidth(object: DockObject, fallback = 1): number {
+  if (typeof object.strokeWidth !== 'number' || Number.isNaN(object.strokeWidth)) {
+    return fallback;
+  }
+
+  return Math.max(0, object.strokeWidth);
+}
+
 function formatFeetAndInches(totalFeet: number): string {
   if (!Number.isFinite(totalFeet) || totalFeet <= 0) {
     return 'Set scale first';
@@ -638,38 +650,38 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                       />
                       <Line
                         points={[0, object.height / 2, object.width, object.height / 2]}
-                        stroke={object.color}
-                        strokeWidth={2}
+                        stroke={getObjectStrokeColor(object, object.color)}
+                        strokeWidth={getObjectStrokeWidth(object, 2)}
                       />
                       <Line
                         points={[0, object.height / 2 - 8, 0, object.height / 2 + 8]}
-                        stroke={object.color}
-                        strokeWidth={2}
+                        stroke={getObjectStrokeColor(object, object.color)}
+                        strokeWidth={getObjectStrokeWidth(object, 2)}
                       />
                       <Line
                         points={[object.width, object.height / 2 - 8, object.width, object.height / 2 + 8]}
-                        stroke={object.color}
-                        strokeWidth={2}
+                        stroke={getObjectStrokeColor(object, object.color)}
+                        strokeWidth={getObjectStrokeWidth(object, 2)}
                       />
                       <Line
                         points={[0, object.height / 2, 8, object.height / 2 - 5]}
-                        stroke={object.color}
-                        strokeWidth={2}
+                        stroke={getObjectStrokeColor(object, object.color)}
+                        strokeWidth={getObjectStrokeWidth(object, 2)}
                       />
                       <Line
                         points={[0, object.height / 2, 8, object.height / 2 + 5]}
-                        stroke={object.color}
-                        strokeWidth={2}
+                        stroke={getObjectStrokeColor(object, object.color)}
+                        strokeWidth={getObjectStrokeWidth(object, 2)}
                       />
                       <Line
                         points={[object.width, object.height / 2, object.width - 8, object.height / 2 - 5]}
-                        stroke={object.color}
-                        strokeWidth={2}
+                        stroke={getObjectStrokeColor(object, object.color)}
+                        strokeWidth={getObjectStrokeWidth(object, 2)}
                       />
                       <Line
                         points={[object.width, object.height / 2, object.width - 8, object.height / 2 + 5]}
-                        stroke={object.color}
-                        strokeWidth={2}
+                        stroke={getObjectStrokeColor(object, object.color)}
+                        strokeWidth={getObjectStrokeWidth(object, 2)}
                       />
                     </>
                   ) : object.type === 'shape_line' ? (
@@ -685,8 +697,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                       />
                       <Line
                         points={[0, object.height / 2, object.width, object.height / 2]}
-                        stroke={object.color}
-                        strokeWidth={2}
+                        stroke={getObjectStrokeColor(object, object.color)}
+                        strokeWidth={getObjectStrokeWidth(object, 2)}
                       />
                     </>
                   ) : object.type === 'shape_arrow_line' ? (
@@ -702,18 +714,18 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                       />
                       <Line
                         points={[0, object.height / 2, object.width, object.height / 2]}
-                        stroke={object.color}
-                        strokeWidth={2}
+                        stroke={getObjectStrokeColor(object, object.color)}
+                        strokeWidth={getObjectStrokeWidth(object, 2)}
                       />
                       <Line
                         points={[object.width, object.height / 2, object.width - 10, object.height / 2 - 6]}
-                        stroke={object.color}
-                        strokeWidth={2}
+                        stroke={getObjectStrokeColor(object, object.color)}
+                        strokeWidth={getObjectStrokeWidth(object, 2)}
                       />
                       <Line
                         points={[object.width, object.height / 2, object.width - 10, object.height / 2 + 6]}
-                        stroke={object.color}
-                        strokeWidth={2}
+                        stroke={getObjectStrokeColor(object, object.color)}
+                        strokeWidth={getObjectStrokeWidth(object, 2)}
                       />
                     </>
                   ) : object.type === 'shape_double_arrow_line' ? (
@@ -729,28 +741,28 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                       />
                       <Line
                         points={[0, object.height / 2, object.width, object.height / 2]}
-                        stroke={object.color}
-                        strokeWidth={2}
+                        stroke={getObjectStrokeColor(object, object.color)}
+                        strokeWidth={getObjectStrokeWidth(object, 2)}
                       />
                       <Line
                         points={[0, object.height / 2, 10, object.height / 2 - 6]}
-                        stroke={object.color}
-                        strokeWidth={2}
+                        stroke={getObjectStrokeColor(object, object.color)}
+                        strokeWidth={getObjectStrokeWidth(object, 2)}
                       />
                       <Line
                         points={[0, object.height / 2, 10, object.height / 2 + 6]}
-                        stroke={object.color}
-                        strokeWidth={2}
+                        stroke={getObjectStrokeColor(object, object.color)}
+                        strokeWidth={getObjectStrokeWidth(object, 2)}
                       />
                       <Line
                         points={[object.width, object.height / 2, object.width - 10, object.height / 2 - 6]}
-                        stroke={object.color}
-                        strokeWidth={2}
+                        stroke={getObjectStrokeColor(object, object.color)}
+                        strokeWidth={getObjectStrokeWidth(object, 2)}
                       />
                       <Line
                         points={[object.width, object.height / 2, object.width - 10, object.height / 2 + 6]}
-                        stroke={object.color}
-                        strokeWidth={2}
+                        stroke={getObjectStrokeColor(object, object.color)}
+                        strokeWidth={getObjectStrokeWidth(object, 2)}
                       />
                     </>
                   ) : object.type === 'shape_oval' ? (
@@ -760,8 +772,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                       radiusX={object.width / 2}
                       radiusY={object.height / 2}
                       fill={object.color}
-                      stroke="#334155"
-                      strokeWidth={1}
+                      stroke={getObjectStrokeColor(object)}
+                      strokeWidth={getObjectStrokeWidth(object, 1)}
                     />
                   ) : object.type === 'shape_rounded_rectangle' ? (
                     <Rect
@@ -770,8 +782,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                       width={object.width}
                       height={object.height}
                       fill={object.color}
-                      stroke="#334155"
-                      strokeWidth={1}
+                      stroke={getObjectStrokeColor(object)}
+                      strokeWidth={getObjectStrokeWidth(object, 1)}
                       cornerRadius={12}
                     />
                   ) : getGenericShapePoints(object) ? (
@@ -779,8 +791,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                       points={getGenericShapePoints(object) ?? []}
                       closed
                       fill={object.color}
-                      stroke="#334155"
-                      strokeWidth={1}
+                      stroke={getObjectStrokeColor(object)}
+                      strokeWidth={getObjectStrokeWidth(object, 1)}
                     />
                   ) : (
                     <Rect
@@ -789,8 +801,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                       width={object.width}
                       height={object.height}
                       fill={object.color}
-                      stroke="#334155"
-                      strokeWidth={1}
+                      stroke={getObjectStrokeColor(object)}
+                      strokeWidth={getObjectStrokeWidth(object, 1)}
                       dash={object.type === 'roof_overlay' ? [10, 6] : undefined}
                       cornerRadius={cornerRadius}
                     />
