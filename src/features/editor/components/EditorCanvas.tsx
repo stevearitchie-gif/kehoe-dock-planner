@@ -72,6 +72,8 @@ const LABEL_BOX_HEIGHT = 24;
 
 const DRAW_START_THRESHOLD = 8;
 
+const CONNECTOR_SNAP_THRESHOLD = 16;
+
 const drawableShapeTools: ToolMode[] = [
   'shape_rectangle', 'shape_rounded_rectangle', 'shape_oval', 'shape_triangle',
   'shape_right_triangle', 'shape_diamond', 'shape_parallelogram', 'shape_trapezoid',
@@ -301,6 +303,48 @@ function isConnectorEndpointObject(object: DockObject): boolean {
     object.type === 'shape_double_elbow_connector' ||
     object.type === 'shape_elbow_arrow_connector'
   );
+}
+
+function getObjectSnapPoints(object: DockObject): Point[] {
+  const left = object.x;
+  const top = object.y;
+  const right = object.x + object.width;
+  const bottom = object.y + object.height;
+  const centerX = object.x + object.width / 2;
+  const centerY = object.y + object.height / 2;
+
+  return [
+    { x: left, y: top },
+    { x: centerX, y: top },
+    { x: right, y: top },
+    { x: right, y: centerY },
+    { x: right, y: bottom },
+    { x: centerX, y: bottom },
+    { x: left, y: bottom },
+    { x: left, y: centerY },
+  ];
+}
+
+function getNearestConnectorSnapPoint(point: Point, objects: DockObject[], activeObjectId: string): Point {
+  let nearestPoint: Point | null = null;
+  let nearestDistance = CONNECTOR_SNAP_THRESHOLD;
+
+  objects.forEach((object) => {
+    if (object.id === activeObjectId) {
+      return;
+    }
+
+    getObjectSnapPoints(object).forEach((snapPoint) => {
+      const distance = Math.hypot(point.x - snapPoint.x, point.y - snapPoint.y);
+
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestPoint = snapPoint;
+      }
+    });
+  });
+
+  return nearestPoint ?? point;
 }
 
 export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function EditorCanvas(
@@ -709,16 +753,19 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     if (interactionSession.type === 'connectorEndpoint') {
       onObjectClick(object.id);
 
+      const snappedStagePoint = getNearestConnectorSnapPoint(stagePoint, objects, object.id);
+      const snappedLocalPoint = getObjectLocalPoint(object, snappedStagePoint);
+
       if (interactionSession.endpoint === 'end') {
         onObjectSizeChange(object.id, {
-          width: Math.max(MIN_OBJECT_SIZE, localPoint.x),
-          height: Math.max(MIN_OBJECT_SIZE, localPoint.y),
+          width: Math.max(MIN_OBJECT_SIZE, snappedLocalPoint.x),
+          height: Math.max(MIN_OBJECT_SIZE, snappedLocalPoint.y),
         });
         return;
       }
 
-      const boundedLocalX = Math.min(localPoint.x, object.width - MIN_OBJECT_SIZE);
-      const boundedLocalY = Math.min(localPoint.y, object.height - MIN_OBJECT_SIZE);
+      const boundedLocalX = Math.min(snappedLocalPoint.x, object.width - MIN_OBJECT_SIZE);
+      const boundedLocalY = Math.min(snappedLocalPoint.y, object.height - MIN_OBJECT_SIZE);
 
       onObjectPositionChange(object.id, {
         x: object.x + boundedLocalX,
