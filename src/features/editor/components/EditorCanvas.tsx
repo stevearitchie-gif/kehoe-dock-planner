@@ -72,7 +72,7 @@ const LABEL_BOX_HEIGHT = 24;
 
 const DRAW_START_THRESHOLD = 8;
 
-const CONNECTOR_SNAP_THRESHOLD = 16;
+const CONNECTOR_SNAP_THRESHOLD = 32;
 
 const drawableShapeTools: ToolMode[] = [
   'shape_rectangle', 'shape_rounded_rectangle', 'shape_oval', 'shape_triangle',
@@ -325,7 +325,7 @@ function getObjectSnapPoints(object: DockObject): Point[] {
   ];
 }
 
-function getNearestConnectorSnapPoint(point: Point, objects: DockObject[], activeObjectId: string): Point {
+function getNearestConnectorSnapPoint(point: Point, objects: DockObject[], activeObjectId: string) {
   let nearestPoint: Point | null = null;
   let nearestDistance = CONNECTOR_SNAP_THRESHOLD;
 
@@ -344,7 +344,10 @@ function getNearestConnectorSnapPoint(point: Point, objects: DockObject[], activ
     });
   });
 
-  return nearestPoint ?? point;
+  return {
+    point: nearestPoint ?? point,
+    snapped: nearestPoint !== null,
+  };
 }
 
 export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function EditorCanvas(
@@ -377,6 +380,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   const [interactionSession, setInteractionSession] = useState<InteractionSession | null>(null);
   const [draftShapeBox, setDraftShapeBox] = useState<DraftShapeBox | null>(null);
   const draftShapeBoxRef = useRef<DraftShapeBox | null>(null);
+  const [connectorSnapPoint, setConnectorSnapPoint] = useState<Point | null>(null);
   const [stagePosition, setStagePosition] = useState<Point>({ x: 0, y: 0 });
 
   useImperativeHandle(ref, () => ({
@@ -685,6 +689,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       onObjectRotationChange(interactionSession.objectId, interactionSession.previewRotation);
     }
 
+    setConnectorSnapPoint(null);
     setInteractionSession(null);
   };
 
@@ -753,8 +758,9 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     if (interactionSession.type === 'connectorEndpoint') {
       onObjectClick(object.id);
 
-      const snappedStagePoint = getNearestConnectorSnapPoint(stagePoint, objects, object.id);
-      const snappedLocalPoint = getObjectLocalPoint(object, snappedStagePoint);
+      const snapResult = getNearestConnectorSnapPoint(stagePoint, objects, object.id);
+      setConnectorSnapPoint(snapResult.snapped ? snapResult.point : null);
+      const snappedLocalPoint = getObjectLocalPoint(object, snapResult.point);
 
       if (interactionSession.endpoint === 'end') {
         onObjectSizeChange(object.id, {
@@ -923,6 +929,33 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           {scalePoints.map((point) => (
             <Circle key={`${point.x}-${point.y}`} x={point.x} y={point.y} radius={5} fill="#1d4ed8" />
           ))}
+
+          {connectorSnapPoint && (
+            <>
+              <Circle
+                x={connectorSnapPoint.x}
+                y={connectorSnapPoint.y}
+                radius={16}
+                fill="#dbeafe"
+                opacity={0.9}
+                stroke="#2563eb"
+                strokeWidth={3}
+              />
+              <Line
+                points={[connectorSnapPoint.x - 22, connectorSnapPoint.y, connectorSnapPoint.x + 22, connectorSnapPoint.y]}
+                stroke="#2563eb"
+                strokeWidth={2}
+                opacity={0.9}
+              />
+              <Line
+                points={[connectorSnapPoint.x, connectorSnapPoint.y - 22, connectorSnapPoint.x, connectorSnapPoint.y + 22]}
+                stroke="#2563eb"
+                strokeWidth={2}
+                opacity={0.9}
+              />
+              <Circle x={connectorSnapPoint.x} y={connectorSnapPoint.y} radius={4} fill="#1d4ed8" />
+            </>
+          )}
         </Layer>
 
         <Layer>
