@@ -73,8 +73,39 @@ const shapeToolGroups: { title: string; tools: GenericShapeTool[] }[] = [
     ],
   },
   {
+    title: 'Rectangles',
+    tools: ['shape_rectangle', 'shape_rounded_rectangle', 'shape_callout'],
+  },
+  {
+    title: 'Basic Shapes',
+    tools: [
+      'shape_oval',
+      'shape_triangle',
+      'shape_right_triangle',
+      'shape_diamond',
+      'shape_parallelogram',
+      'shape_trapezoid',
+      'shape_pentagon',
+      'shape_hexagon',
+      'shape_octagon',
+      'shape_cross',
+      'shape_plus',
+      'shape_cube',
+      'shape_cylinder',
+    ],
+  },
+  {
     title: 'Block Arrows',
-    tools: ['shape_right_arrow', 'shape_left_arrow', 'shape_up_arrow', 'shape_down_arrow', 'shape_left_right_arrow', 'shape_up_down_arrow', 'shape_chevron_right', 'shape_chevron_left'],
+    tools: [
+      'shape_right_arrow',
+      'shape_left_arrow',
+      'shape_up_arrow',
+      'shape_down_arrow',
+      'shape_left_right_arrow',
+      'shape_up_down_arrow',
+      'shape_chevron_right',
+      'shape_chevron_left',
+    ],
   },
 ];
 
@@ -85,119 +116,119 @@ function ShapeToolPreview({ tool }: { tool: GenericShapeTool }) {
   switch (tool) {
     case 'shape_rectangle':
       return (
-        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+        <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true">
           <rect x="10" y="8" width="44" height="24" fill={fill} stroke={stroke} strokeWidth="2" />
         </svg>
       );
 
     case 'shape_rounded_rectangle':
       return (
-        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+        <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true">
           <rect x="10" y="8" width="44" height="24" rx="7" fill={fill} stroke={stroke} strokeWidth="2" />
         </svg>
       );
 
     case 'shape_oval':
       return (
-        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+        <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true">
           <ellipse cx="32" cy="20" rx="23" ry="12" fill={fill} stroke={stroke} strokeWidth="2" />
         </svg>
       );
 
     case 'shape_triangle':
       return (
-        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+        <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true">
           <polygon points="32,6 54,34 10,34" fill={fill} stroke={stroke} strokeWidth="2" />
         </svg>
       );
 
     case 'shape_right_triangle':
       return (
-        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+        <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true">
           <polygon points="12,8 52,32 12,32" fill={fill} stroke={stroke} strokeWidth="2" />
         </svg>
       );
 
     case 'shape_diamond':
       return (
-        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+        <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true">
           <polygon points="32,5 56,20 32,35 8,20" fill={fill} stroke={stroke} strokeWidth="2" />
         </svg>
       );
 
     case 'shape_parallelogram':
       return (
-        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+        <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true">
           <polygon points="18,8 56,8 46,32 8,32" fill={fill} stroke={stroke} strokeWidth="2" />
         </svg>
       );
 
     case 'shape_trapezoid':
       return (
-        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+        <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true">
           <polygon points="20,8 44,8 56,32 8,32" fill={fill} stroke={stroke} strokeWidth="2" />
         </svg>
       );
 
     case 'shape_pentagon':
       return (
-        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+        <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true">
           <polygon points="32,5 56,18 47,35 17,35 8,18" fill={fill} stroke={stroke} strokeWidth="2" />
         </svg>
       );
 
     case 'shape_hexagon':
       return (
-        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+        <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true">
           <polygon points="18,8 46,8 58,20 46,32 18,32 6,20" fill={fill} stroke={stroke} strokeWidth="2" />
         </svg>
       );
 
     case 'shape_octagon':
-      return <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true"><polygon points="22,6 42,6 56,14 56,26 42,34 22,34 8,26 8,14" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
+      return <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true"><polygon points="22,6 42,6 56,14 56,26 42,34 22,34 8,26 8,14" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
 
     case 'shape_cross':
     case 'shape_plus':
-      return <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true"><polygon points="25,6 39,6 39,15 54,15 54,25 39,25 39,34 25,34 25,25 10,25 10,15 25,15" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
+      return <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true"><polygon points="25,6 39,6 39,15 54,15 54,25 39,25 39,34 25,34 25,25 10,25 10,15 25,15" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
 
     case 'shape_left_arrow':
-      return <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true"><polygon points="58,14 26,14 26,7 6,20 26,33 26,26 58,26" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
+      return <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true"><polygon points="58,14 26,14 26,7 6,20 26,33 26,26 58,26" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
 
     case 'shape_up_arrow':
-      return <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true"><polygon points="25,34 25,17 15,17 32,5 49,17 39,17 39,34" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
+      return <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true"><polygon points="25,34 25,17 15,17 32,5 49,17 39,17 39,34" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
 
     case 'shape_down_arrow':
-      return <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true"><polygon points="25,6 39,6 39,23 49,23 32,35 15,23 25,23" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
+      return <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true"><polygon points="25,6 39,6 39,23 49,23 32,35 15,23 25,23" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
 
     case 'shape_left_right_arrow':
-      return <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true"><polygon points="18,7 28,14 36,14 46,7 58,20 46,33 36,26 28,26 18,33 6,20" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
+      return <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true"><polygon points="18,7 28,14 36,14 46,7 58,20 46,33 36,26 28,26 18,33 6,20" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
 
     case 'shape_up_down_arrow':
-      return <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true"><polygon points="32,4 48,14 39,18 39,22 48,26 32,36 16,26 25,22 25,18 16,14" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
+      return <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true"><polygon points="32,4 48,14 39,18 39,22 48,26 32,36 16,26 25,22 25,18 16,14" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
 
     case 'shape_chevron_right':
-      return <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true"><polygon points="10,7 39,7 56,20 39,33 10,33 27,20" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
+      return <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true"><polygon points="10,7 39,7 56,20 39,33 10,33 27,20" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
 
     case 'shape_chevron_left':
-      return <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true"><polygon points="54,7 25,7 8,20 25,33 54,33 37,20" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
+      return <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true"><polygon points="54,7 25,7 8,20 25,33 54,33 37,20" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
 
     case 'shape_right_arrow':
       return (
-        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+        <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true">
           <polygon points="6,14 38,14 38,7 58,20 38,33 38,26 6,26" fill={fill} stroke={stroke} strokeWidth="2" />
         </svg>
       );
 
     case 'shape_line':
       return (
-        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+        <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true">
           <line x1="8" y1="20" x2="56" y2="20" stroke={stroke} strokeWidth="3" strokeLinecap="round" />
         </svg>
       );
 
     case 'shape_arrow_line':
       return (
-        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+        <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true">
           <line x1="8" y1="20" x2="54" y2="20" stroke={stroke} strokeWidth="3" strokeLinecap="round" />
           <polyline points="46,12 56,20 46,28" fill="none" stroke={stroke} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -205,7 +236,7 @@ function ShapeToolPreview({ tool }: { tool: GenericShapeTool }) {
 
     case 'shape_double_arrow_line':
       return (
-        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+        <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true">
           <line x1="10" y1="20" x2="54" y2="20" stroke={stroke} strokeWidth="3" strokeLinecap="round" />
           <polyline points="18,12 8,20 18,28" fill="none" stroke={stroke} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
           <polyline points="46,12 56,20 46,28" fill="none" stroke={stroke} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
@@ -728,6 +759,26 @@ export function EditorPage() {
   const isSelectedObjectOnBottom = selectedObjectIndex === 0;
   const canZoomOut = zoom > MIN_ZOOM;
   const canZoomIn = zoom < MAX_ZOOM;
+
+  const activeToolHint = useMemo(() => {
+    if (activeTool === 'select') {
+      return 'Select, move, resize, rotate, or use keyboard shortcuts.';
+    }
+
+    if (activeTool === 'pan') {
+      return 'Drag the canvas to pan. Use Esc to return to select.';
+    }
+
+    if (activeTool === 'scale') {
+      return 'Click two points on the canvas to set the scale.';
+    }
+
+    if (activeTool === 'shoreline') {
+      return 'Click along the shoreline, then finish from the properties panel.';
+    }
+
+    return `Click the canvas or drag ${toolLabels[activeTool]} from the palette to place it.`;
+  }, [activeTool]);
 
   const statusMessage = useMemo(() => {
     if (saveMessage) {
@@ -1785,11 +1836,11 @@ export function EditorPage() {
                 </button>
 
                 {isShapeSelectorOpen && (
-                  <div className="mt-2 space-y-3 rounded-md border border-slate-200 bg-slate-50 p-2">
+                  <div className="mt-2 space-y-2 rounded-md border border-slate-200 bg-slate-50 p-2">
                     {shapeToolGroups.map((group) => (
                       <div key={group.title}>
-                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">{group.title}</p>
-                        <div className="grid grid-cols-2 gap-2">
+                        <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">{group.title}</p>
+                        <div className="grid grid-cols-2 gap-1.5">
                           {group.tools.map((tool) => {
                             const isActive = tool === activeTool;
                             const isEnabled = isCoreTool(tool) || isObjectTool(tool);
@@ -1806,7 +1857,7 @@ export function EditorPage() {
                                 onClick={() => handleToolClick(tool)}
                                 disabled={!isEnabled}
                                 title={toolLabels[tool]}
-                                className={`flex min-h-[78px] flex-col items-center justify-center gap-2 rounded-md border px-2 py-2 text-center text-xs ${
+                                className={`flex min-h-[54px] flex-col items-center justify-center gap-0.5 rounded-md border px-1.5 py-1 text-center text-[11px] ${
                                   isActive
                                     ? 'border-brand-600 bg-brand-50 text-brand-700'
                                     : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
@@ -1827,6 +1878,24 @@ export function EditorPage() {
           </aside>
 
           <section className="min-h-0 min-w-0 overflow-hidden bg-slate-50 p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-3 py-2">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Active Tool
+                </p>
+                <p className="truncate text-sm text-slate-700">
+                  <span className="font-medium text-slate-900">{toolLabels[activeTool]}</span>
+                  <span className="text-slate-500"> - {activeToolHint}</span>
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-1.5 text-[11px] text-slate-600">
+                {['Delete', 'Ctrl+D', 'Esc', 'Arrows', 'Shift+Arrows'].map((shortcut) => (
+                  <span key={shortcut} className="rounded border border-slate-200 bg-slate-50 px-2 py-1">
+                    {shortcut}
+                  </span>
+                ))}
+              </div>
+            </div>
             <EditorCanvas
               ref={editorCanvasRef}
               activeTool={activeTool}
