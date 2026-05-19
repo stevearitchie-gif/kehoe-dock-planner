@@ -18,10 +18,12 @@ interface EditorCanvasProps {
   onCanvasObjectDraw: (tool: ToolMode, startPoint: Point, endPoint: Point) => void;
   onCanvasToolDrop: (tool: ToolMode, point: Point) => void;
   onObjectClick: (objectId: string) => void;
+  onObjectDoubleClick?: (objectId: string) => void;
   onObjectPositionChange: (objectId: string, point: Point) => void;
   onObjectSizeChange: (objectId: string, size: { width: number; height: number }) => void;
   onObjectRotationChange: (objectId: string, rotation: number) => void;
   onObjectLabelOffsetChange: (objectId: string, offset: Point) => void;
+  onObjectDimensionOffsetChange: (objectId: string, dimension: 'width' | 'height', offset: Point) => void;
   currentScale: ProjectScale;
   isSnapToGridEnabled: boolean;
   zoom: number;
@@ -135,6 +137,32 @@ function formatFeetAndInches(totalFeet: number): string {
   return `${feet}' ${inches}"`;
 }
 
+function canShowBoardTexture(object: DockObject): boolean {
+  return (
+    Boolean(object.metadata?.boardDirection) &&
+    ['floating_dock', 'stationary_dock', 'ramp_with_rails', 'ramp_without_rails'].includes(object.type)
+  );
+}
+
+function buildBoardTextureLines(object: DockObject): number[][] {
+  const spacing = 10;
+  const lines: number[][] = [];
+
+  if (object.metadata?.boardDirection === 'horizontal') {
+    for (let y = spacing; y < object.height; y += spacing) {
+      lines.push([0, y, object.width, y]);
+    }
+  }
+
+  if (object.metadata?.boardDirection === 'vertical') {
+    for (let x = spacing; x < object.width; x += spacing) {
+      lines.push([x, 0, x, object.height]);
+    }
+  }
+
+  return lines;
+}
+
 function getDimensionLineLabel(object: DockObject, scale: ProjectScale): string {
   if (object.type !== 'dimension_line') {
     return object.label;
@@ -149,6 +177,20 @@ function getDimensionLineLabel(object: DockObject, scale: ProjectScale): string 
     scale.unit === 'm' ? realLengthInScaleUnits * 3.28084 : realLengthInScaleUnits;
 
   return formatFeetAndInches(totalFeet);
+}
+
+function getObjectDimensionLabel(pixels: number, scale: ProjectScale): string {
+  if (scale.pixels <= 0 || scale.realLength <= 0) {
+    return `${Number(pixels.toFixed(1))} px`;
+  }
+
+  const realLengthInScaleUnits = (pixels / scale.pixels) * scale.realLength;
+
+  if (scale.unit === 'm') {
+    return `${Number(realLengthInScaleUnits.toFixed(2))} m`;
+  }
+
+  return formatFeetAndInches(realLengthInScaleUnits);
 }
 
 function formatScaleMeasurementLabel(scale: ProjectScale): string {
@@ -378,10 +420,12 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     onCanvasObjectDraw,
     onCanvasToolDrop,
     onObjectClick,
+    onObjectDoubleClick,
     onObjectPositionChange,
     onObjectSizeChange,
     onObjectRotationChange,
     onObjectLabelOffsetChange,
+    onObjectDimensionOffsetChange,
     currentScale,
     isSnapToGridEnabled,
     zoom,
@@ -1086,8 +1130,21 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 : object.rotation;
 
             const isShapeObject = object.type.startsWith('shape_');
-            const labelWidth = isShapeObject ? object.width : Math.max(object.width, LABEL_BOX_MIN_WIDTH);
-            const labelHeight = isShapeObject ? Math.max(object.height, LABEL_BOX_HEIGHT) : LABEL_BOX_HEIGHT;
+            const displayLabelText =
+              object.type === 'dimension_line' ? getDimensionLineLabel(object, currentScale) : object.label;
+            const isLabelVertical = object.labelRotation === 90 || object.labelRotation === -90;
+            const verticalLabelCharacters =
+              object.labelRotation === -90 ? displayLabelText.split('').reverse() : displayLabelText.split('');
+            const labelWidth = isLabelVertical
+              ? 34
+              : isShapeObject
+                ? object.width
+                : Math.max(object.width, LABEL_BOX_MIN_WIDTH);
+            const labelHeight = isLabelVertical
+              ? Math.max(90, verticalLabelCharacters.length * 14 + 8)
+              : isShapeObject
+                ? Math.max(object.height, LABEL_BOX_HEIGHT)
+                : LABEL_BOX_HEIGHT;
             const defaultLabelX = object.width / 2 - labelWidth / 2;
             const defaultLabelY =
               object.type === 'dimension_line'
@@ -1099,6 +1156,16 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
             const labelY = defaultLabelY + (object.labelOffsetY ?? 0);
             const isLabelDraggable =
               isLabelMoveModeEnabled && isSelected && activeTool === 'select' && !object.locked && !interactionSession;
+
+            const defaultWidthDimensionX = 0;
+            const defaultWidthDimensionY = object.height + 28;
+            const defaultHeightDimensionX = object.width + 28;
+            const defaultHeightDimensionY = 0;
+            const widthDimensionX = defaultWidthDimensionX + (object.dimensionWidthOffsetX ?? 0);
+            const widthDimensionY = defaultWidthDimensionY + (object.dimensionWidthOffsetY ?? 0);
+            const heightDimensionX = defaultHeightDimensionX + (object.dimensionHeightOffsetX ?? 0);
+            const heightDimensionY = defaultHeightDimensionY + (object.dimensionHeightOffsetY ?? 0);
+            const canShowObjectDimensions = object.type !== 'dimension_line' && !object.dimensionsHidden;
 
             return (
               <Group
@@ -1117,6 +1184,14 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 }
                 onClick={() => onObjectClick(object.id)}
                 onTap={() => onObjectClick(object.id)}
+                onDblClick={(event) => {
+                  event.cancelBubble = true;
+                  onObjectDoubleClick?.(object.id);
+                }}
+                onDblTap={(event) => {
+                  event.cancelBubble = true;
+                  onObjectDoubleClick?.(object.id);
+                }}
                 onDragStart={() => onObjectClick(object.id)}
                 onDragEnd={(event) => {
                   onObjectPositionChange(object.id, {
@@ -1345,6 +1420,18 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                     />
                   )}
 
+                  {canShowBoardTexture(object) &&
+                    buildBoardTextureLines(object).map((points: number[], lineIndex: number) => (
+                      <Line
+                        key={`board-texture-${object.id}-${lineIndex}`}
+                        points={points}
+                        stroke="#ffffff"
+                        strokeWidth={1}
+                        opacity={0.35}
+                        listening={false}
+                      />
+                    ))}
+
                   {object.type === 'ramp_with_rails' && (
                     <>
                       <Line points={[8, 4, 8, object.height - 4]} stroke="#1e3a8a" strokeWidth={2} />
@@ -1446,18 +1533,103 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                     strokeWidth={0}
                     cornerRadius={4}
                   />
-                  <Text
-                    x={4}
-                    y={4}
-                    width={labelWidth - 8}
-                    height={labelHeight - 8}
-                    align="center"
-                    verticalAlign="middle"
-                    text={object.type === 'dimension_line' ? getDimensionLineLabel(object, currentScale) : object.label}
-                    fontSize={12}
-                    fill={object.labelColor ?? '#0f172a'}
-                  />
+                  {isLabelVertical ? (
+                    verticalLabelCharacters.map((character, characterIndex) => (
+                      <Text
+                        key={`${object.id}-label-character-${characterIndex}`}
+                        x={0}
+                        y={4 + characterIndex * 14}
+                        width={labelWidth}
+                        height={14}
+                        align="center"
+                        verticalAlign="middle"
+                        text={character}
+                        fontSize={12}
+                        fill={object.labelColor ?? '#0f172a'}
+                      />
+                    ))
+                  ) : (
+                    <Text
+                      x={4}
+                      y={4}
+                      width={labelWidth - 8}
+                      height={labelHeight - 8}
+                      align="center"
+                      verticalAlign="middle"
+                      text={displayLabelText}
+                      fontSize={12}
+                      fill={object.labelColor ?? '#0f172a'}
+                    />
+                  )}
                 </Group>
+                )}
+
+                {canShowObjectDimensions && (
+                  <>
+                    <Group
+                      x={widthDimensionX}
+                      y={widthDimensionY}
+                      draggable={activeTool === 'select' && !object.locked && !interactionSession}
+                      onDragEnd={(event) => {
+                        event.cancelBubble = true;
+                        onObjectDimensionOffsetChange(object.id, 'width', {
+                          x: event.target.x() - defaultWidthDimensionX,
+                          y: event.target.y() - defaultWidthDimensionY,
+                        });
+                      }}
+                    >
+                      <Rect x={0} y={-18} width={object.width} height={36} fill="#ffffff" opacity={0.001} />
+                      <Line points={[0, 0, object.width, 0]} stroke="#2563eb" strokeWidth={2} />
+                      <Line points={[0, 0, 8, -5]} stroke="#2563eb" strokeWidth={2} />
+                      <Line points={[0, 0, 8, 5]} stroke="#2563eb" strokeWidth={2} />
+                      <Line points={[object.width, 0, object.width - 8, -5]} stroke="#2563eb" strokeWidth={2} />
+                      <Line points={[object.width, 0, object.width - 8, 5]} stroke="#2563eb" strokeWidth={2} />
+                      <Text
+                        x={0}
+                        y={4}
+                        width={object.width}
+                        height={18}
+                        align="center"
+                        verticalAlign="middle"
+                        text={getObjectDimensionLabel(object.width, currentScale)}
+                        fontSize={12}
+                        fontStyle="bold"
+                        fill="#1d4ed8"
+                      />
+                    </Group>
+
+                    <Group
+                      x={heightDimensionX}
+                      y={heightDimensionY}
+                      draggable={activeTool === 'select' && !object.locked && !interactionSession}
+                      onDragEnd={(event) => {
+                        event.cancelBubble = true;
+                        onObjectDimensionOffsetChange(object.id, 'height', {
+                          x: event.target.x() - defaultHeightDimensionX,
+                          y: event.target.y() - defaultHeightDimensionY,
+                        });
+                      }}
+                    >
+                      <Rect x={-18} y={0} width={100} height={object.height} fill="#ffffff" opacity={0.001} />
+                      <Line points={[0, 0, 0, object.height]} stroke="#2563eb" strokeWidth={2} />
+                      <Line points={[0, 0, -5, 8]} stroke="#2563eb" strokeWidth={2} />
+                      <Line points={[0, 0, 5, 8]} stroke="#2563eb" strokeWidth={2} />
+                      <Line points={[0, object.height, -5, object.height - 8]} stroke="#2563eb" strokeWidth={2} />
+                      <Line points={[0, object.height, 5, object.height - 8]} stroke="#2563eb" strokeWidth={2} />
+                      <Text
+                        x={8}
+                        y={object.height / 2 - 9}
+                        width={90}
+                        height={18}
+                        align="left"
+                        verticalAlign="middle"
+                        text={getObjectDimensionLabel(object.height, currentScale)}
+                        fontSize={12}
+                        fontStyle="bold"
+                        fill="#1d4ed8"
+                      />
+                    </Group>
+                  </>
                 )}
 
                 {isSelected && (

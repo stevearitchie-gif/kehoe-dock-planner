@@ -66,10 +66,17 @@ export interface DockObject {
   labelOffsetX?: number;
   labelOffsetY?: number;
   labelColor?: string;
+  labelRotation?: 0 | 90 | -90;
   labelHidden?: boolean;
+  dimensionWidthOffsetX?: number;
+  dimensionWidthOffsetY?: number;
+  dimensionHeightOffsetX?: number;
+  dimensionHeightOffsetY?: number;
+  dimensionsHidden?: boolean;
   metadata?: {
     elevation?: number;
     material?: string;
+    boardDirection?: 'horizontal' | 'vertical';
     textureRef?: string;
     connectionPoints?: Point[];
     modelType3D?: string;

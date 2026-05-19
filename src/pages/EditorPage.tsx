@@ -294,6 +294,42 @@ function getCanvasWidthFromFeetAndInches(feet: number, inches: number, scale: Pr
   return (lengthInScaleUnits / scale.realLength) * scale.pixels;
 }
 
+function canUseProjectScale(scale: ProjectScale): boolean {
+  return scale.pixels > 0 && scale.realLength > 0;
+}
+
+function getRealLengthFromCanvasPixels(pixels: number, scale: ProjectScale): number | null {
+  if (!canUseProjectScale(scale)) {
+    return null;
+  }
+
+  const lengthInScaleUnits = (pixels / scale.pixels) * scale.realLength;
+  return scale.unit === 'm' ? lengthInScaleUnits * FEET_PER_METER : lengthInScaleUnits;
+}
+
+function getCanvasPixelsFromRealLength(realLength: number, scale: ProjectScale): number | null {
+  if (!canUseProjectScale(scale)) {
+    return null;
+  }
+
+  const lengthInScaleUnits = scale.unit === 'm' ? realLength / FEET_PER_METER : realLength;
+  return (lengthInScaleUnits / scale.realLength) * scale.pixels;
+}
+
+function formatScaledDimensionValue(pixels: number, scale: ProjectScale): string {
+  const realLength = getRealLengthFromCanvasPixels(pixels, scale);
+  if (realLength === null) {
+    return Number(pixels.toFixed(2)).toString();
+  }
+
+  return Number(realLength.toFixed(2)).toString();
+}
+
+function getDimensionInputLabel(axis: 'width' | 'height', scale: ProjectScale): string {
+  const baseLabel = axis === 'width' ? 'Width' : 'Height';
+  return canUseProjectScale(scale) ? `${baseLabel} (${scale.unit === 'm' ? 'm' : 'ft'})` : `${baseLabel} (px)`;
+}
+
 function getSafeStorageFileName(fileName: string): string {
   return fileName
     .trim()
@@ -345,6 +381,10 @@ function getObjectStrokeWidthForControls(object: DockObject): number {
 
 function getObjectStrokeColorForControls(object: DockObject): string {
   return object.strokeColor ?? getDefaultStrokeColorByObject(object);
+}
+
+function canUseBoardTextureControls(object: DockObject): boolean {
+  return ['floating_dock', 'stationary_dock', 'ramp_with_rails', 'ramp_without_rails'].includes(object.type);
 }
 
 function buildEditorProject(projectId: string | undefined): DockProject {
@@ -1167,7 +1207,21 @@ export function EditorPage() {
     setSelectedObjectId(objectId);
   };
 
-  const handleObjectPositionChange = (objectId: string, point: Point) => {
+  
+  const handleObjectDoubleClick = (objectId: string) => {
+    setActiveTool('select');
+    setIsShapeSelectorOpen(false);
+    setSelectedObjectId(objectId);
+
+    window.setTimeout(() => {
+      const widthInput = document.getElementById('selected-object-width-input') as HTMLInputElement | null;
+      widthInput?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      widthInput?.focus();
+      widthInput?.select();
+    }, 50);
+  };
+
+const handleObjectPositionChange = (objectId: string, point: Point) => {
     setProject((prev) => ({
       ...prev,
       updatedAt: new Date().toISOString(),
@@ -1415,9 +1469,11 @@ export function EditorPage() {
       return;
     }
 
+    const scaledWidth = getCanvasPixelsFromRealLength(parsedValue, currentScale);
+
     updateSelectedObject((object) => ({
       ...object,
-      width: Math.max(MIN_OBJECT_SIZE, parsedValue),
+      width: Math.max(MIN_OBJECT_SIZE, scaledWidth ?? parsedValue),
     }));
   };
 
@@ -1427,9 +1483,11 @@ export function EditorPage() {
       return;
     }
 
+    const scaledHeight = getCanvasPixelsFromRealLength(parsedValue, currentScale);
+
     updateSelectedObject((object) => ({
       ...object,
-      height: Math.max(MIN_OBJECT_SIZE, parsedValue),
+      height: Math.max(MIN_OBJECT_SIZE, scaledHeight ?? parsedValue),
     }));
   };
 
@@ -1539,6 +1597,36 @@ export function EditorPage() {
     }));
   };
 
+  const handleObjectDimensionOffsetChange = (
+    objectId: string,
+    dimension: 'width' | 'height',
+    offset: Point,
+  ) => {
+    setProject((prev) => ({
+      ...prev,
+      updatedAt: new Date().toISOString(),
+      objects: prev.objects.map((object) => {
+        if (object.id !== objectId) {
+          return object;
+        }
+
+        if (dimension === 'width') {
+          return {
+            ...object,
+            dimensionWidthOffsetX: Math.abs(offset.x) < 0.5 ? undefined : offset.x,
+            dimensionWidthOffsetY: Math.abs(offset.y) < 0.5 ? undefined : offset.y,
+          };
+        }
+
+        return {
+          ...object,
+          dimensionHeightOffsetX: Math.abs(offset.x) < 0.5 ? undefined : offset.x,
+          dimensionHeightOffsetY: Math.abs(offset.y) < 0.5 ? undefined : offset.y,
+        };
+      }),
+    }));
+  };
+
   const handleResetSelectedObjectLabelPosition = () => {
     updateSelectedObject((object) => ({
       ...object,
@@ -1547,10 +1635,30 @@ export function EditorPage() {
     }));
   };
 
+  const handleResetSelectedObjectDimensionPositions = () => {
+    updateSelectedObject((object) => ({
+      ...object,
+      dimensionWidthOffsetX: undefined,
+      dimensionWidthOffsetY: undefined,
+      dimensionHeightOffsetX: undefined,
+      dimensionHeightOffsetY: undefined,
+    }));
+  };
+
   const handleSelectedObjectColorChange = (value: string) => {
     updateSelectedObject((object) => ({
       ...object,
       color: value,
+    }));
+  };
+
+  const handleSelectedObjectBoardDirectionChange = (value: 'none' | 'horizontal' | 'vertical') => {
+    updateSelectedObject((object) => ({
+      ...object,
+      metadata: {
+        ...object.metadata,
+        boardDirection: value === 'none' ? undefined : value,
+      },
     }));
   };
 
@@ -2016,10 +2124,12 @@ export function EditorPage() {
               onCanvasObjectDraw={handleCanvasObjectDraw}
               onCanvasToolDrop={handleCanvasToolDrop}
               onObjectClick={handleObjectClick}
+              onObjectDoubleClick={handleObjectDoubleClick}
               onObjectPositionChange={handleObjectPositionChange}
               onObjectSizeChange={handleObjectSizeChange}
               onObjectRotationChange={handleObjectRotationChange}
               onObjectLabelOffsetChange={handleObjectLabelOffsetChange}
+              onObjectDimensionOffsetChange={handleObjectDimensionOffsetChange}
               currentScale={currentScale}
               isSnapToGridEnabled={isSnapToGridEnabled}
               zoom={zoom}
@@ -2239,6 +2349,54 @@ export function EditorPage() {
                             );
                           })}
                         </div>
+
+                        <div className="mt-4 rounded-md border border-slate-200 bg-white p-3">
+                          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Label Rotation
+                          </p>
+                          <p className="mt-2 text-xs text-slate-500">
+                            Current label rotation: {selectedObject.labelRotation ?? 0} deg
+                          </p>
+                          <div className="mt-3 grid grid-cols-3 gap-2">
+                            {[
+                              { label: '0 deg', value: 0 },
+                              { label: '90 deg', value: 90 },
+                              { label: '-90 deg', value: -90 },
+                            ].map((option) => {
+                              const activeRotation = selectedObject.labelRotation ?? 0;
+                              const isActive = activeRotation === option.value;
+
+                              return (
+                                <button
+                                  key={option.value}
+                                  type="button"
+                                  onClick={() => {
+                                    const nextRotation = option.value as 0 | 90 | -90;
+                                    setProject((prev) => ({
+                                      ...prev,
+                                      updatedAt: new Date().toISOString(),
+                                      objects: prev.objects.map((object) =>
+                                        object.id === selectedObject.id
+                                          ? {
+                                              ...object,
+                                              labelRotation: nextRotation === 0 ? undefined : nextRotation,
+                                            }
+                                          : object,
+                                      ),
+                                    }));
+                                  }}
+                                  className={`rounded-md border px-2 py-2 text-xs font-medium ${
+                                    isActive
+                                      ? 'border-brand-600 bg-brand-50 text-brand-700'
+                                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  {option.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
                     </div>
 
@@ -2291,6 +2449,43 @@ export function EditorPage() {
                             );
                           })}
                         </div>
+
+                        {canUseBoardTextureControls(selectedObject) && (
+                          <div className="mt-4 rounded-md border border-slate-200 bg-white p-3">
+                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                              Board Direction
+                            </p>
+                            <div className="mt-3 grid grid-cols-3 gap-2">
+                              {[
+                                { label: 'None', value: 'none' },
+                                { label: 'Across', value: 'horizontal' },
+                                { label: 'Length', value: 'vertical' },
+                              ].map((option) => {
+                                const activeValue = selectedObject.metadata?.boardDirection ?? 'none';
+                                const isActive = activeValue === option.value;
+
+                                return (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() =>
+                                      handleSelectedObjectBoardDirectionChange(
+                                        option.value as 'none' | 'horizontal' | 'vertical',
+                                      )
+                                    }
+                                    className={`rounded-md border px-2 py-2 text-xs font-medium ${
+                                      isActive
+                                        ? 'border-brand-600 bg-brand-50 text-brand-700'
+                                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    {option.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div className="mt-3 rounded-md border border-slate-200 bg-white p-3">
@@ -2433,32 +2628,64 @@ export function EditorPage() {
 
                         <label className="block">
                           <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
-                            Width
+                            {getDimensionInputLabel('width', currentScale)}
                           </span>
                           <input
+                            id="selected-object-width-input"
                             type="number"
-                            min={MIN_OBJECT_SIZE}
+                            min={0}
                             step="any"
-                            value={selectedObject.width}
+                            value={formatScaledDimensionValue(selectedObject.width, currentScale)}
                             onChange={(event) => handleSelectedObjectWidthChange(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') {
+                                const heightInput = document.getElementById('selected-object-height-input') as HTMLInputElement | null;
+                                heightInput?.focus();
+                                heightInput?.select();
+                              }
+                            }}
                             className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
                           />
+                          {canUseProjectScale(currentScale) && (
+                            <span className="mt-1 block text-[11px] text-slate-500">
+                              {selectedObject.width.toFixed(2)} px
+                            </span>
+                          )}
                         </label>
 
                         <label className="block">
                           <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
-                            Height
+                            {getDimensionInputLabel('height', currentScale)}
                           </span>
                           <input
+                            id="selected-object-height-input"
                             type="number"
-                            min={MIN_OBJECT_SIZE}
+                            min={0}
                             step="any"
-                            value={selectedObject.height}
+                            value={formatScaledDimensionValue(selectedObject.height, currentScale)}
                             onChange={(event) => handleSelectedObjectHeightChange(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') {
+                                event.currentTarget.blur();
+                              }
+                            }}
                             className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
                           />
+                          {canUseProjectScale(currentScale) && (
+                            <span className="mt-1 block text-[11px] text-slate-500">
+                              {selectedObject.height.toFixed(2)} px
+                            </span>
+                          )}
                         </label>
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={handleResetSelectedObjectDimensionPositions}
+                        className="mt-3 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                      >
+                        Reset Dimension Indicators
+                      </button>
 
                       {selectedObject.type === 'dimension_line' && (
                         <div className="mt-3 rounded-md border border-slate-200 bg-white p-3">
