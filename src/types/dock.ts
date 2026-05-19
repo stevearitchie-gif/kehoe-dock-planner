@@ -58,6 +58,8 @@ export interface DockObject {
   color: string;
   zIndex: number;
   locked: boolean;
+  flippedX?: boolean;
+  flippedY?: boolean;
   opacity?: number;
   strokeColor?: string;
   strokeWidth?: number;

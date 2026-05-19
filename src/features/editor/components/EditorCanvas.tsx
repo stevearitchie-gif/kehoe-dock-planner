@@ -885,7 +885,15 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                   });
                 }}
               >
-                <Group opacity={objectOpacity}>
+                <Group
+                  opacity={objectOpacity}
+                  x={object.width / 2}
+                  y={object.height / 2}
+                  offsetX={object.width / 2}
+                  offsetY={object.height / 2}
+                  scaleX={object.flippedX ? -1 : 1}
+                  scaleY={object.flippedY ? -1 : 1}
+                >
                   {object.type === 'dimension_line' ? (
                     <>
                       <Rect
