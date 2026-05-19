@@ -1205,6 +1205,20 @@ export function EditorPage() {
     setSelectedObjectId(null);
   };
 
+  const handleDeleteSelectedObjectImmediately = () => {
+    if (!selectedObjectId) {
+      return;
+    }
+
+    setProject((prev) => ({
+      ...prev,
+      updatedAt: new Date().toISOString(),
+      objects: normalizeObjectZIndices(prev.objects.filter((object) => object.id !== selectedObjectId)),
+    }));
+    setIsDeleteConfirmationVisible(false);
+    setSelectedObjectId(null);
+  };
+
   const handleCancelDeleteSelectedObject = () => {
     setIsDeleteConfirmationVisible(false);
   };
@@ -1220,6 +1234,70 @@ export function EditorPage() {
       objects: prev.objects.map((object) => (object.id === selectedObjectId ? updater(object) : object)),
     }));
   };
+
+  useEffect(() => {
+    const handleEditorKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      const isTypingInField =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable);
+
+      if (isTypingInField) {
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setActiveTool('select');
+        setIsShapeSelectorOpen(false);
+        return;
+      }
+
+      if (!selectedObjectId) {
+        return;
+      }
+
+      if ((event.key === 'Delete' || event.key === 'Backspace') && !event.ctrlKey && !event.metaKey) {
+        event.preventDefault();
+        handleDeleteSelectedObjectImmediately();
+        return;
+      }
+
+      if (event.key.toLowerCase() === 'd' && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        handleDuplicateSelectedObject();
+        return;
+      }
+
+      const nudgeByKey: Record<string, Point> = {
+        ArrowUp: { x: 0, y: -1 },
+        ArrowDown: { x: 0, y: 1 },
+        ArrowLeft: { x: -1, y: 0 },
+        ArrowRight: { x: 1, y: 0 },
+      };
+      const nudgeDirection = nudgeByKey[event.key];
+
+      if (!nudgeDirection) {
+        return;
+      }
+
+      event.preventDefault();
+      const step = event.shiftKey ? 10 : 1;
+      updateSelectedObject((object) => ({
+        ...object,
+        x: object.x + nudgeDirection.x * step,
+        y: object.y + nudgeDirection.y * step,
+      }));
+    };
+
+    window.addEventListener('keydown', handleEditorKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleEditorKeyDown);
+    };
+  });
 
   const handleSelectedObjectWidthChange = (value: string) => {
     const parsedValue = Number(value);
