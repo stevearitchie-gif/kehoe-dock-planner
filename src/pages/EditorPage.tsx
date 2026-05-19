@@ -712,6 +712,23 @@ export function EditorPage() {
     }
   }, [hasInitializedProject, project, saveMessage]);
 
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!isDirty) {
+        return;
+      }
+
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isDirty]);
+
   const projectName = project.name.trim() || 'Untitled Project';
 
   const measuredPixels = useMemo(() => getPixelsFromPoints(scalePoints), [scalePoints]);
@@ -1667,6 +1684,17 @@ export function EditorPage() {
     }
   };
 
+  const handleBackToProjectsClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!isDirty) {
+      return;
+    }
+
+    const shouldLeave = window.confirm('You have unsaved changes. Leave without saving?');
+    if (!shouldLeave) {
+      event.preventDefault();
+    }
+  };
+
   const handleExportPdf = async () => {
     const previousSelectedObjectId = selectedObjectId;
     setSelectedObjectId(null);
@@ -1756,7 +1784,11 @@ export function EditorPage() {
             >
               +
             </button>
-            <Link to="/projects" className="rounded-md bg-brand-600 px-3 py-2 text-sm text-white hover:bg-brand-700">
+            <Link
+              to="/projects"
+              onClick={handleBackToProjectsClick}
+              className="rounded-md bg-brand-600 px-3 py-2 text-sm text-white hover:bg-brand-700"
+            >
               Back to Projects
             </Link>
           </div>
