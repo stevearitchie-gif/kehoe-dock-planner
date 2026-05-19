@@ -34,12 +34,12 @@ export type DockObjectType =
   | 'shape_callout'
   | 'shape_cube'
   | 'shape_cylinder'
-  | 'shape_arc'
-  | 'shape_bracket_pair'
-  | 'shape_brace_pair'
   | 'shape_line'
   | 'shape_arrow_line'
-  | 'shape_double_arrow_line';
+  | 'shape_double_arrow_line'
+  | 'shape_elbow_connector'
+  | 'shape_double_elbow_connector'
+  | 'shape_elbow_arrow_connector';
 
 export interface Point {
   x: number;

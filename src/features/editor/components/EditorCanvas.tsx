@@ -70,9 +70,9 @@ const drawableShapeTools: ToolMode[] = [
   'shape_pentagon', 'shape_hexagon', 'shape_octagon', 'shape_cross', 'shape_plus',
   'shape_right_arrow', 'shape_left_arrow', 'shape_up_arrow', 'shape_down_arrow',
   'shape_left_right_arrow', 'shape_up_down_arrow', 'shape_chevron_right',
-  'shape_chevron_left', 'shape_callout', 'shape_cube', 'shape_cylinder',
-  'shape_arc', 'shape_bracket_pair', 'shape_brace_pair', 'shape_line',
-  'shape_arrow_line', 'shape_double_arrow_line',
+  'shape_chevron_left', 'shape_callout', 'shape_cube', 'shape_cylinder', 'shape_line',
+  'shape_arrow_line', 'shape_double_arrow_line', 'shape_elbow_connector',
+  'shape_double_elbow_connector', 'shape_elbow_arrow_connector',
 ];
 
 function clampZoom(value: number): number {
@@ -436,12 +436,13 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       'shape_callout',
       'shape_cube',
       'shape_cylinder',
-      'shape_arc',
-      'shape_bracket_pair',
-      'shape_brace_pair',
       'shape_line',
       'shape_arrow_line',
       'shape_double_arrow_line',
+      'shape_elbow_connector',
+      'shape_double_elbow_connector',
+      'shape_elbow_arrow_connector',
+    
     ];
 
     if (!pointTools.includes(activeTool)) {
@@ -1021,6 +1022,46 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                       />
                       <Line
                         points={[object.width, object.height / 2, object.width - 10, object.height / 2 + 6]}
+                        stroke={getObjectStrokeColor(object, object.color)}
+                        strokeWidth={getObjectStrokeWidth(object, 2)}
+                      />
+                    </>
+                  ) : object.type === 'shape_elbow_connector' ? (
+                    <>
+                      <Rect x={0} y={0} width={object.width} height={object.height} fill="#ffffff" opacity={0.001} strokeWidth={0} />
+                      <Line
+                        points={[0, 0, object.width / 2, 0, object.width / 2, object.height, object.width, object.height]}
+                        stroke={getObjectStrokeColor(object, object.color)}
+                        strokeWidth={getObjectStrokeWidth(object, 2)}
+                        lineJoin="round"
+                      />
+                    </>
+                  ) : object.type === 'shape_double_elbow_connector' ? (
+                    <>
+                      <Rect x={0} y={0} width={object.width} height={object.height} fill="#ffffff" opacity={0.001} strokeWidth={0} />
+                      <Line
+                        points={[0, 0, object.width * 0.33, 0, object.width * 0.33, object.height, object.width * 0.66, object.height, object.width * 0.66, 0, object.width, 0]}
+                        stroke={getObjectStrokeColor(object, object.color)}
+                        strokeWidth={getObjectStrokeWidth(object, 2)}
+                        lineJoin="round"
+                      />
+                    </>
+                  ) : object.type === 'shape_elbow_arrow_connector' ? (
+                    <>
+                      <Rect x={0} y={0} width={object.width} height={object.height} fill="#ffffff" opacity={0.001} strokeWidth={0} />
+                      <Line
+                        points={[0, 0, object.width / 2, 0, object.width / 2, object.height, object.width, object.height]}
+                        stroke={getObjectStrokeColor(object, object.color)}
+                        strokeWidth={getObjectStrokeWidth(object, 2)}
+                        lineJoin="round"
+                      />
+                      <Line
+                        points={[object.width, object.height, object.width - 10, object.height - 6]}
+                        stroke={getObjectStrokeColor(object, object.color)}
+                        strokeWidth={getObjectStrokeWidth(object, 2)}
+                      />
+                      <Line
+                        points={[object.width, object.height, object.width - 10, object.height + 6]}
                         stroke={getObjectStrokeColor(object, object.color)}
                         strokeWidth={getObjectStrokeWidth(object, 2)}
                       />

@@ -61,11 +61,16 @@ const OUTLINE_COLOR_PRESETS = [
 type GenericShapeTool = (typeof genericShapeToolModes)[number];
 
 const shapeToolGroups: { title: string; tools: GenericShapeTool[] }[] = [
-  { title: 'Lines', tools: ['shape_line', 'shape_arrow_line', 'shape_double_arrow_line', 'shape_arc', 'shape_bracket_pair', 'shape_brace_pair'] },
-  { title: 'Rectangles', tools: ['shape_rectangle', 'shape_rounded_rectangle', 'shape_callout'] },
   {
-    title: 'Basic Shapes',
-    tools: ['shape_oval', 'shape_triangle', 'shape_right_triangle', 'shape_diamond', 'shape_parallelogram', 'shape_trapezoid', 'shape_pentagon', 'shape_hexagon', 'shape_octagon', 'shape_cross', 'shape_plus', 'shape_cube', 'shape_cylinder'],
+    title: 'Lines',
+    tools: [
+      'shape_line',
+      'shape_arrow_line',
+      'shape_double_arrow_line',
+      'shape_elbow_connector',
+      'shape_double_elbow_connector',
+      'shape_elbow_arrow_connector',
+    ],
   },
   {
     title: 'Block Arrows',
@@ -859,12 +864,13 @@ export function EditorPage() {
       'shape_callout',
       'shape_cube',
       'shape_cylinder',
-      'shape_arc',
-      'shape_bracket_pair',
-      'shape_brace_pair',
       'shape_line',
       'shape_arrow_line',
       'shape_double_arrow_line',
+      'shape_elbow_connector',
+      'shape_double_elbow_connector',
+      'shape_elbow_arrow_connector',
+    
     ] as const;
 
     const placementToolCandidate = toolOverride ?? activeTool;
@@ -907,12 +913,12 @@ export function EditorPage() {
           shape_callout: 'Callout',
           shape_cube: 'Cube',
           shape_cylinder: 'Cylinder',
-          shape_arc: 'Arc',
-          shape_bracket_pair: 'Brackets',
-          shape_brace_pair: 'Braces',
           shape_line: 'Line',
           shape_arrow_line: 'Arrow Line',
           shape_double_arrow_line: 'Double Arrow Line',
+          shape_elbow_connector: 'Elbow Connector',
+          shape_double_elbow_connector: 'Double Elbow Connector',
+          shape_elbow_arrow_connector: 'Arrow Elbow Connector',
         };
 
         const objectSizeByTool: Record<(typeof placementTools)[number], { width: number; height: number }> = {
@@ -948,12 +954,12 @@ export function EditorPage() {
           shape_callout: { width: 120, height: 80 },
           shape_cube: { width: 90, height: 80 },
           shape_cylinder: { width: 90, height: 80 },
-          shape_arc: { width: 120, height: 70 },
-          shape_bracket_pair: { width: 80, height: 100 },
-          shape_brace_pair: { width: 80, height: 100 },
           shape_line: { width: 120, height: 24 },
           shape_arrow_line: { width: 120, height: 24 },
           shape_double_arrow_line: { width: 120, height: 24 },
+          shape_elbow_connector: { width: 120, height: 80 },
+          shape_double_elbow_connector: { width: 140, height: 80 },
+          shape_elbow_arrow_connector: { width: 120, height: 80 },
         };
 
         const objectColorByTool: Record<(typeof placementTools)[number], string> = {
@@ -989,12 +995,12 @@ export function EditorPage() {
           shape_callout: '#fef9c3',
           shape_cube: '#e0e7ff',
           shape_cylinder: '#dbeafe',
-          shape_arc: '#0f172a',
-          shape_bracket_pair: '#0f172a',
-          shape_brace_pair: '#0f172a',
           shape_line: '#0f172a',
           shape_arrow_line: '#0f172a',
           shape_double_arrow_line: '#0f172a',
+          shape_elbow_connector: '#0f172a',
+          shape_double_elbow_connector: '#0f172a',
+          shape_elbow_arrow_connector: '#0f172a',
         };
 
         const nextObject: DockObject = {

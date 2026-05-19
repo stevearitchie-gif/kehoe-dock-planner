@@ -36,12 +36,12 @@ export const genericShapeToolModes = [
   'shape_callout',
   'shape_cube',
   'shape_cylinder',
-  'shape_arc',
-  'shape_bracket_pair',
-  'shape_brace_pair',
   'shape_line',
   'shape_arrow_line',
   'shape_double_arrow_line',
+  'shape_elbow_connector',
+  'shape_double_elbow_connector',
+  'shape_elbow_arrow_connector',
 ] as const;
 
 export const objectToolModes = [...dockElementToolModes, ...genericShapeToolModes] as const;
@@ -87,12 +87,12 @@ export const toolLabels: Record<ToolMode, string> = {
   shape_callout: 'callout',
   shape_cube: 'cube',
   shape_cylinder: 'cylinder',
-  shape_arc: 'arc',
-  shape_bracket_pair: 'brackets',
-  shape_brace_pair: 'braces',
   shape_line: 'line',
   shape_arrow_line: 'arrow line',
   shape_double_arrow_line: 'double arrow line',
+  shape_elbow_connector: 'elbow connector',
+  shape_double_elbow_connector: 'double elbow connector',
+  shape_elbow_arrow_connector: 'arrow elbow connector',
 };
 
 export default editorTools;
