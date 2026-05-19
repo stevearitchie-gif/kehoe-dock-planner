@@ -93,6 +93,13 @@ function ShapeToolPreview({ tool }: { tool: GenericShapeTool }) {
         </svg>
       );
 
+    case 'shape_right_triangle':
+      return (
+        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+          <polygon points="12,8 52,32 12,32" fill={fill} stroke={stroke} strokeWidth="2" />
+        </svg>
+      );
+
     case 'shape_diamond':
       return (
         <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
@@ -114,12 +121,47 @@ function ShapeToolPreview({ tool }: { tool: GenericShapeTool }) {
         </svg>
       );
 
+    case 'shape_pentagon':
+      return (
+        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+          <polygon points="32,5 56,18 47,35 17,35 8,18" fill={fill} stroke={stroke} strokeWidth="2" />
+        </svg>
+      );
+
     case 'shape_hexagon':
       return (
         <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
           <polygon points="18,8 46,8 58,20 46,32 18,32 6,20" fill={fill} stroke={stroke} strokeWidth="2" />
         </svg>
       );
+
+    case 'shape_octagon':
+      return <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true"><polygon points="22,6 42,6 56,14 56,26 42,34 22,34 8,26 8,14" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
+
+    case 'shape_cross':
+    case 'shape_plus':
+      return <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true"><polygon points="25,6 39,6 39,15 54,15 54,25 39,25 39,34 25,34 25,25 10,25 10,15 25,15" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
+
+    case 'shape_left_arrow':
+      return <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true"><polygon points="58,14 26,14 26,7 6,20 26,33 26,26 58,26" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
+
+    case 'shape_up_arrow':
+      return <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true"><polygon points="25,34 25,17 15,17 32,5 49,17 39,17 39,34" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
+
+    case 'shape_down_arrow':
+      return <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true"><polygon points="25,6 39,6 39,23 49,23 32,35 15,23 25,23" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
+
+    case 'shape_left_right_arrow':
+      return <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true"><polygon points="18,7 28,14 36,14 46,7 58,20 46,33 36,26 28,26 18,33 6,20" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
+
+    case 'shape_up_down_arrow':
+      return <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true"><polygon points="32,4 48,14 39,18 39,22 48,26 32,36 16,26 25,22 25,18 16,14" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
+
+    case 'shape_chevron_right':
+      return <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true"><polygon points="10,7 39,7 56,20 39,33 10,33 27,20" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
+
+    case 'shape_chevron_left':
+      return <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true"><polygon points="54,7 25,7 8,20 25,33 54,33 37,20" fill={fill} stroke={stroke} strokeWidth="2" /></svg>;
 
     case 'shape_right_arrow':
       return (
@@ -780,11 +822,23 @@ export function EditorPage() {
       'shape_rounded_rectangle',
       'shape_oval',
       'shape_triangle',
+      'shape_right_triangle',
       'shape_diamond',
       'shape_parallelogram',
       'shape_trapezoid',
+      'shape_pentagon',
       'shape_hexagon',
+      'shape_octagon',
+      'shape_cross',
+      'shape_plus',
       'shape_right_arrow',
+      'shape_left_arrow',
+      'shape_up_arrow',
+      'shape_down_arrow',
+      'shape_left_right_arrow',
+      'shape_up_down_arrow',
+      'shape_chevron_right',
+      'shape_chevron_left',
       'shape_line',
       'shape_arrow_line',
       'shape_double_arrow_line',
@@ -808,11 +862,23 @@ export function EditorPage() {
           shape_rounded_rectangle: 'Rounded Rectangle',
           shape_oval: 'Oval',
           shape_triangle: 'Triangle',
+          shape_right_triangle: 'Right Triangle',
           shape_diamond: 'Diamond',
           shape_parallelogram: 'Parallelogram',
           shape_trapezoid: 'Trapezoid',
+          shape_pentagon: 'Pentagon',
           shape_hexagon: 'Hexagon',
+          shape_octagon: 'Octagon',
+          shape_cross: 'Cross',
+          shape_plus: 'Plus',
           shape_right_arrow: 'Right Arrow',
+          shape_left_arrow: 'Left Arrow',
+          shape_up_arrow: 'Up Arrow',
+          shape_down_arrow: 'Down Arrow',
+          shape_left_right_arrow: 'Left Right Arrow',
+          shape_up_down_arrow: 'Up Down Arrow',
+          shape_chevron_right: 'Right Chevron',
+          shape_chevron_left: 'Left Chevron',
           shape_line: 'Line',
           shape_arrow_line: 'Arrow Line',
           shape_double_arrow_line: 'Double Arrow Line',
@@ -831,11 +897,23 @@ export function EditorPage() {
           shape_rounded_rectangle: { width: 100, height: 60 },
           shape_oval: { width: 100, height: 60 },
           shape_triangle: { width: 90, height: 80 },
+          shape_right_triangle: { width: 90, height: 80 },
           shape_diamond: { width: 90, height: 70 },
           shape_parallelogram: { width: 110, height: 60 },
           shape_trapezoid: { width: 110, height: 60 },
+          shape_pentagon: { width: 100, height: 80 },
           shape_hexagon: { width: 100, height: 70 },
+          shape_octagon: { width: 100, height: 80 },
+          shape_cross: { width: 90, height: 90 },
+          shape_plus: { width: 90, height: 90 },
           shape_right_arrow: { width: 120, height: 60 },
+          shape_left_arrow: { width: 120, height: 60 },
+          shape_up_arrow: { width: 70, height: 110 },
+          shape_down_arrow: { width: 70, height: 110 },
+          shape_left_right_arrow: { width: 130, height: 60 },
+          shape_up_down_arrow: { width: 80, height: 130 },
+          shape_chevron_right: { width: 100, height: 60 },
+          shape_chevron_left: { width: 100, height: 60 },
           shape_line: { width: 120, height: 24 },
           shape_arrow_line: { width: 120, height: 24 },
           shape_double_arrow_line: { width: 120, height: 24 },
@@ -854,11 +932,23 @@ export function EditorPage() {
           shape_rounded_rectangle: '#dbeafe',
           shape_oval: '#dcfce7',
           shape_triangle: '#fef3c7',
+          shape_right_triangle: '#fef3c7',
           shape_diamond: '#ede9fe',
           shape_parallelogram: '#e0f2fe',
           shape_trapezoid: '#fce7f3',
+          shape_pentagon: '#fef9c3',
           shape_hexagon: '#ccfbf1',
+          shape_octagon: '#dbeafe',
+          shape_cross: '#fee2e2',
+          shape_plus: '#e0f2fe',
           shape_right_arrow: '#fed7aa',
+          shape_left_arrow: '#fed7aa',
+          shape_up_arrow: '#fed7aa',
+          shape_down_arrow: '#fed7aa',
+          shape_left_right_arrow: '#fed7aa',
+          shape_up_down_arrow: '#fed7aa',
+          shape_chevron_right: '#ffedd5',
+          shape_chevron_left: '#ffedd5',
           shape_line: '#0f172a',
           shape_arrow_line: '#0f172a',
           shape_double_arrow_line: '#0f172a',

@@ -126,6 +126,9 @@ function getGenericShapePoints(object: DockObject): number[] | null {
     case 'shape_triangle':
       return [width / 2, 0, width, height, 0, height];
 
+    case 'shape_right_triangle':
+      return [0, 0, width, height, 0, height];
+
     case 'shape_diamond':
       return [width / 2, 0, width, height / 2, width / 2, height, 0, height / 2];
 
@@ -134,6 +137,10 @@ function getGenericShapePoints(object: DockObject): number[] | null {
 
     case 'shape_trapezoid':
       return [width * 0.22, 0, width * 0.78, 0, width, height, 0, height];
+
+    case 'shape_pentagon':
+      return [width / 2, 0, width, height * 0.38, width * 0.82, height, width * 0.18, height, 0, height * 0.38];
+
 
     case 'shape_hexagon':
       return [
@@ -168,6 +175,35 @@ function getGenericShapePoints(object: DockObject): number[] | null {
         0,
         height * 0.75,
       ];
+
+
+    case 'shape_octagon':
+      return [width * 0.3, 0, width * 0.7, 0, width, height * 0.3, width, height * 0.7, width * 0.7, height, width * 0.3, height, 0, height * 0.7, 0, height * 0.3];
+
+    case 'shape_cross':
+    case 'shape_plus':
+      return [width * 0.35, 0, width * 0.65, 0, width * 0.65, height * 0.35, width, height * 0.35, width, height * 0.65, width * 0.65, height * 0.65, width * 0.65, height, width * 0.35, height, width * 0.35, height * 0.65, 0, height * 0.65, 0, height * 0.35, width * 0.35, height * 0.35];
+
+    case 'shape_left_arrow':
+      return [width, height * 0.25, width * 0.32, height * 0.25, width * 0.32, 0, 0, height / 2, width * 0.32, height, width * 0.32, height * 0.75, width, height * 0.75];
+
+    case 'shape_up_arrow':
+      return [width * 0.25, height, width * 0.25, height * 0.32, 0, height * 0.32, width / 2, 0, width, height * 0.32, width * 0.75, height * 0.32, width * 0.75, height];
+
+    case 'shape_down_arrow':
+      return [width * 0.25, 0, width * 0.25, height * 0.68, 0, height * 0.68, width / 2, height, width, height * 0.68, width * 0.75, height * 0.68, width * 0.75, 0];
+
+    case 'shape_left_right_arrow':
+      return [width * 0.18, 0, width * 0.34, height * 0.25, width * 0.66, height * 0.25, width * 0.82, 0, width, height / 2, width * 0.82, height, width * 0.66, height * 0.75, width * 0.34, height * 0.75, width * 0.18, height, 0, height / 2];
+
+    case 'shape_up_down_arrow':
+      return [width / 2, 0, width, height * 0.18, width * 0.75, height * 0.34, width * 0.75, height * 0.66, width, height * 0.82, width / 2, height, 0, height * 0.82, width * 0.25, height * 0.66, width * 0.25, height * 0.34, 0, height * 0.18];
+
+    case 'shape_chevron_right':
+      return [0, 0, width * 0.55, 0, width, height / 2, width * 0.55, height, 0, height, width * 0.45, height / 2];
+
+    case 'shape_chevron_left':
+      return [width, 0, width * 0.45, 0, 0, height / 2, width * 0.45, height, width, height, width * 0.55, height / 2];
 
     default:
       return null;
@@ -345,6 +381,18 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       'shape_trapezoid',
       'shape_hexagon',
       'shape_right_arrow',
+      'shape_right_triangle',
+      'shape_pentagon',
+      'shape_octagon',
+      'shape_cross',
+      'shape_plus',
+      'shape_left_arrow',
+      'shape_up_arrow',
+      'shape_down_arrow',
+      'shape_left_right_arrow',
+      'shape_up_down_arrow',
+      'shape_chevron_right',
+      'shape_chevron_left',
       'shape_line',
       'shape_arrow_line',
       'shape_double_arrow_line',
