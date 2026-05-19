@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, type DragEvent } from 'react';
 import { Circle, Ellipse, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text } from 'react-konva';
 import type { Stage as KonvaStage } from 'konva/lib/Stage';
 import type { KonvaEventObject } from 'konva/lib/Node';
@@ -14,6 +14,7 @@ interface EditorCanvasProps {
   backgroundImageUrl?: string;
   onCanvasPointClick: (point: Point) => void;
   onCanvasObjectDraw: (tool: ToolMode, startPoint: Point, endPoint: Point) => void;
+  onCanvasToolDrop: (tool: ToolMode, point: Point) => void;
   onObjectClick: (objectId: string) => void;
   onObjectPositionChange: (objectId: string, point: Point) => void;
   onObjectSizeChange: (objectId: string, size: { width: number; height: number }) => void;
@@ -296,6 +297,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     backgroundImageUrl,
     onCanvasPointClick,
     onCanvasObjectDraw,
+    onCanvasToolDrop,
     onObjectClick,
     onObjectPositionChange,
     onObjectSizeChange,
@@ -314,6 +316,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null);
   const [interactionSession, setInteractionSession] = useState<InteractionSession | null>(null);
   const [draftShapeBox, setDraftShapeBox] = useState<DraftShapeBox | null>(null);
+  const draftShapeBoxRef = useRef<DraftShapeBox | null>(null);
   const [stagePosition, setStagePosition] = useState<Point>({ x: 0, y: 0 });
 
   useImperativeHandle(ref, () => ({
@@ -457,11 +460,69 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 
     if (drawableShapeTools.includes(activeTool)) {
       event.evt.preventDefault();
-      setDraftShapeBox({
+
+      const nextDraftShapeBox = {
         tool: activeTool,
         startPoint: pointerPosition,
         currentPoint: pointerPosition,
-      });
+      };
+
+      draftShapeBoxRef.current = nextDraftShapeBox;
+      setDraftShapeBox(nextDraftShapeBox);
+
+      const updateDraftShape = (nativeEvent: Event) => {
+        nativeEvent.preventDefault();
+
+        const activeDraft = draftShapeBoxRef.current;
+        if (!activeDraft) {
+          return;
+        }
+
+        stage.setPointersPositions(nativeEvent as MouseEvent | TouchEvent);
+        const stagePoint = getStagePointerPoint(stage);
+        if (!stagePoint) {
+          return;
+        }
+
+        const updatedDraftShapeBox = {
+          ...activeDraft,
+          currentPoint: stagePoint,
+        };
+
+        draftShapeBoxRef.current = updatedDraftShapeBox;
+        setDraftShapeBox(updatedDraftShapeBox);
+      };
+
+      const finishDraftShape = (nativeEvent: Event) => {
+        updateDraftShape(nativeEvent);
+
+        const activeDraft = draftShapeBoxRef.current;
+        if (!activeDraft) {
+          return;
+        }
+
+        const bounds = getDraftShapeBounds(activeDraft);
+
+        if (bounds.width >= DRAW_START_THRESHOLD || bounds.height >= DRAW_START_THRESHOLD) {
+          onCanvasObjectDraw(activeDraft.tool, activeDraft.startPoint, activeDraft.currentPoint);
+        } else {
+          onCanvasPointClick(activeDraft.startPoint);
+        }
+
+        draftShapeBoxRef.current = null;
+        setDraftShapeBox(null);
+
+        document.removeEventListener('mousemove', updateDraftShape);
+        document.removeEventListener('mouseup', finishDraftShape);
+        document.removeEventListener('touchmove', updateDraftShape);
+        document.removeEventListener('touchend', finishDraftShape);
+      };
+
+      document.addEventListener('mousemove', updateDraftShape);
+      document.addEventListener('mouseup', finishDraftShape);
+      document.addEventListener('touchmove', updateDraftShape, { passive: false });
+      document.addEventListener('touchend', finishDraftShape);
+
       return;
     }
 
@@ -525,15 +586,18 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   };
 
   const endInteraction = () => {
-    if (draftShapeBox) {
-      const bounds = getDraftShapeBounds(draftShapeBox);
+    const activeDraftShapeBox = draftShapeBoxRef.current;
+
+    if (activeDraftShapeBox) {
+      const bounds = getDraftShapeBounds(activeDraftShapeBox);
 
       if (bounds.width >= DRAW_START_THRESHOLD || bounds.height >= DRAW_START_THRESHOLD) {
-        onCanvasObjectDraw(draftShapeBox.tool, draftShapeBox.startPoint, draftShapeBox.currentPoint);
+        onCanvasObjectDraw(activeDraftShapeBox.tool, activeDraftShapeBox.startPoint, activeDraftShapeBox.currentPoint);
       } else {
-        onCanvasPointClick(draftShapeBox.startPoint);
+        onCanvasPointClick(activeDraftShapeBox.startPoint);
       }
 
+      draftShapeBoxRef.current = null;
       setDraftShapeBox(null);
       return;
     }
@@ -546,7 +610,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   };
 
   const handleStagePointerMove = (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
-    if (draftShapeBox) {
+    if (draftShapeBoxRef.current) {
       const stage = stageRef.current ?? event.target.getStage();
       if (!stage) {
         return;
@@ -557,14 +621,13 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
         return;
       }
 
-      setDraftShapeBox((prev) =>
-        prev
-          ? {
-              ...prev,
-              currentPoint: stagePoint,
-            }
-          : prev,
-      );
+      const nextDraftShapeBox = {
+        ...draftShapeBoxRef.current,
+        currentPoint: stagePoint,
+      };
+
+      draftShapeBoxRef.current = nextDraftShapeBox;
+      setDraftShapeBox(nextDraftShapeBox);
       return;
     }
 
@@ -656,8 +719,40 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     onObjectSizeChange(object.id, nextSize);
   };
 
+  const handleCanvasDragOver = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+  };
+
+  const handleCanvasDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+
+    const droppedTool = event.dataTransfer.getData('application/x-dock-tool') as ToolMode;
+    if (!drawableShapeTools.includes(droppedTool)) {
+      return;
+    }
+
+    const element = containerRef.current;
+    if (!element) {
+      return;
+    }
+
+    const bounds = element.getBoundingClientRect();
+    const point = {
+      x: (event.clientX - bounds.left - stagePosition.x) / zoom,
+      y: (event.clientY - bounds.top - stagePosition.y) / zoom,
+    };
+
+    onCanvasToolDrop(droppedTool, point);
+  };
+
+
   return (
-    <div ref={containerRef} className="h-full w-full overflow-hidden rounded-md border border-slate-200 bg-white">
+    <div
+      ref={containerRef}
+      onDragOver={handleCanvasDragOver}
+      onDrop={handleCanvasDrop}
+      className="h-full w-full overflow-hidden rounded-md border border-slate-200 bg-white"
+    >
       <Stage
         ref={stageRef}
         width={canvasSize.width}

@@ -796,7 +796,11 @@ export function EditorPage() {
     setZoom((prev) => clampZoom(Number((prev + ZOOM_STEP).toFixed(2))));
   };
 
-  const handleCanvasPointClick = (point: Point, drawSize?: { width: number; height: number }) => {
+  const handleCanvasPointClick = (
+    point: Point,
+    drawSize?: { width: number; height: number },
+    toolOverride?: ToolMode,
+  ) => {
     if (activeTool === 'scale') {
       setScalePoints((prev) => {
         const nextPoints = prev.length < 2 ? [...prev, point] : [point];
@@ -863,9 +867,11 @@ export function EditorPage() {
       'shape_double_arrow_line',
     ] as const;
 
-    if (placementTools.includes(activeTool as (typeof placementTools)[number])) {
+    const placementToolCandidate = toolOverride ?? activeTool;
+
+    if (placementTools.includes(placementToolCandidate as (typeof placementTools)[number])) {
       setProject((prev) => {
-        const placementTool = activeTool as (typeof placementTools)[number];
+        const placementTool = placementToolCandidate as (typeof placementTools)[number];
         const sameTypeCount = prev.objects.filter((object) => object.type === placementTool).length;
 
         const objectTypeNameByTool: Record<(typeof placementTools)[number], string> = {
@@ -1030,6 +1036,10 @@ export function EditorPage() {
     const y = Math.min(startPoint.y, endPoint.y);
 
     handleCanvasPointClick({ x, y }, { width, height });
+  };
+
+  const handleCanvasToolDrop = (tool: ToolMode, point: Point) => {
+    handleCanvasPointClick(point, undefined, tool);
   };
 
   const handleObjectClick = (objectId: string) => {
@@ -1683,6 +1693,11 @@ export function EditorPage() {
                               <button
                                 key={tool}
                                 type="button"
+                                draggable
+                                onDragStart={(event) => {
+                                  event.dataTransfer.setData('application/x-dock-tool', tool);
+                                  event.dataTransfer.effectAllowed = 'copy';
+                                }}
                                 onClick={() => handleToolClick(tool)}
                                 disabled={!isEnabled}
                                 title={toolLabels[tool]}
@@ -1717,6 +1732,7 @@ export function EditorPage() {
               backgroundImageUrl={project.backgroundImageUrl}
               onCanvasPointClick={handleCanvasPointClick}
               onCanvasObjectDraw={handleCanvasObjectDraw}
+              onCanvasToolDrop={handleCanvasToolDrop}
               onObjectClick={handleObjectClick}
               onObjectPositionChange={handleObjectPositionChange}
               onObjectSizeChange={handleObjectSizeChange}
