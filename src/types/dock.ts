@@ -31,6 +31,12 @@ export type DockObjectType =
   | 'shape_up_down_arrow'
   | 'shape_chevron_right'
   | 'shape_chevron_left'
+  | 'shape_callout'
+  | 'shape_cube'
+  | 'shape_cylinder'
+  | 'shape_arc'
+  | 'shape_bracket_pair'
+  | 'shape_brace_pair'
   | 'shape_line'
   | 'shape_arrow_line'
   | 'shape_double_arrow_line';

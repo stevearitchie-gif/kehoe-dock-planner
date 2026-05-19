@@ -60,6 +60,19 @@ const OUTLINE_COLOR_PRESETS = [
 
 type GenericShapeTool = (typeof genericShapeToolModes)[number];
 
+const shapeToolGroups: { title: string; tools: GenericShapeTool[] }[] = [
+  { title: 'Lines', tools: ['shape_line', 'shape_arrow_line', 'shape_double_arrow_line', 'shape_arc', 'shape_bracket_pair', 'shape_brace_pair'] },
+  { title: 'Rectangles', tools: ['shape_rectangle', 'shape_rounded_rectangle', 'shape_callout'] },
+  {
+    title: 'Basic Shapes',
+    tools: ['shape_oval', 'shape_triangle', 'shape_right_triangle', 'shape_diamond', 'shape_parallelogram', 'shape_trapezoid', 'shape_pentagon', 'shape_hexagon', 'shape_octagon', 'shape_cross', 'shape_plus', 'shape_cube', 'shape_cylinder'],
+  },
+  {
+    title: 'Block Arrows',
+    tools: ['shape_right_arrow', 'shape_left_arrow', 'shape_up_arrow', 'shape_down_arrow', 'shape_left_right_arrow', 'shape_up_down_arrow', 'shape_chevron_right', 'shape_chevron_left'],
+  },
+];
+
 function ShapeToolPreview({ tool }: { tool: GenericShapeTool }) {
   const stroke = '#334155';
   const fill = '#e2e8f0';
@@ -839,6 +852,12 @@ export function EditorPage() {
       'shape_up_down_arrow',
       'shape_chevron_right',
       'shape_chevron_left',
+      'shape_callout',
+      'shape_cube',
+      'shape_cylinder',
+      'shape_arc',
+      'shape_bracket_pair',
+      'shape_brace_pair',
       'shape_line',
       'shape_arrow_line',
       'shape_double_arrow_line',
@@ -879,6 +898,12 @@ export function EditorPage() {
           shape_up_down_arrow: 'Up Down Arrow',
           shape_chevron_right: 'Right Chevron',
           shape_chevron_left: 'Left Chevron',
+          shape_callout: 'Callout',
+          shape_cube: 'Cube',
+          shape_cylinder: 'Cylinder',
+          shape_arc: 'Arc',
+          shape_bracket_pair: 'Brackets',
+          shape_brace_pair: 'Braces',
           shape_line: 'Line',
           shape_arrow_line: 'Arrow Line',
           shape_double_arrow_line: 'Double Arrow Line',
@@ -914,6 +939,12 @@ export function EditorPage() {
           shape_up_down_arrow: { width: 80, height: 130 },
           shape_chevron_right: { width: 100, height: 60 },
           shape_chevron_left: { width: 100, height: 60 },
+          shape_callout: { width: 120, height: 80 },
+          shape_cube: { width: 90, height: 80 },
+          shape_cylinder: { width: 90, height: 80 },
+          shape_arc: { width: 120, height: 70 },
+          shape_bracket_pair: { width: 80, height: 100 },
+          shape_brace_pair: { width: 80, height: 100 },
           shape_line: { width: 120, height: 24 },
           shape_arrow_line: { width: 120, height: 24 },
           shape_double_arrow_line: { width: 120, height: 24 },
@@ -949,6 +980,12 @@ export function EditorPage() {
           shape_up_down_arrow: '#fed7aa',
           shape_chevron_right: '#ffedd5',
           shape_chevron_left: '#ffedd5',
+          shape_callout: '#fef9c3',
+          shape_cube: '#e0e7ff',
+          shape_cylinder: '#dbeafe',
+          shape_arc: '#0f172a',
+          shape_bracket_pair: '#0f172a',
+          shape_brace_pair: '#0f172a',
           shape_line: '#0f172a',
           shape_arrow_line: '#0f172a',
           shape_double_arrow_line: '#0f172a',
@@ -1619,29 +1656,36 @@ export function EditorPage() {
                 </button>
 
                 {isShapeSelectorOpen && (
-                  <div className="mt-2 grid grid-cols-2 gap-2 rounded-md border border-slate-200 bg-slate-50 p-2">
-                    {genericShapeToolModes.map((tool) => {
-                      const isActive = tool === activeTool;
-                      const isEnabled = isCoreTool(tool) || isObjectTool(tool);
+                  <div className="mt-2 space-y-3 rounded-md border border-slate-200 bg-slate-50 p-2">
+                    {shapeToolGroups.map((group) => (
+                      <div key={group.title}>
+                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">{group.title}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {group.tools.map((tool) => {
+                            const isActive = tool === activeTool;
+                            const isEnabled = isCoreTool(tool) || isObjectTool(tool);
 
-                      return (
-                        <button
-                          key={tool}
-                          type="button"
-                          onClick={() => handleToolClick(tool)}
-                          disabled={!isEnabled}
-                          title={toolLabels[tool]}
-                          className={`flex min-h-[78px] flex-col items-center justify-center gap-2 rounded-md border px-2 py-2 text-center text-xs ${
-                            isActive
-                              ? 'border-brand-600 bg-brand-50 text-brand-700'
-                              : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
-                          } ${!isEnabled ? 'cursor-not-allowed opacity-50' : ''}`}
-                        >
-                          <ShapeToolPreview tool={tool} />
-                          <span className="leading-tight">{toolLabels[tool]}</span>
-                        </button>
-                      );
-                    })}
+                            return (
+                              <button
+                                key={tool}
+                                type="button"
+                                onClick={() => handleToolClick(tool)}
+                                disabled={!isEnabled}
+                                title={toolLabels[tool]}
+                                className={`flex min-h-[78px] flex-col items-center justify-center gap-2 rounded-md border px-2 py-2 text-center text-xs ${
+                                  isActive
+                                    ? 'border-brand-600 bg-brand-50 text-brand-700'
+                                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                                } ${!isEnabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                              >
+                                <ShapeToolPreview tool={tool} />
+                                <span className="leading-tight">{toolLabels[tool]}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

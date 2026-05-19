@@ -205,6 +205,12 @@ function getGenericShapePoints(object: DockObject): number[] | null {
     case 'shape_chevron_left':
       return [width, 0, width * 0.45, 0, 0, height / 2, width * 0.45, height, width, height, width * 0.55, height / 2];
 
+    case 'shape_callout':
+      return [0, 0, width, 0, width, height * 0.72, width * 0.62, height * 0.72, width * 0.5, height, width * 0.4, height * 0.72, 0, height * 0.72];
+
+    case 'shape_cube':
+      return [0, height * 0.22, width * 0.22, 0, width, 0, width, height * 0.78, width * 0.78, height, 0, height];
+
     default:
       return null;
   }
@@ -393,6 +399,12 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       'shape_up_down_arrow',
       'shape_chevron_right',
       'shape_chevron_left',
+      'shape_callout',
+      'shape_cube',
+      'shape_cylinder',
+      'shape_arc',
+      'shape_bracket_pair',
+      'shape_brace_pair',
       'shape_line',
       'shape_arrow_line',
       'shape_double_arrow_line',
