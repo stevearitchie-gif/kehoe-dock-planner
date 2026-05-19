@@ -26,6 +26,7 @@ const MAX_ZOOM = 3;
 const ZOOM_STEP = 0.1;
 const MAX_SITE_IMAGE_BYTES = 10 * 1024 * 1024;
 const FEET_PER_METER = 3.28084;
+const AUTOSAVE_DELAY_MS = 3000;
 
 const OBJECT_COLOR_PRESETS = [
   { label: 'Cedar Dock', value: '#b77945' },
@@ -597,6 +598,7 @@ export function EditorPage() {
   const objectUrlRef = useRef<string | null>(null);
   const lastSavedSnapshotRef = useRef<string>('');
   const pendingDeletedSiteImagePathsRef = useRef<string[]>([]);
+  const autosaveTimerRef = useRef<number | null>(null);
 
   const userId = user?.uid;
 
@@ -635,6 +637,10 @@ export function EditorPage() {
     return () => {
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current);
+      }
+
+      if (autosaveTimerRef.current !== null) {
+        window.clearTimeout(autosaveTimerRef.current);
       }
     };
   }, []);
@@ -1652,9 +1658,11 @@ export function EditorPage() {
     });
   };
 
-  const handleSaveProject = async () => {
+  const saveCurrentProject = async (options: { isAutosave?: boolean } = {}) => {
     if (!userId) {
-      setSaveMessage('Save failed: You must be logged in.');
+      if (!options.isAutosave) {
+        setSaveMessage('Save failed: You must be logged in.');
+      }
       return;
     }
 
@@ -1667,7 +1675,7 @@ export function EditorPage() {
 
     setProject(projectToSave);
     setIsSaving(true);
-    setSaveMessage(null);
+    setSaveMessage(options.isAutosave ? 'Autosaving...' : null);
 
     try {
       await saveProject(userId, projectToSave);
@@ -1678,11 +1686,37 @@ export function EditorPage() {
       setSaveMessage(null);
     } catch (error) {
       console.error('Failed to save project', error);
-      setSaveMessage('Save failed');
+      setSaveMessage(options.isAutosave ? 'Autosave failed' : 'Save failed');
     } finally {
       setIsSaving(false);
     }
   };
+
+  const handleSaveProject = async () => {
+    await saveCurrentProject();
+  };
+
+  useEffect(() => {
+    if (!hasInitializedProject || !isDirty || isSaving || !userId) {
+      return;
+    }
+
+    if (autosaveTimerRef.current !== null) {
+      window.clearTimeout(autosaveTimerRef.current);
+    }
+
+    autosaveTimerRef.current = window.setTimeout(() => {
+      autosaveTimerRef.current = null;
+      void saveCurrentProject({ isAutosave: true });
+    }, AUTOSAVE_DELAY_MS);
+
+    return () => {
+      if (autosaveTimerRef.current !== null) {
+        window.clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = null;
+      }
+    };
+  }, [hasInitializedProject, isDirty, isSaving, project, projectName, currentScale, userId]);
 
   const handleBackToProjectsClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     if (!isDirty) {
