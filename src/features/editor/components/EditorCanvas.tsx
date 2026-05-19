@@ -11,6 +11,7 @@ interface EditorCanvasProps {
   shorelinePoints: Point[];
   objects: DockObject[];
   selectedObjectId: string | null;
+  isLabelMoveModeEnabled: boolean;
   backgroundImageUrl?: string;
   onCanvasPointClick: (point: Point) => void;
   onCanvasObjectDraw: (tool: ToolMode, startPoint: Point, endPoint: Point) => void;
@@ -357,6 +358,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     shorelinePoints,
     objects,
     selectedObjectId,
+    isLabelMoveModeEnabled,
     backgroundImageUrl,
     onCanvasPointClick,
     onCanvasObjectDraw,
@@ -1001,7 +1003,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                   : object.height / 2 - labelHeight / 2;
             const labelX = defaultLabelX + (object.labelOffsetX ?? 0);
             const labelY = defaultLabelY + (object.labelOffsetY ?? 0);
-            const isLabelDraggable = isSelected && activeTool === 'select' && !object.locked && !interactionSession;
+            const isLabelDraggable =
+              isLabelMoveModeEnabled && isSelected && activeTool === 'select' && !object.locked && !interactionSession;
 
             return (
               <Group
@@ -1310,6 +1313,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 <Group
                   x={labelX}
                   y={labelY}
+                  listening={isLabelDraggable}
                   draggable={isLabelDraggable}
                   onClick={(event) => {
                     event.cancelBubble = true;
