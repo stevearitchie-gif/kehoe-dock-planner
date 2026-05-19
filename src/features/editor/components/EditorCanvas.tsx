@@ -14,6 +14,7 @@ interface EditorCanvasProps {
   isLabelMoveModeEnabled: boolean;
   backgroundImageUrl?: string;
   onCanvasPointClick: (point: Point) => void;
+  onCanvasScaleDoubleClick: (point: Point) => void;
   onCanvasObjectDraw: (tool: ToolMode, startPoint: Point, endPoint: Point) => void;
   onCanvasToolDrop: (tool: ToolMode, point: Point) => void;
   onObjectClick: (objectId: string) => void;
@@ -148,6 +149,18 @@ function getDimensionLineLabel(object: DockObject, scale: ProjectScale): string 
     scale.unit === 'm' ? realLengthInScaleUnits * 3.28084 : realLengthInScaleUnits;
 
   return formatFeetAndInches(totalFeet);
+}
+
+function formatScaleMeasurementLabel(scale: ProjectScale): string {
+  if (scale.realLength <= 0) {
+    return 'Set scale length';
+  }
+
+  if (scale.unit === 'ft') {
+    return formatFeetAndInches(scale.realLength);
+  }
+
+  return `${scale.realLength} m`;
 }
 
 function getGenericShapePoints(object: DockObject): number[] | null {
@@ -361,6 +374,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     isLabelMoveModeEnabled,
     backgroundImageUrl,
     onCanvasPointClick,
+    onCanvasScaleDoubleClick,
     onCanvasObjectDraw,
     onCanvasToolDrop,
     onObjectClick,
@@ -455,6 +469,44 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 
     return [scalePoints[0].x, scalePoints[0].y, scalePoints[1].x, scalePoints[1].y];
   }, [scalePoints]);
+
+  const scaleMeasurementGuide = useMemo(() => {
+    if (scalePoints.length < 2) {
+      return null;
+    }
+
+    const [startPoint, endPoint] = scalePoints;
+    const dx = endPoint.x - startPoint.x;
+    const dy = endPoint.y - startPoint.y;
+    const length = Math.hypot(dx, dy);
+
+    if (length <= 0) {
+      return null;
+    }
+
+    const offsetDistance = 28;
+    const unitX = dx / length;
+    const unitY = dy / length;
+    const normalX = (-dy / length) * offsetDistance;
+    const normalY = (dx / length) * offsetDistance;
+    const startX = startPoint.x + normalX;
+    const startY = startPoint.y + normalY;
+    const endX = endPoint.x + normalX;
+    const endY = endPoint.y + normalY;
+    const arrowNormalX = normalX * 0.18;
+    const arrowNormalY = normalY * 0.18;
+
+    return {
+      linePoints: [startX, startY, endX, endY],
+      label: formatScaleMeasurementLabel(currentScale),
+      labelX: (startX + endX) / 2,
+      labelY: (startY + endY) / 2 - 18,
+      startArrowLeft: [startX, startY, startX + unitX * 10 + arrowNormalX, startY + unitY * 10 + arrowNormalY],
+      startArrowRight: [startX, startY, startX + unitX * 10 - arrowNormalX, startY + unitY * 10 - arrowNormalY],
+      endArrowLeft: [endX, endY, endX - unitX * 10 + arrowNormalX, endY - unitY * 10 + arrowNormalY],
+      endArrowRight: [endX, endY, endX - unitX * 10 - arrowNormalX, endY - unitY * 10 - arrowNormalY],
+    };
+  }, [currentScale, scalePoints]);
 
   const shorelineLinePoints = useMemo(() => {
     if (shorelinePoints.length < 2) {
@@ -594,6 +646,26 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     }
 
     onCanvasPointClick(pointerPosition);
+  };
+
+  const handleStageDoubleClick = (event: KonvaEventObject<MouseEvent>) => {
+    if (activeTool !== 'scale') {
+      return;
+    }
+
+    event.evt.preventDefault();
+
+    const stage = event.target.getStage();
+    if (!stage) {
+      return;
+    }
+
+    const pointerPosition = stage.getRelativePointerPosition();
+    if (!pointerPosition) {
+      return;
+    }
+
+    onCanvasScaleDoubleClick(pointerPosition);
   };
 
   const handleWheel = (event: KonvaEventObject<WheelEvent>) => {
@@ -898,6 +970,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           });
         }}
         onMouseDown={handlePointerDown}
+        onDblClick={handleStageDoubleClick}
         onTouchStart={handlePointerDown}
         onMouseMove={handleStagePointerMove}
         onTouchMove={handleStagePointerMove}
@@ -928,6 +1001,27 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           ))}
 
           {scaleLinePoints && <Line points={scaleLinePoints} stroke="#2563eb" strokeWidth={3} lineCap="round" />}
+          {scaleMeasurementGuide && (
+            <>
+              <Line points={scaleMeasurementGuide.linePoints} stroke="#1d4ed8" strokeWidth={2} lineCap="round" />
+              <Line points={scaleMeasurementGuide.startArrowLeft} stroke="#1d4ed8" strokeWidth={2} lineCap="round" />
+              <Line points={scaleMeasurementGuide.startArrowRight} stroke="#1d4ed8" strokeWidth={2} lineCap="round" />
+              <Line points={scaleMeasurementGuide.endArrowLeft} stroke="#1d4ed8" strokeWidth={2} lineCap="round" />
+              <Line points={scaleMeasurementGuide.endArrowRight} stroke="#1d4ed8" strokeWidth={2} lineCap="round" />
+              <Text
+                x={scaleMeasurementGuide.labelX - 60}
+                y={scaleMeasurementGuide.labelY}
+                width={120}
+                height={18}
+                align="center"
+                verticalAlign="middle"
+                text={scaleMeasurementGuide.label}
+                fontSize={12}
+                fontStyle="bold"
+                fill="#1d4ed8"
+              />
+            </>
+          )}
           {scalePoints.map((point) => (
             <Circle key={`${point.x}-${point.y}`} x={point.x} y={point.y} radius={5} fill="#1d4ed8" />
           ))}

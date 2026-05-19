@@ -588,6 +588,7 @@ export function EditorPage() {
   const [isSnapToGridEnabled, setIsSnapToGridEnabled] = useState(true);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [isShapeSelectorOpen, setIsShapeSelectorOpen] = useState(false);
+  const [isLabelMoveModeEnabled, setIsLabelMoveModeEnabled] = useState(false);
   const [isDeleteConfirmationVisible, setIsDeleteConfirmationVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingSiteImage, setIsUploadingSiteImage] = useState(false);
@@ -841,6 +842,7 @@ export function EditorPage() {
 
   useEffect(() => {
     setIsDeleteConfirmationVisible(false);
+    setIsLabelMoveModeEnabled(false);
   }, [selectedObjectId]);
 
   const setProjectScale = (nextScale: ProjectScale) => {
@@ -875,24 +877,42 @@ export function EditorPage() {
     setZoom((prev) => clampZoom(Number((prev + ZOOM_STEP).toFixed(2))));
   };
 
-  const handleCanvasPointClick = (
-    point: Point,
-    drawSize?: { width: number; height: number },
-    toolOverride?: ToolMode,
-  ) => {
-    if (activeTool === 'scale') {
-      setScalePoints((prev) => {
-        const nextPoints = prev.length < 2 ? [...prev, point] : [point];
-        const nextPixels = getPixelsFromPoints(nextPoints);
+  const focusScaleLengthInput = () => {
+    window.setTimeout(() => {
+      const input = document.getElementById('scale-real-length-input') as HTMLInputElement | null;
+      if (!input) {
+        return;
+      }
 
+      input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      input.focus();
+      input.select();
+    }, 50);
+  };
+
+  const handleCanvasPointClick = (point: Point, drawSize?: { width: number; height: number }, toolOverride?: ToolMode) => {
+    if (activeTool === 'scale') {
+      if (scalePoints.length < 1) {
+        setScalePoints([point]);
         setProjectScale({
-          pixels: nextPixels,
+          pixels: 0,
           realLength: project.scale?.realLength ?? 0,
           unit: project.scale?.unit ?? 'ft',
         });
+        return;
+      }
 
-        return nextPoints;
+      const nextPoints: Point[] = [scalePoints[0], point];
+      const nextPixels = getPixelsFromPoints(nextPoints);
+
+      setScalePoints(nextPoints);
+      setProjectScale({
+        pixels: nextPixels,
+        realLength: project.scale?.realLength ?? 0,
+        unit: project.scale?.unit ?? 'ft',
       });
+      setActiveTool('select');
+      focusScaleLengthInput();
       return;
     }
 
@@ -944,7 +964,6 @@ export function EditorPage() {
       'shape_elbow_connector',
       'shape_double_elbow_connector',
       'shape_elbow_arrow_connector',
-    
     ] as const;
 
     const placementToolCandidate = toolOverride ?? activeTool;
@@ -1103,6 +1122,23 @@ export function EditorPage() {
 
       setActiveTool('select');
     }
+  };
+
+  const handleCanvasScaleDoubleClick = (point: Point) => {
+    if (activeTool !== 'scale' || scalePoints.length < 1) {
+      return;
+    }
+
+    const nextPoints = [scalePoints[0], point];
+    const nextPixels = getPixelsFromPoints(nextPoints);
+
+    setScalePoints(nextPoints);
+    setProjectScale({
+      pixels: nextPixels,
+      realLength: project.scale?.realLength ?? 0,
+      unit: project.scale?.unit ?? 'ft',
+    });
+    setActiveTool('select');
   };
 
   const handleCanvasObjectDraw = (tool: ToolMode, startPoint: Point, endPoint: Point) => {
@@ -1557,6 +1593,10 @@ export function EditorPage() {
       realLength: Number.isFinite(parsedValue) ? parsedValue : 0,
       unit: currentScale.unit,
     });
+
+    if (Number.isFinite(parsedValue) && parsedValue > 0) {
+      setActiveTool('select');
+    }
   };
 
   const handleScaleUnitChange = (unit: UnitType) => {
@@ -1969,8 +2009,10 @@ export function EditorPage() {
               shorelinePoints={project.shorelinePoints}
               objects={sortedObjects}
               selectedObjectId={selectedObjectId}
+              isLabelMoveModeEnabled={isLabelMoveModeEnabled}
               backgroundImageUrl={project.backgroundImageUrl}
               onCanvasPointClick={handleCanvasPointClick}
+              onCanvasScaleDoubleClick={handleCanvasScaleDoubleClick}
               onCanvasObjectDraw={handleCanvasObjectDraw}
               onCanvasToolDrop={handleCanvasToolDrop}
               onObjectClick={handleObjectClick}
@@ -2112,8 +2154,19 @@ export function EditorPage() {
                           Label Position
                         </p>
                         <p className="mt-1 text-xs text-slate-600">
-                          Drag the label on the canvas to place it outside the element.
+                          Turn on label move mode when you want to drag the label instead of the object.
                         </p>
+                        <button
+                          type="button"
+                          onClick={() => setIsLabelMoveModeEnabled((previous) => !previous)}
+                          className={`mt-3 w-full rounded-md border px-3 py-2 text-xs font-medium ${
+                            isLabelMoveModeEnabled
+                              ? 'border-brand-600 bg-brand-50 text-brand-700'
+                              : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                          }`}
+                        >
+                          {isLabelMoveModeEnabled ? 'Done Moving Label' : 'Move Label'}
+                        </button>
                         <button
                           type="button"
                           onClick={handleResetSelectedObjectLabelPosition}
@@ -2598,6 +2651,7 @@ export function EditorPage() {
                       Real Length
                     </span>
                     <input
+                      id="scale-real-length-input"
                       type="number"
                       min={0}
                       step="any"
