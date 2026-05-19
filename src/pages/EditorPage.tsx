@@ -796,7 +796,7 @@ export function EditorPage() {
     setZoom((prev) => clampZoom(Number((prev + ZOOM_STEP).toFixed(2))));
   };
 
-  const handleCanvasPointClick = (point: Point) => {
+  const handleCanvasPointClick = (point: Point, drawSize?: { width: number; height: number }) => {
     if (activeTool === 'scale') {
       setScalePoints((prev) => {
         const nextPoints = prev.length < 2 ? [...prev, point] : [point];
@@ -996,8 +996,8 @@ export function EditorPage() {
           type: placementTool,
           x: isSnapToGridEnabled ? snapToGrid(point.x) : point.x,
           y: isSnapToGridEnabled ? snapToGrid(point.y) : point.y,
-          width: objectSizeByTool[placementTool].width,
-          height: objectSizeByTool[placementTool].height,
+          width: drawSize?.width ?? objectSizeByTool[placementTool].width,
+          height: drawSize?.height ?? objectSizeByTool[placementTool].height,
           rotation: 0,
           opacity: getDefaultOpacityByType(placementTool),
           label: `${objectTypeNameByTool[placementTool]} ${sameTypeCount + 1}`,
@@ -1019,7 +1019,21 @@ export function EditorPage() {
     }
   };
 
+  const handleCanvasObjectDraw = (tool: ToolMode, startPoint: Point, endPoint: Point) => {
+    if (tool !== activeTool) {
+      return;
+    }
+
+    const width = Math.max(MIN_OBJECT_SIZE, Math.abs(endPoint.x - startPoint.x));
+    const height = Math.max(MIN_OBJECT_SIZE, Math.abs(endPoint.y - startPoint.y));
+    const x = Math.min(startPoint.x, endPoint.x);
+    const y = Math.min(startPoint.y, endPoint.y);
+
+    handleCanvasPointClick({ x, y }, { width, height });
+  };
+
   const handleObjectClick = (objectId: string) => {
+
     if (activeTool !== 'select') {
       return;
     }
@@ -1702,6 +1716,7 @@ export function EditorPage() {
               selectedObjectId={selectedObjectId}
               backgroundImageUrl={project.backgroundImageUrl}
               onCanvasPointClick={handleCanvasPointClick}
+              onCanvasObjectDraw={handleCanvasObjectDraw}
               onObjectClick={handleObjectClick}
               onObjectPositionChange={handleObjectPositionChange}
               onObjectSizeChange={handleObjectSizeChange}

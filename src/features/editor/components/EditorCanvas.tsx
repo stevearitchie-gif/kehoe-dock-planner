@@ -13,6 +13,7 @@ interface EditorCanvasProps {
   selectedObjectId: string | null;
   backgroundImageUrl?: string;
   onCanvasPointClick: (point: Point) => void;
+  onCanvasObjectDraw: (tool: ToolMode, startPoint: Point, endPoint: Point) => void;
   onObjectClick: (objectId: string) => void;
   onObjectPositionChange: (objectId: string, point: Point) => void;
   onObjectSizeChange: (objectId: string, size: { width: number; height: number }) => void;
@@ -46,6 +47,12 @@ type InteractionSession =
       previewRotation: number;
     };
 
+type DraftShapeBox = {
+  tool: ToolMode;
+  startPoint: Point;
+  currentPoint: Point;
+};
+
 const GRID_SIZE = 40;
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 3;
@@ -53,6 +60,19 @@ const MIN_OBJECT_SIZE = 10;
 const ROTATION_HANDLE_OFFSET = 28;
 const LABEL_BOX_MIN_WIDTH = 120;
 const LABEL_BOX_HEIGHT = 24;
+
+const DRAW_START_THRESHOLD = 8;
+
+const drawableShapeTools: ToolMode[] = [
+  'shape_rectangle', 'shape_rounded_rectangle', 'shape_oval', 'shape_triangle',
+  'shape_right_triangle', 'shape_diamond', 'shape_parallelogram', 'shape_trapezoid',
+  'shape_pentagon', 'shape_hexagon', 'shape_octagon', 'shape_cross', 'shape_plus',
+  'shape_right_arrow', 'shape_left_arrow', 'shape_up_arrow', 'shape_down_arrow',
+  'shape_left_right_arrow', 'shape_up_down_arrow', 'shape_chevron_right',
+  'shape_chevron_left', 'shape_callout', 'shape_cube', 'shape_cylinder',
+  'shape_arc', 'shape_bracket_pair', 'shape_brace_pair', 'shape_line',
+  'shape_arrow_line', 'shape_double_arrow_line',
+];
 
 function clampZoom(value: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
@@ -257,6 +277,15 @@ function normalizeAngleDelta(delta: number): number {
   return normalized;
 }
 
+function getDraftShapeBounds(draftShapeBox: DraftShapeBox) {
+  const x = Math.min(draftShapeBox.startPoint.x, draftShapeBox.currentPoint.x);
+  const y = Math.min(draftShapeBox.startPoint.y, draftShapeBox.currentPoint.y);
+  const width = Math.abs(draftShapeBox.currentPoint.x - draftShapeBox.startPoint.x);
+  const height = Math.abs(draftShapeBox.currentPoint.y - draftShapeBox.startPoint.y);
+
+  return { x, y, width, height };
+}
+
 export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function EditorCanvas(
   {
     activeTool,
@@ -266,6 +295,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     selectedObjectId,
     backgroundImageUrl,
     onCanvasPointClick,
+    onCanvasObjectDraw,
     onObjectClick,
     onObjectPositionChange,
     onObjectSizeChange,
@@ -283,6 +313,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 800 });
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null);
   const [interactionSession, setInteractionSession] = useState<InteractionSession | null>(null);
+  const [draftShapeBox, setDraftShapeBox] = useState<DraftShapeBox | null>(null);
   const [stagePosition, setStagePosition] = useState<Point>({ x: 0, y: 0 });
 
   useImperativeHandle(ref, () => ({
@@ -424,6 +455,16 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       return;
     }
 
+    if (drawableShapeTools.includes(activeTool)) {
+      event.evt.preventDefault();
+      setDraftShapeBox({
+        tool: activeTool,
+        startPoint: pointerPosition,
+        currentPoint: pointerPosition,
+      });
+      return;
+    }
+
     onCanvasPointClick(pointerPosition);
   };
 
@@ -484,6 +525,19 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   };
 
   const endInteraction = () => {
+    if (draftShapeBox) {
+      const bounds = getDraftShapeBounds(draftShapeBox);
+
+      if (bounds.width >= DRAW_START_THRESHOLD || bounds.height >= DRAW_START_THRESHOLD) {
+        onCanvasObjectDraw(draftShapeBox.tool, draftShapeBox.startPoint, draftShapeBox.currentPoint);
+      } else {
+        onCanvasPointClick(draftShapeBox.startPoint);
+      }
+
+      setDraftShapeBox(null);
+      return;
+    }
+
     if (interactionSession?.type === 'rotate') {
       onObjectRotationChange(interactionSession.objectId, interactionSession.previewRotation);
     }
@@ -492,6 +546,28 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   };
 
   const handleStagePointerMove = (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
+    if (draftShapeBox) {
+      const stage = stageRef.current ?? event.target.getStage();
+      if (!stage) {
+        return;
+      }
+
+      const stagePoint = getStagePointerPoint(stage);
+      if (!stagePoint) {
+        return;
+      }
+
+      setDraftShapeBox((prev) =>
+        prev
+          ? {
+              ...prev,
+              currentPoint: stagePoint,
+            }
+          : prev,
+      );
+      return;
+    }
+
     if (!interactionSession) {
       return;
     }
@@ -648,6 +724,24 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
         </Layer>
 
         <Layer>
+          {draftShapeBox && (() => {
+            const bounds = getDraftShapeBounds(draftShapeBox);
+
+            return (
+              <Rect
+                x={bounds.x}
+                y={bounds.y}
+                width={bounds.width}
+                height={bounds.height}
+                fill="#dbeafe"
+                opacity={0.2}
+                stroke="#2563eb"
+                strokeWidth={2}
+                dash={[8, 5]}
+              />
+            );
+          })()}
+
           {objects.map((object) => {
             const isSelected = object.id === selectedObjectId;
             const isDraggable = activeTool === 'select' && !object.locked && !interactionSession;
