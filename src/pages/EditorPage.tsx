@@ -459,8 +459,7 @@ function escapeHtml(value: string): string {
 function printImageInHiddenFrame(args: {
   imageDataUrl: string;
   projectName: string;
-  exportedAt: string;
-  scaleSummaryHtml: string;
+  titleBlockHtml: string;
 }): boolean {
   const iframe = document.createElement('iframe');
   iframe.style.position = 'fixed';
@@ -501,60 +500,89 @@ function printImageInHiddenFrame(args: {
         <title>${args.projectName}</title>
         <meta charset="utf-8" />
         <style>
+          @page {
+            size: landscape;
+            margin: 0.35in;
+          }
           body {
             margin: 0;
-            padding: 24px;
+            padding: 0;
             font-family: Arial, sans-serif;
-            color: #0f172a;
+            color: #111827;
             background: #ffffff;
           }
           .page {
+            position: relative;
             width: 100%;
-            max-width: 1100px;
-            margin: 0 auto;
-          }
-          .header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 24px;
-            margin-bottom: 18px;
-            border-bottom: 1px solid #cbd5e1;
-            padding-bottom: 14px;
-          }
-          .brand-logo {
-            max-width: 190px;
-            max-height: 70px;
-            object-fit: contain;
-          }
-          .header-copy {
-            flex: 1;
-            text-align: right;
-          }
-          .header h1 {
-            margin: 0 0 8px 0;
-            font-size: 24px;
-          }
-          .meta {
-            font-size: 13px;
-            color: #475569;
-          }
-          .meta p {
-            margin: 4px 0;
+            min-height: calc(100vh - 0.7in);
           }
           .canvas-image {
             width: 100%;
-            height: auto;
-            border: 1px solid #cbd5e1;
+            max-height: calc(100vh - 1.75in);
+            object-fit: contain;
+            object-position: top left;
             display: block;
           }
+          .title-block {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            width: 275px;
+            border: 1px solid #111827;
+            background: #ffffff;
+            font-size: 9px;
+            line-height: 1.15;
+          }
+          .title-block-bottom-right {
+            right: 0;
+            bottom: 0;
+          }
+          .title-block-bottom-left {
+            left: 0;
+            bottom: 0;
+          }
+          .title-block-top-right {
+            right: 0;
+            top: 0;
+          }
+          .title-block-top-left {
+            left: 0;
+            top: 0;
+          }
+          .title-block table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+          .title-block td {
+            border: 1px solid #111827;
+            padding: 2px 4px;
+            vertical-align: top;
+          }
+          .title-label {
+            font-size: 9px;
+          }
+          .title-value {
+            display: block;
+            margin-top: 1px;
+            font-size: 9px;
+          }
+          .scale-note {
+            background: #f3f4f6;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.35;
+          }
+          .title-logo {
+            display: block;
+            width: 72px;
+            margin: 5px auto;
+          }
+          .small-cell {
+            width: 42px;
+            text-align: center;
+          }
           @media print {
-            body {
-              padding: 0;
-            }
-            .page {
-              max-width: none;
-            }
             .canvas-image {
               border: none;
             }
@@ -563,22 +591,8 @@ function printImageInHiddenFrame(args: {
       </head>
       <body>
         <div class="page">
-          <div class="header">
-            <img
-              id="brand-logo"
-              class="brand-logo"
-              src="/kehoe-header-logo.png"
-              alt="Kehoe Marine Construction"
-            />
-            <div class="header-copy">
-              <h1>${args.projectName}</h1>
-              <div class="meta">
-                <p><strong>Exported:</strong> ${args.exportedAt}</p>
-                ${args.scaleSummaryHtml}
-              </div>
-            </div>
-          </div>
           <img id="export-image" class="canvas-image" src="${args.imageDataUrl}" alt="${args.projectName}" />
+          ${args.titleBlockHtml}
         </div>
         <script>
           const images = Array.from(document.images);
@@ -906,6 +920,30 @@ export function EditorPage() {
       ...prev,
       name: value,
       updatedAt: new Date().toISOString(),
+    }));
+  };
+
+  const handleProjectInfoChange = (
+    field: 'clientName' | 'projectLocation' | 'description' | 'completedBy' | 'drawingNumber' | 'revision' | 'drawingDate',
+    value: string,
+  ) => {
+    setProject((prev) => ({
+      ...prev,
+      [field]: value,
+      updatedAt: new Date().toISOString(),
+    }));
+  };
+
+  const handleTitleBlockPositionChange = (
+    value: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'hidden',
+  ) => {
+    setProject((prev) => ({
+      ...prev,
+      updatedAt: new Date().toISOString(),
+      exportSettings: {
+        ...prev.exportSettings,
+        titleBlockPosition: value,
+      },
     }));
   };
 
@@ -1892,16 +1930,52 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
       return;
     }
 
-    const scaleSummaryHtml =
+    const drawingDate = project.drawingDate
+      ? new Date(`${project.drawingDate}T00:00:00`).toLocaleDateString()
+      : new Date().toLocaleDateString();
+
+    const titleBlockScaleLabel =
       currentScale.realLength > 0 && currentScale.pixels > 0
-        ? `<p><strong>Scale:</strong> ${currentScale.realLength} ${escapeHtml(currentScale.unit)}</p>`
-        : '';
+        ? `${currentScale.pixels.toFixed(0)} px = ${currentScale.realLength} ${currentScale.unit}`
+        : 'Not to\nScale';
+    const titleBlockScaleHtml = titleBlockScaleLabel.replace(/\n/g, '<br />');
+
+    const titleBlockPosition = project.exportSettings?.titleBlockPosition ?? 'bottom-right';
+    const titleBlockHtml =
+      titleBlockPosition === 'hidden'
+        ? ''
+        : `
+      <div class="title-block title-block-${titleBlockPosition}">
+        <table>
+          <tr>
+            <td><span class="title-label">Date:</span></td>
+            <td><span class="title-value">${escapeHtml(drawingDate)}</span></td>
+            <td colspan="2"><span class="title-label">Client:</span><span class="title-value">${escapeHtml(project.clientName ?? '')}</span></td>
+          </tr>
+          <tr>
+            <td rowspan="2" colspan="2" class="scale-note">${titleBlockScaleHtml}</td>
+            <td colspan="2"><span class="title-label">Location:</span><span class="title-value">${escapeHtml(project.projectLocation ?? '')}</span></td>
+          </tr>
+          <tr>
+            <td colspan="2"><span class="title-label">Description:</span><span class="title-value">${escapeHtml(project.description ?? project.name)}</span></td>
+          </tr>
+          <tr>
+            <td colspan="2"><img class="title-logo" src="/kehoe-header-logo.png" alt="Kehoe Marine Construction" /></td>
+            <td><span class="title-label">Drawing #:</span><span class="title-value">${escapeHtml(project.drawingNumber ?? '')}</span></td>
+            <td class="small-cell"><span class="title-label">Rev:</span><span class="title-value">${escapeHtml(project.revision ?? '0')}</span></td>
+          </tr>
+          <tr>
+            <td colspan="2"><span class="title-label">Completed By:</span><span class="title-value">${escapeHtml(project.completedBy ?? '')}</span></td>
+            <td colspan="2"></td>
+          </tr>
+        </table>
+      </div>
+    `;
 
     const printed = printImageInHiddenFrame({
       imageDataUrl,
       projectName: escapeHtml(projectName),
-      exportedAt: escapeHtml(new Date().toLocaleString()),
-      scaleSummaryHtml,
+      titleBlockHtml,
     });
 
     if (!printed) {
@@ -2155,6 +2229,135 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                     className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
                   />
                 </label>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Date
+                    </span>
+                    <input
+                      type="date"
+                      value={project.drawingDate ?? ''}
+                      onChange={(event) => handleProjectInfoChange('drawingDate', event.target.value)}
+                      className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Completed By
+                    </span>
+                    <input
+                      type="text"
+                      value={project.completedBy ?? ''}
+                      onChange={(event) => handleProjectInfoChange('completedBy', event.target.value)}
+                      placeholder="AH"
+                      className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                    />
+                  </label>
+                </div>
+
+                <label className="mt-3 block">
+                  <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Client
+                  </span>
+                  <input
+                    type="text"
+                    value={project.clientName ?? ''}
+                    onChange={(event) => handleProjectInfoChange('clientName', event.target.value)}
+                    placeholder="Client name"
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                  />
+                </label>
+
+                <label className="mt-3 block">
+                  <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Location
+                  </span>
+                  <input
+                    type="text"
+                    value={project.projectLocation ?? ''}
+                    onChange={(event) => handleProjectInfoChange('projectLocation', event.target.value)}
+                    placeholder="Project address"
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                  />
+                </label>
+
+                <label className="mt-3 block">
+                  <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Description
+                  </span>
+                  <input
+                    type="text"
+                    value={project.description ?? ''}
+                    onChange={(event) => handleProjectInfoChange('description', event.target.value)}
+                    placeholder="Plan description"
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                  />
+                </label>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Drawing #
+                    </span>
+                    <input
+                      type="text"
+                      value={project.drawingNumber ?? ''}
+                      onChange={(event) => handleProjectInfoChange('drawingNumber', event.target.value)}
+                      placeholder="1"
+                      className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Rev
+                    </span>
+                    <input
+                      type="text"
+                      value={project.revision ?? ''}
+                      onChange={(event) => handleProjectInfoChange('revision', event.target.value)}
+                      placeholder="0"
+                      className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                    />
+                  </label>
+                </div>
+
+                <div className="mt-4 rounded-md border border-slate-200 bg-white p-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Title Block Position
+                  </p>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {[
+                      { label: 'Bottom Right', value: 'bottom-right' },
+                      { label: 'Bottom Left', value: 'bottom-left' },
+                      { label: 'Top Right', value: 'top-right' },
+                      { label: 'Top Left', value: 'top-left' },
+                      { label: 'Hide', value: 'hidden' },
+                    ].map((option) => {
+                      const activePosition = project.exportSettings?.titleBlockPosition ?? 'bottom-right';
+                      const isActive = activePosition === option.value;
+
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() =>
+                            handleTitleBlockPositionChange(
+                              option.value as 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'hidden',
+                            )
+                          }
+                          className={`rounded-md border px-2 py-2 text-xs font-medium ${
+                            isActive
+                              ? 'border-brand-600 bg-brand-50 text-brand-700'
+                              : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               <div className="rounded-md border border-slate-200 p-3">
