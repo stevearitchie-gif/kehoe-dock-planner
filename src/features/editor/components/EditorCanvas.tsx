@@ -31,6 +31,7 @@ export interface EditorCanvasHandle {
 }
 
 type ResizeHandle = 'right' | 'bottom' | 'corner';
+type ConnectorEndpointHandle = 'start' | 'end';
 
 type InteractionSession =
   | {
@@ -46,6 +47,13 @@ type InteractionSession =
       startRotation: number;
       startAngle: number;
       previewRotation: number;
+    }
+  | {
+      type: 'connectorEndpoint';
+      objectId: string;
+      endpoint: ConnectorEndpointHandle;
+      startWidth: number;
+      startHeight: number;
     };
 
 type DraftShapeBox = {
@@ -285,6 +293,14 @@ function getDraftShapeBounds(draftShapeBox: DraftShapeBox) {
   const height = Math.abs(draftShapeBox.currentPoint.y - draftShapeBox.startPoint.y);
 
   return { x, y, width, height };
+}
+
+function isConnectorEndpointObject(object: DockObject): boolean {
+  return (
+    object.type === 'shape_elbow_connector' ||
+    object.type === 'shape_double_elbow_connector' ||
+    object.type === 'shape_elbow_arrow_connector'
+  );
 }
 
 export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function EditorCanvas(
@@ -586,6 +602,24 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     });
   };
 
+  const beginConnectorEndpoint = (
+    event: KonvaEventObject<MouseEvent | TouchEvent>,
+    object: DockObject,
+    endpoint: ConnectorEndpointHandle,
+  ) => {
+    event.cancelBubble = true;
+    event.evt.preventDefault();
+
+    onObjectClick(object.id);
+    setInteractionSession({
+      type: 'connectorEndpoint',
+      objectId: object.id,
+      endpoint,
+      startWidth: object.width,
+      startHeight: object.height,
+    });
+  };
+
   const endInteraction = () => {
     const activeDraftShapeBox = draftShapeBoxRef.current;
 
@@ -671,6 +705,31 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     }
 
     const localPoint = getObjectLocalPoint(object, stagePoint);
+
+    if (interactionSession.type === 'connectorEndpoint') {
+      onObjectClick(object.id);
+
+      if (interactionSession.endpoint === 'end') {
+        onObjectSizeChange(object.id, {
+          width: Math.max(MIN_OBJECT_SIZE, localPoint.x),
+          height: Math.max(MIN_OBJECT_SIZE, localPoint.y),
+        });
+        return;
+      }
+
+      const boundedLocalX = Math.min(localPoint.x, object.width - MIN_OBJECT_SIZE);
+      const boundedLocalY = Math.min(localPoint.y, object.height - MIN_OBJECT_SIZE);
+
+      onObjectPositionChange(object.id, {
+        x: object.x + boundedLocalX,
+        y: object.y + boundedLocalY,
+      });
+      onObjectSizeChange(object.id, {
+        width: Math.max(MIN_OBJECT_SIZE, object.width - boundedLocalX),
+        height: Math.max(MIN_OBJECT_SIZE, object.height - boundedLocalY),
+      });
+      return;
+    }
 
     if (interactionSession.handle === 'right') {
       const nextWidth = Math.max(MIN_OBJECT_SIZE, localPoint.x);
@@ -1231,9 +1290,11 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                       width={object.width}
                       height={object.height}
                       stroke="#1d4ed8"
-                      strokeWidth={3}
+                      strokeWidth={isConnectorEndpointObject(object) ? 1.5 : 3}
                       fillEnabled={false}
                       cornerRadius={cornerRadius}
+                      dash={isConnectorEndpointObject(object) ? [7, 5] : undefined}
+                      opacity={isConnectorEndpointObject(object) ? 0.65 : 1}
                       listening={false}
                     />
 
@@ -1254,6 +1315,31 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                       onMouseDown={(event) => beginRotate(event, object)}
                       onTouchStart={(event) => beginRotate(event, object)}
                     />
+
+                    {isConnectorEndpointObject(object) && (
+                      <>
+                        <Circle
+                          x={0}
+                          y={0}
+                          radius={8}
+                          fill="#eff6ff"
+                          stroke="#2563eb"
+                          strokeWidth={3}
+                          onMouseDown={(event) => beginConnectorEndpoint(event, object, 'start')}
+                          onTouchStart={(event) => beginConnectorEndpoint(event, object, 'start')}
+                        />
+                        <Circle
+                          x={object.width}
+                          y={object.height}
+                          radius={8}
+                          fill="#eff6ff"
+                          stroke="#2563eb"
+                          strokeWidth={3}
+                          onMouseDown={(event) => beginConnectorEndpoint(event, object, 'end')}
+                          onTouchStart={(event) => beginConnectorEndpoint(event, object, 'end')}
+                        />
+                      </>
+                    )}
 
                     <Circle
                       x={object.width}
