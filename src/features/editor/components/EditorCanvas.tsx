@@ -849,13 +849,16 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 ? interactionSession.previewRotation
                 : object.rotation;
 
-            const labelWidth = Math.max(object.width, LABEL_BOX_MIN_WIDTH);
-            const labelHeight = LABEL_BOX_HEIGHT;
+            const isShapeObject = object.type.startsWith('shape_');
+            const labelWidth = isShapeObject ? object.width : Math.max(object.width, LABEL_BOX_MIN_WIDTH);
+            const labelHeight = isShapeObject ? Math.max(object.height, LABEL_BOX_HEIGHT) : LABEL_BOX_HEIGHT;
             const defaultLabelX = object.width / 2 - labelWidth / 2;
             const defaultLabelY =
               object.type === 'dimension_line'
                 ? -labelHeight - 6
-                : object.height / 2 - labelHeight / 2;
+                : isShapeObject
+                  ? 0
+                  : object.height / 2 - labelHeight / 2;
             const labelX = defaultLabelX + (object.labelOffsetX ?? 0);
             const labelY = defaultLabelY + (object.labelOffsetY ?? 0);
             const isLabelDraggable = isSelected && activeTool === 'select' && !object.locked && !interactionSession;
@@ -1123,6 +1126,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 
                 </Group>
 
+                {!object.labelHidden && (
                 <Group
                   x={labelX}
                   y={labelY}
@@ -1176,6 +1180,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                     fill={object.labelColor ?? '#0f172a'}
                   />
                 </Group>
+                )}
 
                 {isSelected && (
                   <>

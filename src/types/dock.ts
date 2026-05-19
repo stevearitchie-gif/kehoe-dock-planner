@@ -66,6 +66,7 @@ export interface DockObject {
   labelOffsetX?: number;
   labelOffsetY?: number;
   labelColor?: string;
+  labelHidden?: boolean;
   metadata?: {
     elevation?: number;
     material?: string;
