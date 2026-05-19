@@ -527,11 +527,11 @@ function printImageInHiddenFrame(args: {
             position: absolute;
             right: 0;
             bottom: 0;
-            width: 275px;
+            width: 390px;
             border: 1px solid #111827;
             background: #ffffff;
-            font-size: 9px;
-            line-height: 1.15;
+            font-size: 8px;
+            line-height: 1.05;
           }
           .title-block-bottom-right {
             right: 0;
@@ -552,34 +552,69 @@ function printImageInHiddenFrame(args: {
           .title-block table {
             width: 100%;
             border-collapse: collapse;
+            table-layout: fixed;
           }
           .title-block td {
             border: 1px solid #111827;
-            padding: 2px 4px;
-            vertical-align: top;
+            padding: 1px 2px;
+            vertical-align: middle;
+          }
+          .title-field {
+            display: flex;
+            align-items: center;
+            min-height: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
           .title-label {
-            font-size: 9px;
+            font-size: 8px;
+            font-weight: 400;
           }
           .title-value {
-            display: block;
-            margin-top: 1px;
-            font-size: 9px;
+            display: inline;
+            margin-left: 3px;
+            font-size: 8px;
+            font-weight: 600;
           }
           .scale-note {
             background: #f3f4f6;
             text-align: center;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
-            line-height: 1.35;
+            line-height: 1.05;
           }
           .title-logo {
             display: block;
-            width: 72px;
-            margin: 5px auto;
+            width: 118px;
+            max-height: 28px;
+            object-fit: contain;
+            margin: 2px auto;
+          }
+          .info-row td {
+            height: 15px;
+            padding-top: 2px;
+            padding-bottom: 2px;
+          }
+          .scale-row td {
+            height: 13px;
+          }
+          .drawing-row td {
+            height: 12px;
+            padding-top: 1px;
+            padding-bottom: 1px;
+          }
+          .logo-cell {
+            height: 32px;
+          }
+          .title-main-cell {
+            width: 68%;
+          }
+          .drawing-cell {
+            width: 22%;
           }
           .small-cell {
-            width: 42px;
+            width: 10%;
             text-align: center;
           }
           @media print {
@@ -1947,25 +1982,29 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
         : `
       <div class="title-block title-block-${titleBlockPosition}">
         <table>
-          <tr>
-            <td><span class="title-label">Date:</span></td>
-            <td><span class="title-value">${escapeHtml(drawingDate)}</span></td>
-            <td colspan="2"><span class="title-label">Client:</span><span class="title-value">${escapeHtml(project.clientName ?? '')}</span></td>
+          <colgroup>
+            <col style="width: 42%;" />
+            <col style="width: 40%;" />
+            <col style="width: 18%;" />
+          </colgroup>
+          <tr class="info-row">
+            <td><div class="title-field"><span class="title-label">Date:</span><span class="title-value">${escapeHtml(drawingDate)}</span></div></td>
+            <td colspan="2"><div class="title-field"><span class="title-label">Client:</span><span class="title-value">${escapeHtml(project.clientName ?? '')}</span></div></td>
+          </tr>
+          <tr class="scale-row">
+            <td class="scale-note">${titleBlockScaleHtml}</td>
+            <td colspan="2"><div class="title-field"><span class="title-label">Location:</span><span class="title-value">${escapeHtml(project.projectLocation ?? '')}</span></div></td>
+          </tr>
+          <tr class="info-row">
+            <td rowspan="2" class="logo-cell"><img class="title-logo" src="/kehoe-header-logo.png" alt="Kehoe Marine Construction" /></td>
+            <td colspan="2"><div class="title-field"><span class="title-label">Description:</span><span class="title-value">${escapeHtml(project.description ?? project.name)}</span></div></td>
+          </tr>
+          <tr class="drawing-row">
+            <td><div class="title-field"><span class="title-label">Drawing #:</span><span class="title-value">${escapeHtml(project.drawingNumber ?? '')}</span></div></td>
+            <td class="small-cell"><div class="title-field"><span class="title-label">Rev:</span><span class="title-value">${escapeHtml(project.revision ?? '0')}</span></div></td>
           </tr>
           <tr>
-            <td rowspan="2" colspan="2" class="scale-note">${titleBlockScaleHtml}</td>
-            <td colspan="2"><span class="title-label">Location:</span><span class="title-value">${escapeHtml(project.projectLocation ?? '')}</span></td>
-          </tr>
-          <tr>
-            <td colspan="2"><span class="title-label">Description:</span><span class="title-value">${escapeHtml(project.description ?? project.name)}</span></td>
-          </tr>
-          <tr>
-            <td colspan="2"><img class="title-logo" src="/kehoe-header-logo.png" alt="Kehoe Marine Construction" /></td>
-            <td><span class="title-label">Drawing #:</span><span class="title-value">${escapeHtml(project.drawingNumber ?? '')}</span></td>
-            <td class="small-cell"><span class="title-label">Rev:</span><span class="title-value">${escapeHtml(project.revision ?? '0')}</span></td>
-          </tr>
-          <tr>
-            <td colspan="2"><span class="title-label">Completed By:</span><span class="title-value">${escapeHtml(project.completedBy ?? '')}</span></td>
+            <td><div class="title-field"><span class="title-label">Completed By:</span><span class="title-value">${escapeHtml(project.completedBy ?? '')}</span></div></td>
             <td colspan="2"></td>
           </tr>
         </table>

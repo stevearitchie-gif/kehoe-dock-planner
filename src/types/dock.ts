@@ -102,11 +102,19 @@ export interface DockProject {
   shorelinePoints: Point[];
   objects: DockObject[];
   notes?: string;
+  clientName?: string;
+  projectLocation?: string;
+  description?: string;
+  completedBy?: string;
+  drawingNumber?: string;
+  revision?: string;
+  drawingDate?: string;
   exportSettings?: {
     paperSize?: 'letter' | 'legal' | 'tabloid';
     orientation?: 'portrait' | 'landscape';
     showGrid?: boolean;
     showDimensions?: boolean;
     showNotes?: boolean;
+    titleBlockPosition?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'hidden';
   };
 }
