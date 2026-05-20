@@ -2617,8 +2617,13 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                 </div>
               </div>
 
-              <div className="rounded-md border border-slate-200 p-3">
-                <h3 className="text-sm font-semibold text-slate-800">Selected Object</h3>
+              <details open className="rounded-md border border-slate-200 bg-white">
+                <summary className="flex cursor-pointer select-none items-center justify-between rounded-md px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50">
+                  <span>Selected Element</span>
+                  <span className="text-xs text-slate-400">open/close</span>
+                </summary>
+                <div className="border-t border-slate-100 p-3">
+                
                 {!selectedObject && <p className="mt-1 text-sm text-slate-600">No object selected.</p>}
 
                 {selectedObject && (
@@ -3246,7 +3251,9 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                     </div>
                   </div>
                 )}
-              </div>
+              
+                </div>
+              </details>
 
               <div className="rounded-md border border-slate-200 p-3">
                 <h3 className="text-sm font-semibold text-slate-800">Scale Settings</h3>
