@@ -2348,8 +2348,12 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Properties</p>
 
             <div className="mt-3 space-y-3 pb-6">
-              <div className="rounded-md border border-slate-200 p-3">
-                <h3 className="text-sm font-semibold text-slate-800">Project Details</h3>
+              <details open className="rounded-md border border-slate-200 bg-white">
+                <summary className="flex cursor-pointer select-none items-center justify-between rounded-md px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50">
+                  <span>Project Details</span>
+                  <span className="text-xs text-slate-400">open/close</span>
+                </summary>
+                <div className="border-t border-slate-100 p-3">
                 <label className="mt-3 block">
                   <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
                     Project Name
@@ -2533,7 +2537,9 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                   </button>
                 </div>
 
-              </div>
+              
+                </div>
+              </details>
 
               <div className="rounded-md border border-slate-200 p-3">
                 <div className="flex items-start justify-between gap-3">
