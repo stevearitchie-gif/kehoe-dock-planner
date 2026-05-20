@@ -9,6 +9,10 @@ interface EditorCanvasProps {
   activeTool: ToolMode;
   scalePoints: Point[];
   shorelinePoints: Point[];
+  shorelineFinished?: boolean;
+  shorelineLabelHidden?: boolean;
+  shorelineLabelOffsetX?: number;
+  shorelineLabelOffsetY?: number;
   objects: DockObject[];
   selectedObjectId: string | null;
   isLabelMoveModeEnabled: boolean;
@@ -23,6 +27,7 @@ interface EditorCanvasProps {
   onObjectSizeChange: (objectId: string, size: { width: number; height: number }) => void;
   onObjectRotationChange: (objectId: string, rotation: number) => void;
   onObjectLabelOffsetChange: (objectId: string, offset: Point) => void;
+  onShorelineLabelOffsetChange?: (offset: Point) => void;
   onObjectDimensionOffsetChange: (objectId: string, dimension: 'width' | 'height', offset: Point) => void;
   currentScale: ProjectScale;
   isSnapToGridEnabled: boolean;
@@ -411,6 +416,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     activeTool,
     scalePoints,
     shorelinePoints,
+    shorelineFinished = false,
+    shorelineLabelHidden = false,
+    shorelineLabelOffsetX = 0,
+    shorelineLabelOffsetY = 0,
     objects,
     selectedObjectId,
     isLabelMoveModeEnabled,
@@ -425,6 +434,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     onObjectSizeChange,
     onObjectRotationChange,
     onObjectLabelOffsetChange,
+    onShorelineLabelOffsetChange,
     onObjectDimensionOffsetChange,
     currentScale,
     isSnapToGridEnabled,
@@ -559,6 +569,20 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 
     return shorelinePoints.flatMap((point) => [point.x, point.y]);
   }, [shorelinePoints]);
+
+  const shorelineLabelPosition = useMemo(() => {
+    if (shorelinePoints.length < 2) {
+      return null;
+    }
+
+    const xs = shorelinePoints.map((point) => point.x);
+    const ys = shorelinePoints.map((point) => point.y);
+
+    return {
+      x: (Math.min(...xs) + Math.max(...xs)) / 2 + shorelineLabelOffsetX,
+      y: Math.min(...ys) - 28 + shorelineLabelOffsetY,
+    };
+  }, [shorelineLabelOffsetX, shorelineLabelOffsetY, shorelinePoints]);
 
   const isPanTool = activeTool === 'pan';
 
@@ -1040,9 +1064,11 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
               dash={[10, 6]}
             />
           )}
-          {shorelinePoints.map((point) => (
-            <Circle key={`shoreline-${point.x}-${point.y}`} x={point.x} y={point.y} radius={5} fill="#0f766e" />
-          ))}
+          {activeTool === 'shoreline' &&
+            !shorelineFinished &&
+            shorelinePoints.map((point) => (
+              <Circle key={`shoreline-${point.x}-${point.y}`} x={point.x} y={point.y} radius={5} fill="#0f766e" />
+            ))}
 
           {scaleLinePoints && <Line points={scaleLinePoints} stroke="#2563eb" strokeWidth={3} lineCap="round" />}
           {scaleMeasurementGuide && (
@@ -1099,6 +1125,53 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
         </Layer>
 
         <Layer>
+          {shorelineLabelPosition && !shorelineLabelHidden && (
+            <Group
+              x={shorelineLabelPosition.x}
+              y={shorelineLabelPosition.y}
+              draggable={isLabelMoveModeEnabled}
+              listening={isLabelMoveModeEnabled}
+              onDragEnd={(event) => {
+                onShorelineLabelOffsetChange?.({
+                  x: event.target.x() - (shorelineLabelPosition.x - shorelineLabelOffsetX),
+                  y: event.target.y() - (shorelineLabelPosition.y - shorelineLabelOffsetY),
+                });
+              }}
+            >
+              <Rect
+                x={-44}
+                y={-14}
+                width={88}
+                height={28}
+                fill="#ffffff"
+                opacity={0.001}
+              />
+              <Rect
+                x={-36}
+                y={-10}
+                width={72}
+                height={20}
+                fill="#ffffff"
+                opacity={0.85}
+                cornerRadius={4}
+                listening={false}
+              />
+              <Text
+                x={-36}
+                y={-7}
+                width={72}
+                height={16}
+                align="center"
+                verticalAlign="middle"
+                text="Shoreline"
+                fontSize={12}
+                fontStyle="bold"
+                fill="#0f766e"
+                listening={false}
+              />
+            </Group>
+          )}
+
           {draftShapeBox && (() => {
             const bounds = getDraftShapeBounds(draftShapeBox);
 

@@ -100,6 +100,10 @@ export interface DockProject {
   backgroundImagePath?: string;
   scale?: ProjectScale;
   shorelinePoints: Point[];
+  shorelineFinished?: boolean;
+  shorelineLabelHidden?: boolean;
+  shorelineLabelOffsetX?: number;
+  shorelineLabelOffsetY?: number;
   objects: DockObject[];
   notes?: string;
   clientName?: string;

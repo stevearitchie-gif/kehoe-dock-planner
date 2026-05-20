@@ -1062,6 +1062,7 @@ export function EditorPage() {
         ...prev,
         updatedAt: new Date().toISOString(),
         shorelinePoints: [...prev.shorelinePoints, point],
+        shorelineFinished: false,
       }));
       return;
     }
@@ -1818,6 +1819,11 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
 
   const handleFinishShoreline = () => {
     setActiveTool('select');
+    setProject((prev) => ({
+      ...prev,
+      shorelineFinished: true,
+      updatedAt: new Date().toISOString(),
+    }));
   };
 
   const handleClearShoreline = () => {
@@ -1825,6 +1831,36 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
       ...prev,
       updatedAt: new Date().toISOString(),
       shorelinePoints: [],
+      shorelineFinished: false,
+      shorelineLabelHidden: undefined,
+      shorelineLabelOffsetX: undefined,
+      shorelineLabelOffsetY: undefined,
+    }));
+  };
+
+  const handleShorelineLabelOffsetChange = (offset: Point) => {
+    setProject((prev) => ({
+      ...prev,
+      updatedAt: new Date().toISOString(),
+      shorelineLabelOffsetX: Math.abs(offset.x) < 0.5 ? undefined : offset.x,
+      shorelineLabelOffsetY: Math.abs(offset.y) < 0.5 ? undefined : offset.y,
+    }));
+  };
+
+  const handleToggleShorelineLabel = () => {
+    setProject((prev) => ({
+      ...prev,
+      updatedAt: new Date().toISOString(),
+      shorelineLabelHidden: prev.shorelineLabelHidden ? undefined : true,
+    }));
+  };
+
+  const handleResetShorelineLabelPosition = () => {
+    setProject((prev) => ({
+      ...prev,
+      updatedAt: new Date().toISOString(),
+      shorelineLabelOffsetX: undefined,
+      shorelineLabelOffsetY: undefined,
     }));
   };
 
@@ -2262,6 +2298,10 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
               activeTool={activeTool}
               scalePoints={scalePoints}
               shorelinePoints={project.shorelinePoints}
+              shorelineFinished={project.shorelineFinished}
+              shorelineLabelHidden={project.shorelineLabelHidden}
+              shorelineLabelOffsetX={project.shorelineLabelOffsetX}
+              shorelineLabelOffsetY={project.shorelineLabelOffsetY}
               objects={sortedObjects}
               selectedObjectId={selectedObjectId}
               isLabelMoveModeEnabled={isLabelMoveModeEnabled}
@@ -2276,6 +2316,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
               onObjectSizeChange={handleObjectSizeChange}
               onObjectRotationChange={handleObjectRotationChange}
               onObjectLabelOffsetChange={handleObjectLabelOffsetChange}
+              onShorelineLabelOffsetChange={handleShorelineLabelOffsetChange}
               onObjectDimensionOffsetChange={handleObjectDimensionOffsetChange}
               currentScale={currentScale}
               isSnapToGridEnabled={isSnapToGridEnabled}
@@ -3233,11 +3274,12 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                   </p>
                 )}
 
-                <div className="mt-3 flex gap-2">
+                                <div className="mt-3 grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={handleFinishShoreline}
-                    className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                    disabled={project.shorelinePoints.length < 2}
+                    className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Finish Shoreline
                   </button>
@@ -3248,7 +3290,38 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                   >
                     Clear Shoreline
                   </button>
+                  <button
+                    type="button"
+                    onClick={handleToggleShorelineLabel}
+                    disabled={project.shorelinePoints.length < 2}
+                    className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {project.shorelineLabelHidden ? 'Show Label' : 'Hide Label'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetShorelineLabelPosition}
+                    disabled={project.shorelinePoints.length < 2}
+                    className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Reset Label
+                  </button>
                 </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsLabelMoveModeEnabled((previous) => !previous)}
+                    disabled={project.shorelinePoints.length < 2 || project.shorelineLabelHidden}
+                    className={`rounded-md border px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50 ${
+                      isLabelMoveModeEnabled
+                        ? 'border-brand-600 bg-brand-50 text-brand-700'
+                        : 'border-slate-300 text-slate-700'
+                    }`}
+                  >
+                    {isLabelMoveModeEnabled ? 'Done Moving Label' : 'Move Shoreline Label'}
+                  </button>
+                <p className="mt-2 text-xs text-slate-500">
+                  Use Move Label mode to drag the shoreline label.
+                </p>
               </div>
             </div>
           </aside>
