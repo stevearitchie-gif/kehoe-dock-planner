@@ -81,6 +81,7 @@ const shapeToolGroups: { title: string; tools: GenericShapeTool[] }[] = [
     title: 'Basic Shapes',
     tools: [
       'shape_oval',
+      'shape_circle',
       'shape_triangle',
       'shape_right_triangle',
       'shape_diamond',
@@ -133,6 +134,13 @@ function ShapeToolPreview({ tool }: { tool: GenericShapeTool }) {
       return (
         <svg viewBox="0 0 64 40" className="h-6 w-9" aria-hidden="true">
           <ellipse cx="32" cy="20" rx="23" ry="12" fill={fill} stroke={stroke} strokeWidth="2" />
+        </svg>
+      );
+
+    case 'shape_circle':
+      return (
+        <svg viewBox="0 0 64 40" className="h-8 w-12" aria-hidden="true">
+          <circle cx="32" cy="20" r="14" fill={fill} stroke={stroke} strokeWidth="2" />
         </svg>
       );
 
@@ -1079,6 +1087,7 @@ export function EditorPage() {
       'shape_rectangle',
       'shape_rounded_rectangle',
       'shape_oval',
+      'shape_circle',
       'shape_triangle',
       'shape_right_triangle',
       'shape_diamond',
@@ -1127,6 +1136,7 @@ export function EditorPage() {
           shape_rectangle: 'Rectangle',
           shape_rounded_rectangle: 'Rounded Rectangle',
           shape_oval: 'Oval',
+          shape_circle: 'Circle',
           shape_triangle: 'Triangle',
           shape_right_triangle: 'Right Triangle',
           shape_diamond: 'Diamond',
@@ -1168,6 +1178,7 @@ export function EditorPage() {
           shape_rectangle: { width: 100, height: 60 },
           shape_rounded_rectangle: { width: 100, height: 60 },
           shape_oval: { width: 100, height: 60 },
+          shape_circle: { width: 70, height: 70 },
           shape_triangle: { width: 90, height: 80 },
           shape_right_triangle: { width: 90, height: 80 },
           shape_diamond: { width: 90, height: 70 },
@@ -1209,6 +1220,7 @@ export function EditorPage() {
           shape_rectangle: '#dbeafe',
           shape_rounded_rectangle: '#dbeafe',
           shape_oval: '#dcfce7',
+          shape_circle: '#dcfce7',
           shape_triangle: '#fef3c7',
           shape_right_triangle: '#fef3c7',
           shape_diamond: '#ede9fe',
@@ -1744,6 +1756,13 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
       dimensionWidthOffsetY: undefined,
       dimensionHeightOffsetX: undefined,
       dimensionHeightOffsetY: undefined,
+    }));
+  };
+
+  const handleToggleSelectedObjectDimensions = () => {
+    updateSelectedObject((object) => ({
+      ...object,
+      dimensionsHidden: object.dimensionsHidden ? undefined : true,
     }));
   };
 
@@ -3045,6 +3064,15 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                       >
                         Reset Dimension Indicators
                       </button>
+                      {selectedObject.type !== 'dimension_line' && (
+                        <button
+                          type="button"
+                          onClick={handleToggleSelectedObjectDimensions}
+                          className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                        >
+                          {selectedObject.dimensionsHidden ? 'Show Size Arrows' : 'Hide Size Arrows'}
+                        </button>
+                      )}
 
                       {selectedObject.type === 'dimension_line' && (
                         <div className="mt-3 rounded-md border border-slate-200 bg-white p-3">

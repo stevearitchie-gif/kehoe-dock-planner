@@ -85,6 +85,7 @@ const CONNECTOR_SNAP_THRESHOLD = 32;
 
 const drawableShapeTools: ToolMode[] = [
   'shape_rectangle', 'shape_rounded_rectangle', 'shape_oval', 'shape_triangle',
+  'shape_circle',
   'shape_right_triangle', 'shape_diamond', 'shape_parallelogram', 'shape_trapezoid',
   'shape_pentagon', 'shape_hexagon', 'shape_octagon', 'shape_cross', 'shape_plus',
   'shape_right_arrow', 'shape_left_arrow', 'shape_up_arrow', 'shape_down_arrow',
@@ -601,6 +602,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       'shape_rectangle',
       'shape_rounded_rectangle',
       'shape_oval',
+  'shape_circle',
       'shape_triangle',
       'shape_diamond',
       'shape_parallelogram',
@@ -1450,12 +1452,12 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                         strokeWidth={getObjectStrokeWidth(object, 2)}
                       />
                     </>
-                  ) : object.type === 'shape_oval' ? (
+                  ) : object.type === 'shape_oval' || object.type === 'shape_circle' ? (
                     <Ellipse
                       x={object.width / 2}
                       y={object.height / 2}
-                      radiusX={object.width / 2}
-                      radiusY={object.height / 2}
+                      radiusX={object.type === 'shape_circle' ? Math.min(object.width, object.height) / 2 : object.width / 2}
+                      radiusY={object.type === 'shape_circle' ? Math.min(object.width, object.height) / 2 : object.height / 2}
                       fill={object.color}
                       stroke={getObjectStrokeColor(object)}
                       strokeWidth={getObjectStrokeWidth(object, 1)}

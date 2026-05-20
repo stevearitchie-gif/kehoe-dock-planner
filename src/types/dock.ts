@@ -13,6 +13,7 @@ export type DockObjectType =
   | 'shape_rectangle'
   | 'shape_rounded_rectangle'
   | 'shape_oval'
+  | 'shape_circle'
   | 'shape_triangle'
   | 'shape_right_triangle'
   | 'shape_diamond'
