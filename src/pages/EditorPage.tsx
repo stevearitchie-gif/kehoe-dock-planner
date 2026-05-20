@@ -982,6 +982,34 @@ export function EditorPage() {
     }));
   };
 
+  const handleTitleBlockOffsetChange = (axis: 'x' | 'y', value: string) => {
+    const parsedValue = Number(value);
+    if (!Number.isFinite(parsedValue)) {
+      return;
+    }
+
+    setProject((prev) => ({
+      ...prev,
+      updatedAt: new Date().toISOString(),
+      exportSettings: {
+        ...prev.exportSettings,
+        [axis === 'x' ? 'titleBlockOffsetX' : 'titleBlockOffsetY']: parsedValue,
+      },
+    }));
+  };
+
+  const handleResetTitleBlockOffset = () => {
+    setProject((prev) => ({
+      ...prev,
+      updatedAt: new Date().toISOString(),
+      exportSettings: {
+        ...prev.exportSettings,
+        titleBlockOffsetX: 0,
+        titleBlockOffsetY: 0,
+      },
+    }));
+  };
+
   const handleZoomOut = () => {
     setZoom((prev) => clampZoom(Number((prev - ZOOM_STEP).toFixed(2))));
   };
@@ -1976,11 +2004,17 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
     const titleBlockScaleHtml = titleBlockScaleLabel.replace(/\n/g, '<br />');
 
     const titleBlockPosition = project.exportSettings?.titleBlockPosition ?? 'bottom-right';
+    const titleBlockOffsetX = project.exportSettings?.titleBlockOffsetX ?? 0;
+    const titleBlockOffsetY = project.exportSettings?.titleBlockOffsetY ?? 0;
+    const titleBlockHorizontalEdge = titleBlockPosition.endsWith('right') ? 'right' : 'left';
+    const titleBlockVerticalEdge = titleBlockPosition.startsWith('bottom') ? 'bottom' : 'top';
+    const titleBlockOffsetStyle = `${titleBlockHorizontalEdge}: ${titleBlockOffsetX}px; ${titleBlockVerticalEdge}: ${titleBlockOffsetY}px;`;
+
     const titleBlockHtml =
       titleBlockPosition === 'hidden'
         ? ''
         : `
-      <div class="title-block title-block-${titleBlockPosition}">
+      <div class="title-block title-block-${titleBlockPosition}" style="${titleBlockOffsetStyle}">
         <table>
           <colgroup>
             <col style="width: 42%;" />
@@ -2397,6 +2431,48 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                     })}
                   </div>
                 </div>
+                <div className="mt-4 rounded-md border border-slate-200 bg-white p-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Title Block Offset
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    Positive values move the title block inward from the selected edge.
+                  </p>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                        X Offset
+                      </span>
+                      <input
+                        type="number"
+                        step={5}
+                        value={project.exportSettings?.titleBlockOffsetX ?? 0}
+                        onChange={(event) => handleTitleBlockOffsetChange('x', event.target.value)}
+                        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Y Offset
+                      </span>
+                      <input
+                        type="number"
+                        step={5}
+                        value={project.exportSettings?.titleBlockOffsetY ?? 0}
+                        onChange={(event) => handleTitleBlockOffsetChange('y', event.target.value)}
+                        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                      />
+                    </label>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleResetTitleBlockOffset}
+                    className="mt-3 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                  >
+                    Reset Title Block Offset
+                  </button>
+                </div>
+
               </div>
 
               <div className="rounded-md border border-slate-200 p-3">

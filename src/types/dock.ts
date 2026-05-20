@@ -116,5 +116,7 @@ export interface DockProject {
     showDimensions?: boolean;
     showNotes?: boolean;
     titleBlockPosition?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'hidden';
+    titleBlockOffsetX?: number;
+    titleBlockOffsetY?: number;
   };
 }
