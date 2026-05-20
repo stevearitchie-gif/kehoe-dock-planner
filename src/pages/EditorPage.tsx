@@ -2348,7 +2348,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Properties</p>
 
             <div className="mt-3 space-y-3 pb-6">
-              <details open className="rounded-md border border-slate-200 bg-white">
+              <details className="rounded-md border border-slate-200 bg-white">
                 <summary className="flex cursor-pointer select-none items-center justify-between rounded-md px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50">
                   <span>Project Details</span>
                   <span className="text-xs text-slate-400">open/close</span>
@@ -2541,7 +2541,13 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                 </div>
               </details>
 
-              <div className="rounded-md border border-slate-200 p-3">
+              <details className="rounded-md border border-slate-200 bg-white">
+                <summary className="flex cursor-pointer select-none items-center justify-between rounded-md px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50">
+                  <span>General Site Settings</span>
+                  <span className="text-xs text-slate-400">open/close</span>
+                </summary>
+                <div className="space-y-3 border-t border-slate-100 p-3">
+                  <div className="rounded-md border border-slate-200 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-semibold text-slate-800">Site Image</h3>
@@ -2596,7 +2602,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                 </button>
               </div>
 
-              <div className="rounded-md border border-slate-200 p-3">
+                  <div className="rounded-md border border-slate-200 p-3">
                 <h3 className="text-sm font-semibold text-slate-800">Snap to Grid</h3>
                 <p className="mt-1 text-sm text-slate-600">Control snapping for dock placement and dragging.</p>
                 <div className="mt-3 flex items-center justify-between rounded-md border border-slate-200 px-3 py-2">
@@ -2616,8 +2622,14 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                   </button>
                 </div>
               </div>
+                </div>
+              </details>
 
-              <details open className="rounded-md border border-slate-200 bg-white">
+              
+
+              
+
+              <details className="rounded-md border border-slate-200 bg-white">
                 <summary className="flex cursor-pointer select-none items-center justify-between rounded-md px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50">
                   <span>Selected Element</span>
                   <span className="text-xs text-slate-400">open/close</span>
