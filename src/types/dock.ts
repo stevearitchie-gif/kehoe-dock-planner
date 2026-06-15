@@ -100,6 +100,7 @@ export interface DockProject {
   backgroundImageUrl?: string;
   backgroundImagePath?: string;
   scale?: ProjectScale;
+  scaleLineHidden?: boolean;
   shorelinePoints: Point[];
   shorelineFinished?: boolean;
   shorelineLabelHidden?: boolean;

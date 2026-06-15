@@ -2316,6 +2316,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
               ref={editorCanvasRef}
               activeTool={activeTool}
               scalePoints={scalePoints}
+              showScaleLines={!project.scaleLineHidden}
               shorelinePoints={project.shorelinePoints}
               shorelineFinished={project.shorelineFinished}
               shorelineLabelHidden={project.shorelineLabelHidden}
@@ -3272,6 +3273,29 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                 <p className="mt-2 text-xs text-slate-500">
                   Activate the scale tool and click two points in the canvas to calibrate.
                 </p>
+
+                <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+                  <input
+                    type="checkbox"
+                    checked={!project.scaleLineHidden}
+                    onChange={(event) => {
+                      setProject((previous) => ({
+                        ...previous,
+                        scaleLineHidden: !event.target.checked,
+                      }));
+                      setIsDirty(true);
+                    }}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-slate-700">
+                      Show Scale Lines on Map
+                    </span>
+                    <span className="mt-1 block text-xs text-slate-500">
+                      Hide the calibration line and measurement marks without removing the saved scale.
+                    </span>
+                  </span>
+                </label>
 
                 <div className="mt-3 grid gap-3">
                   <label className="text-sm text-slate-700">

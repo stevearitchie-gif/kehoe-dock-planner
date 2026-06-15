@@ -8,6 +8,7 @@ import type { ToolMode } from '@/features/editor/toolDefinitions';
 interface EditorCanvasProps {
   activeTool: ToolMode;
   scalePoints: Point[];
+  showScaleLines: boolean;
   shorelinePoints: Point[];
   shorelineFinished?: boolean;
   shorelineLabelHidden?: boolean;
@@ -416,6 +417,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   {
     activeTool,
     scalePoints,
+    showScaleLines,
     shorelinePoints,
     shorelineFinished = false,
     shorelineLabelHidden = false,
@@ -1072,8 +1074,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
               <Circle key={`shoreline-${point.x}-${point.y}`} x={point.x} y={point.y} radius={5} fill="#0f766e" />
             ))}
 
-          {scaleLinePoints && <Line points={scaleLinePoints} stroke="#2563eb" strokeWidth={3} lineCap="round" />}
-          {scaleMeasurementGuide && (
+          {(showScaleLines || activeTool === 'scale') && scaleLinePoints && (
+            <Line points={scaleLinePoints} stroke="#2563eb" strokeWidth={3} lineCap="round" />
+          )}
+          {(showScaleLines || activeTool === 'scale') && scaleMeasurementGuide && (
             <>
               <Line points={scaleMeasurementGuide.linePoints} stroke="#1d4ed8" strokeWidth={2} lineCap="round" />
               <Line points={scaleMeasurementGuide.startArrowLeft} stroke="#1d4ed8" strokeWidth={2} lineCap="round" />
@@ -1094,9 +1098,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
               />
             </>
           )}
-          {scalePoints.map((point) => (
-            <Circle key={`${point.x}-${point.y}`} x={point.x} y={point.y} radius={5} fill="#1d4ed8" />
-          ))}
+          {(showScaleLines || activeTool === 'scale') &&
+            scalePoints.map((point) => (
+              <Circle key={`${point.x}-${point.y}`} x={point.x} y={point.y} radius={5} fill="#1d4ed8" />
+            ))}
 
           {connectorSnapPoint && (
             <>
