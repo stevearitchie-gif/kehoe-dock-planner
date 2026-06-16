@@ -7,7 +7,7 @@ import {
   orderBy,
   query,
   setDoc,
-} from 'firebase/firestore/lite';
+} from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { DockProject } from '@/types/dock';
 
