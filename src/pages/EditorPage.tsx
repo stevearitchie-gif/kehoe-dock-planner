@@ -683,7 +683,7 @@ export function EditorPage() {
   const [activeTool, setActiveTool] = useState<ToolMode>('select');
   const [scalePoints, setScalePoints] = useState<Point[]>([]);
   const [zoom, setZoom] = useState(1);
-  const [isSnapToGridEnabled, setIsSnapToGridEnabled] = useState(true);
+  const [isSnapToGridEnabled, setIsSnapToGridEnabled] = useState(false);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [isShapeSelectorOpen, setIsShapeSelectorOpen] = useState(false);
   const [isLabelMoveModeEnabled, setIsLabelMoveModeEnabled] = useState(false);
