@@ -401,6 +401,7 @@ function buildEditorProject(projectId: string | undefined): DockProject {
     name: projectId ? `Project ${projectId}` : 'Untitled Project',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    scalePoints: [],
     shorelinePoints: [],
     objects: [],
   };
@@ -749,6 +750,7 @@ export function EditorPage() {
     if (!projectId) {
       const blankProject = buildEditorProject(projectId);
       setProject(blankProject);
+      setScalePoints(blankProject.scalePoints ?? []);
       lastSavedSnapshotRef.current = JSON.stringify(blankProject);
       setLastSavedAt(null);
       setIsDirty(false);
@@ -760,6 +762,7 @@ export function EditorPage() {
     if (!userId) {
       const blankProject = buildEditorProject(projectId);
       setProject(blankProject);
+      setScalePoints(blankProject.scalePoints ?? []);
       lastSavedSnapshotRef.current = JSON.stringify(blankProject);
       setLastSavedAt(null);
       setIsDirty(false);
@@ -776,6 +779,7 @@ export function EditorPage() {
 
         const loadedProject = savedProject ?? buildEditorProject(projectId);
         setProject(loadedProject);
+        setScalePoints(loadedProject.scalePoints ?? []);
         lastSavedSnapshotRef.current = JSON.stringify(loadedProject);
         setLastSavedAt(savedProject ? loadedProject.updatedAt : null);
         setIsDirty(false);
@@ -815,6 +819,26 @@ export function EditorPage() {
       setSaveMessage(null);
     }
   }, [hasInitializedProject, project, saveMessage]);
+
+  useEffect(() => {
+    if (!hasInitializedProject) {
+      return;
+    }
+
+    const currentScalePointsSnapshot = JSON.stringify(scalePoints);
+
+    setProject((prev) => {
+      if (JSON.stringify(prev.scalePoints ?? []) === currentScalePointsSnapshot) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        updatedAt: new Date().toISOString(),
+        scalePoints,
+      };
+    });
+  }, [hasInitializedProject, scalePoints]);
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -1083,6 +1107,8 @@ export function EditorPage() {
       'steps',
       'roof_overlay',
       'boat_lift',
+      'riprap',
+      'armour_stone',
       'dimension_line',
       'shape_rectangle',
       'shape_rounded_rectangle',
@@ -1132,6 +1158,8 @@ export function EditorPage() {
           steps: 'Steps',
           roof_overlay: 'Roof Overlay',
           boat_lift: 'Boat Lift',
+          riprap: 'Riprap Stone',
+          armour_stone: 'Armour Stone',
           dimension_line: 'Dimension Line',
           shape_rectangle: 'Rectangle',
           shape_rounded_rectangle: 'Rounded Rectangle',
@@ -1174,6 +1202,8 @@ export function EditorPage() {
           steps: { width: 60, height: 40 },
           roof_overlay: { width: 140, height: 80 },
           boat_lift: { width: 80, height: 30 },
+          riprap: { width: 180, height: 90 },
+          armour_stone: { width: 180, height: 100 },
           dimension_line: { width: 160, height: 24 },
           shape_rectangle: { width: 100, height: 60 },
           shape_rounded_rectangle: { width: 100, height: 60 },
@@ -1216,6 +1246,8 @@ export function EditorPage() {
           steps: '#9a6b3f',
           roof_overlay: '#64748b',
           boat_lift: '#cbd5e1',
+          riprap: '#94a3b8',
+          armour_stone: '#78716c',
           dimension_line: '#0f172a',
           shape_rectangle: '#dbeafe',
           shape_rounded_rectangle: '#dbeafe',
@@ -1779,6 +1811,18 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
       metadata: {
         ...object.metadata,
         boardDirection: value === 'none' ? undefined : value,
+      },
+    }));
+  };
+
+  const handleSelectedObjectRiprapStoneSizeChange = (
+    value: 'small' | 'medium' | 'large',
+  ) => {
+    updateSelectedObject((object) => ({
+      ...object,
+      metadata: {
+        ...object.metadata,
+        riprapStoneSize: value === 'medium' ? undefined : value,
       },
     }));
   };
@@ -2851,6 +2895,48 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                             );
                           })}
                         </div>
+
+                        {selectedObject.type === 'riprap' && (
+                          <div className="mt-4 rounded-md border border-slate-200 bg-white p-3">
+                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                              Riprap Stone Size
+                            </p>
+                            <p className="mt-1 text-xs text-slate-600">
+                              Change the size of the individual stones without changing the overall riprap area.
+                            </p>
+
+                            <div className="mt-3 grid grid-cols-3 gap-2">
+                              {[
+                                { label: 'Small', value: 'small' },
+                                { label: 'Medium', value: 'medium' },
+                                { label: 'Large', value: 'large' },
+                              ].map((option) => {
+                                const activeValue =
+                                  selectedObject.metadata?.riprapStoneSize ?? 'medium';
+                                const isActive = activeValue === option.value;
+
+                                return (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() =>
+                                      handleSelectedObjectRiprapStoneSizeChange(
+                                        option.value as 'small' | 'medium' | 'large',
+                                      )
+                                    }
+                                    className={`rounded-md border px-2 py-2 text-xs font-medium ${
+                                      isActive
+                                        ? 'border-brand-600 bg-brand-50 text-brand-700'
+                                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    {option.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
 
                         {canUseBoardTextureControls(selectedObject) && (
                           <div className="mt-4 rounded-md border border-slate-200 bg-white p-3">

@@ -8,6 +8,8 @@ export const dockElementToolModes = [
   'steps',
   'roof_overlay',
   'boat_lift',
+  'riprap',
+  'armour_stone',
   'dimension_line',
 ] as const;
 
@@ -63,6 +65,8 @@ export const toolLabels: Record<ToolMode, string> = {
   steps: 'steps',
   roof_overlay: 'roof overlay',
   boat_lift: 'boat lift',
+  riprap: 'riprap stone',
+  armour_stone: 'armour stone',
   dimension_line: 'dimension line',
   shape_line: 'line',
   shape_arrow_line: 'arrow line',

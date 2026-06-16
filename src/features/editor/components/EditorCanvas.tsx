@@ -323,6 +323,81 @@ function getStagePointerPoint(stage: KonvaStage): Point | null {
   return stage.getAbsoluteTransform().copy().invert().point(pointerPosition);
 }
 
+function buildRiprapStonePolygons(
+  width: number,
+  height: number,
+  stoneSize: 'small' | 'medium' | 'large' = 'medium',
+): number[][] {
+  const targetCellSize =
+    stoneSize === 'small' ? 16 : stoneSize === 'large' ? 38 : 24;
+
+  const columns = Math.max(2, Math.round(width / targetCellSize));
+  const rows = Math.max(2, Math.round(height / (targetCellSize * 0.92)));
+  const cellWidth = width / columns;
+  const cellHeight = height / rows;
+  const stones: number[][] = [];
+
+  for (let row = 0; row < rows; row += 1) {
+    for (let column = 0; column < columns; column += 1) {
+      const seed = row * columns + column + 1;
+      const offsetX = (((seed * 17) % 9) - 4) * cellWidth * 0.035;
+      const offsetY = (((seed * 23) % 9) - 4) * cellHeight * 0.035;
+      const centerX = (column + 0.5) * cellWidth + offsetX;
+      const centerY = (row + 0.5) * cellHeight + offsetY;
+      const radiusX = cellWidth * (0.38 + ((seed * 7) % 4) * 0.025);
+      const radiusY = cellHeight * (0.36 + ((seed * 11) % 4) * 0.025);
+      const points: number[] = [];
+
+      for (let pointIndex = 0; pointIndex < 6; pointIndex += 1) {
+        const angle = (Math.PI * 2 * pointIndex) / 6;
+        const variation = 0.82 + ((seed + pointIndex * 5) % 5) * 0.045;
+        const x = Math.min(width - 1, Math.max(1, centerX + Math.cos(angle) * radiusX * variation));
+        const y = Math.min(height - 1, Math.max(1, centerY + Math.sin(angle) * radiusY * variation));
+
+        points.push(x, y);
+      }
+
+      stones.push(points);
+    }
+  }
+
+  return stones;
+}
+
+function buildArmourStonePolygons(width: number, height: number): number[][] {
+  const columns = Math.max(1, Math.round(width / 68));
+  const rows = Math.max(1, Math.round(height / 48));
+  const cellWidth = width / columns;
+  const cellHeight = height / rows;
+  const stones: number[][] = [];
+
+  for (let row = 0; row < rows; row += 1) {
+    for (let column = 0; column < columns; column += 1) {
+      const seed = row * columns + column + 1;
+      const left = column * cellWidth;
+      const top = row * cellHeight;
+      const skew = ((seed * 13) % 7) * 0.012;
+
+      stones.push([
+        left + cellWidth * (0.08 + skew),
+        top + cellHeight * 0.28,
+        left + cellWidth * 0.28,
+        top + cellHeight * (0.08 + skew),
+        left + cellWidth * 0.82,
+        top + cellHeight * 0.10,
+        left + cellWidth * 0.95,
+        top + cellHeight * (0.48 + skew),
+        left + cellWidth * 0.76,
+        top + cellHeight * 0.90,
+        left + cellWidth * (0.16 - skew),
+        top + cellHeight * 0.82,
+      ]);
+    }
+  }
+
+  return stones;
+}
+
 function getObjectLocalPoint(object: DockObject, stagePoint: Point): Point {
   const radians = degreesToRadians(-object.rotation);
   const dx = stagePoint.x - object.x;
@@ -600,6 +675,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       'steps',
       'roof_overlay',
       'boat_lift',
+      'riprap',
+      'armour_stone',
       'dimension_line',
       'shape_rectangle',
       'shape_rounded_rectangle',
@@ -1456,6 +1533,64 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                         stroke={getObjectStrokeColor(object, object.color)}
                         strokeWidth={getObjectStrokeWidth(object, 2)}
                       />
+                    </>
+                  ) : object.type === 'riprap' ? (
+                    <>
+                      <Rect
+                        x={0}
+                        y={0}
+                        width={object.width}
+                        height={object.height}
+                        fill={object.color}
+                        opacity={0.16}
+                        stroke={getObjectStrokeColor(object)}
+                        strokeWidth={getObjectStrokeWidth(object, 1)}
+                        cornerRadius={8}
+                      />
+                      {buildRiprapStonePolygons(
+                        object.width,
+                        object.height,
+                        object.metadata?.riprapStoneSize ?? 'medium',
+                      ).map((points, stoneIndex) => (
+                        <Line
+                          key={`${object.id}-riprap-${stoneIndex}`}
+                          points={points}
+                          closed
+                          fill={object.color}
+                          stroke={getObjectStrokeColor(object)}
+                          strokeWidth={getObjectStrokeWidth(object, 1) * 0.65}
+                          opacity={0.7 + (stoneIndex % 4) * 0.07}
+                          lineJoin="round"
+                          listening={false}
+                        />
+                      ))}
+                    </>
+                  ) : object.type === 'armour_stone' ? (
+                    <>
+                      <Rect
+                        x={0}
+                        y={0}
+                        width={object.width}
+                        height={object.height}
+                        fill={object.color}
+                        opacity={0.14}
+                        stroke={getObjectStrokeColor(object)}
+                        strokeWidth={getObjectStrokeWidth(object, 1)}
+                        cornerRadius={6}
+                      />
+                      {buildArmourStonePolygons(object.width, object.height).map((points, stoneIndex) => (
+                        <Line
+                          key={`${object.id}-armour-stone-${stoneIndex}`}
+                          points={points}
+                          closed
+                          fill={object.color}
+                          stroke={getObjectStrokeColor(object)}
+                          strokeWidth={getObjectStrokeWidth(object, 1) * 0.8}
+                          opacity={0.82 + (stoneIndex % 3) * 0.06}
+                          lineJoin="round"
+                          listening={false}
+                        />
+                      ))}
                     </>
                   ) : object.type === 'shape_oval' || object.type === 'shape_circle' ? (
                     <Ellipse

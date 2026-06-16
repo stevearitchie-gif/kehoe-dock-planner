@@ -8,6 +8,8 @@ export type DockObjectType =
   | 'steps'
   | 'roof_overlay'
   | 'boat_lift'
+  | 'riprap'
+  | 'armour_stone'
   | 'text_note'
   | 'dimension_line'
   | 'shape_rectangle'
@@ -78,6 +80,7 @@ export interface DockObject {
     elevation?: number;
     material?: string;
     boardDirection?: 'horizontal' | 'vertical';
+    riprapStoneSize?: 'small' | 'medium' | 'large';
     textureRef?: string;
     connectionPoints?: Point[];
     modelType3D?: string;
@@ -100,6 +103,7 @@ export interface DockProject {
   backgroundImageUrl?: string;
   backgroundImagePath?: string;
   scale?: ProjectScale;
+  scalePoints?: Point[];
   scaleLineHidden?: boolean;
   shorelinePoints: Point[];
   shorelineFinished?: boolean;
