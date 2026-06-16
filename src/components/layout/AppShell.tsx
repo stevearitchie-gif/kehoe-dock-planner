@@ -33,13 +33,13 @@ export function AppShell({ children, className = '' }: AppShellProps) {
       {children}
 
       <div
-        className={`fixed bottom-3 right-3 z-50 rounded-full border px-3 py-1 text-xs font-semibold shadow-sm ${
+        className={`fixed right-4 top-4 z-[9999] rounded-full border px-3 py-1.5 text-xs font-bold shadow-md ${
           isOnline
-            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-            : 'border-amber-200 bg-amber-50 text-amber-800'
+            ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
+            : 'border-amber-300 bg-amber-100 text-amber-900'
         }`}
       >
-        {isOnline ? 'Online' : 'Offline - saved locally when available'}
+        {isOnline ? 'Online' : 'Offline Mode'}
       </div>
     </div>
   );
