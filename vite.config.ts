@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['kehoe_logo.png', 'kehoe-header-logo.png'],
       manifest: {
         name: 'Kehoe Dock Planner',
