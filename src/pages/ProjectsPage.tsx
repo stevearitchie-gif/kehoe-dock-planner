@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/components/auth/useAuth';
 import { AppShell } from '@/components/layout/AppShell';
 import { ProjectsTable } from '@/components/projects/ProjectsTable';
-import { createProject, listProjects, removeProject } from '@/features/projects/projectService';
+import { createProject, getProject, listProjects, removeProject } from '@/features/projects/projectService';
 import { DockProject } from '@/types/dock';
 
 function buildNewProject(): DockProject {
@@ -26,7 +26,9 @@ export function ProjectsPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [isDeletingProject, setIsDeletingProject] = useState(false);
+  const [isPreparingOffline, setIsPreparingOffline] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [offlinePrepMessage, setOfflinePrepMessage] = useState<string | null>(null);
 
   const userId = user?.uid;
 
@@ -49,6 +51,7 @@ export function ProjectsPage() {
         }
 
         setProjects(projectList);
+        setOfflinePrepMessage(null);
         if (projectList.length > 0) {
           setSelectedProjectId(projectList[0].id);
         } else {
@@ -141,6 +144,50 @@ export function ProjectsPage() {
     }
   };
 
+
+  const handlePrepareOffline = async () => {
+    if (!userId) {
+      setErrorMessage('Prepare offline failed: You must be logged in.');
+      return;
+    }
+
+    if (!selectedProject) {
+      setErrorMessage('Prepare offline failed: Select a project first.');
+      return;
+    }
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setErrorMessage('Prepare offline failed: Connect to the internet first, then prepare the project.');
+      return;
+    }
+
+    setIsPreparingOffline(true);
+    setErrorMessage(null);
+    setOfflinePrepMessage(null);
+
+    try {
+      const preparedProject = await getProject(userId, selectedProject.id);
+
+      if (!preparedProject) {
+        setErrorMessage('Prepare offline failed: Project could not be found.');
+        return;
+      }
+
+      setProjects((prev) =>
+        prev.map((project) => (project.id === preparedProject.id ? preparedProject : project)),
+      );
+      setSelectedProjectId(preparedProject.id);
+      setOfflinePrepMessage(`"${preparedProject.name}" is prepared for offline use on this device.`);
+    } catch (error) {
+      console.error('Failed to prepare project for offline use', error);
+      const message =
+        error instanceof Error ? error.message : 'Unknown error while preparing project for offline use';
+      setErrorMessage(`Prepare offline failed: ${message}`);
+    } finally {
+      setIsPreparingOffline(false);
+    }
+  };
+
   return (
     <AppShell>
       <div className="mx-auto max-w-6xl p-8">
@@ -174,6 +221,12 @@ export function ProjectsPage() {
           </div>
         )}
 
+        {offlinePrepMessage && (
+          <div className="mb-4 rounded-md border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            {offlinePrepMessage}
+          </div>
+        )}
+
         <ProjectsTable
           projects={projects}
           selectedProjectId={selectedProjectId}
@@ -195,6 +248,14 @@ export function ProjectsPage() {
             onClick={() => selectedProject && navigate(`/editor/${selectedProject.id}`)}
           >
             Open Project
+          </button>
+
+          <button
+            className="rounded-md border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={!userId || !selectedProject || isPreparingOffline}
+            onClick={handlePrepareOffline}
+          >
+            {isPreparingOffline ? 'Preparing...' : 'Prepare Offline'}
           </button>
 
           <button
