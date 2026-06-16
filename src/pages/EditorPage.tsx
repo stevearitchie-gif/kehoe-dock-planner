@@ -2026,6 +2026,21 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
     setSaveMessage(options.isAutosave ? 'Autosaving...' : null);
 
     try {
+      const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+      if (isOffline) {
+        void saveProject(userId, projectToSave).catch((error) => {
+          console.error('Failed to queue offline save', error);
+          setSaveMessage(options.isAutosave ? 'Offline autosave failed' : 'Offline save failed');
+        });
+
+        lastSavedSnapshotRef.current = JSON.stringify(projectToSave);
+        setIsDirty(false);
+        setLastSavedAt(projectToSave.updatedAt);
+        setSaveMessage(options.isAutosave ? 'Autosaved locally - will sync when online' : 'Saved locally - will sync when online');
+        return;
+      }
+
       await saveProject(userId, projectToSave);
       await deleteQueuedSiteImages();
       lastSavedSnapshotRef.current = JSON.stringify(projectToSave);
