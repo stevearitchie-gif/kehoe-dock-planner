@@ -9,13 +9,14 @@ export interface KehoeFloatingDockProps {
   viewMode: RenderViewMode;
   deckFinish?: FloatingDockDeckFinish;
   deckColorOverride?: string;
+  tubeDiameterFt?: number;
 }
 
 const DECK_THICKNESS_FT = 0.22;
 const FASCIA_DEPTH_FT = 0.92;
 const FASCIA_THICKNESS_FT = 0.22;
 const BOARD_SPACING_FT = 0.5;
-const PONTOON_DIAMETER_FT = 1.35;
+const DEFAULT_TUBE_DIAMETER_FT = 2;
 const PONTOON_INSET_FT = 0.95;
 const CROSS_MEMBER_SPACING_FT = 4;
 const CLEAT_WIDTH_FT = 0.42;
@@ -237,6 +238,7 @@ export function KehoeFloatingDock({
   viewMode,
   deckFinish = 'pressure-treated',
   deckColorOverride,
+  tubeDiameterFt = DEFAULT_TUBE_DIAMETER_FT,
 }: KehoeFloatingDockProps) {
   if (!Number.isFinite(footprintWidthFt) || !Number.isFinite(footprintLengthFt) || footprintWidthFt <= 0 || footprintLengthFt <= 0) {
     return null;
@@ -247,9 +249,10 @@ export function KehoeFloatingDock({
   const deckY = FASCIA_DEPTH_FT + DECK_THICKNESS_FT / 2;
   const fasciaY = FASCIA_DEPTH_FT / 2;
   const rubY = FASCIA_DEPTH_FT * 0.52;
-  const pontoonDiameter = Math.min(PONTOON_DIAMETER_FT, Math.max(0.45, footprintWidthFt * 0.24));
-  const pontoonInset = Math.min(PONTOON_INSET_FT, Math.max(0.28, footprintWidthFt * 0.22));
-  const pontoonX = Math.max(0.32, footprintWidthFt / 2 - pontoonInset);
+  const maxTubeDiameterInsideFootprint = Math.max(0.5, footprintWidthFt * 0.42);
+  const pontoonDiameter = Math.min(tubeDiameterFt, maxTubeDiameterInsideFootprint);
+  const pontoonInset = Math.min(Math.max(PONTOON_INSET_FT, pontoonDiameter * 0.55), Math.max(0.28, footprintWidthFt * 0.24));
+  const pontoonX = Math.min(footprintWidthFt / 2 - pontoonDiameter / 2 - 0.08, Math.max(0.32, footprintWidthFt / 2 - pontoonInset));
 
   return (
     <group>
