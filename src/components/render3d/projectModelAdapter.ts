@@ -90,6 +90,11 @@ export function buildProjectRenderModel(project: DockProject): ProjectRenderMode
       opacity: object.opacity ?? 1,
       elevation: 0,
       scaleSourceLabel: hasProjectScale ? 'project scale' : 'fallback scale',
+      sourceX: object.x,
+      sourceY: object.y,
+      sourceWidth: object.width,
+      sourceHeight: object.height,
+      sourceRotation: object.rotation,
     };
   });
 

@@ -37,8 +37,14 @@ function CameraRig({ preset, viewMode }: { preset: CameraPreset; viewMode: Rende
 
   useEffect(() => {
     const targetPosition = viewMode === 'customer' ? customerCameraPositions[preset] : cameraPositions[preset];
+    if (preset === 'top') {
+      camera.up.set(0, 0, -1);
+    } else {
+      camera.up.set(0, 1, 0);
+    }
     camera.position.set(...targetPosition);
     camera.lookAt(0, 1, 0);
+    camera.updateProjectionMatrix();
     controlsRef.current?.target.set(0, 1, 0);
     controlsRef.current?.update();
   }, [camera, preset, viewMode]);

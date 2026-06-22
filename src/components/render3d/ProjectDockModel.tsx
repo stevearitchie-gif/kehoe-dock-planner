@@ -44,8 +44,36 @@ function DebugLabel({ element }: { element: ProjectRenderElement }) {
       anchorX="center"
       anchorY="middle"
     >
-      {`${element.type}\n${element.scaleSourceLabel}`}
+      {`${element.type}\n2D x:${Math.round(element.sourceX)} y:${Math.round(element.sourceY)}\nw:${Math.round(
+        element.sourceWidth,
+      )} h:${Math.round(element.sourceHeight)} r:${Math.round(element.sourceRotation)}deg\n${element.scaleSourceLabel}`}
     </Text>
+  );
+}
+
+function FootprintOutline({ element }: { element: ProjectRenderElement }) {
+  const y = element.elevation + 0.055;
+  const color = '#f97316';
+
+  return (
+    <group position={[element.x, 0, element.z]} rotation={[0, element.rotation, 0]}>
+      <mesh position={[0, y, -element.width / 2]}>
+        <boxGeometry args={[element.length, 0.035, 0.035]} />
+        <meshBasicMaterial color={color} />
+      </mesh>
+      <mesh position={[0, y, element.width / 2]}>
+        <boxGeometry args={[element.length, 0.035, 0.035]} />
+        <meshBasicMaterial color={color} />
+      </mesh>
+      <mesh position={[-element.length / 2, y, 0]}>
+        <boxGeometry args={[0.035, 0.035, element.width]} />
+        <meshBasicMaterial color={color} />
+      </mesh>
+      <mesh position={[element.length / 2, y, 0]}>
+        <boxGeometry args={[0.035, 0.035, element.width]} />
+        <meshBasicMaterial color={color} />
+      </mesh>
+    </group>
   );
 }
 
@@ -105,6 +133,8 @@ function RampElement({ element, viewMode }: { element: ProjectRenderElement; vie
   const railColor = viewMode === 'customer' ? '#f8fafc' : '#e2e8f0';
   const deckColor = viewMode === 'customer' ? '#aa8454' : element.color;
   const railBaseY = element.elevation + rampThickness + 0.9;
+  const railsAlongZ = element.width > element.length;
+  const railOffsets = [-0.45, 0, 0.45];
 
   return (
     <group position={[element.x, 0, element.z]} rotation={[0, element.rotation, 0]}>
@@ -115,20 +145,35 @@ function RampElement({ element, viewMode }: { element: ProjectRenderElement; vie
       <DeckBoardLines length={element.length} width={element.width} y={element.elevation + rampThickness + 0.035} />
       {hasRails && (
         <>
-          {[-1, 1].map((zSign) => (
-            <group key={zSign} position={[0, railBaseY, zSign * (element.width / 2 + 0.12)]}>
-              <mesh castShadow>
-                <boxGeometry args={[element.length, 0.12, 0.12]} />
-                <meshStandardMaterial color={railColor} roughness={0.42} />
-              </mesh>
-              {[-0.45, 0, 0.45].map((xOffset) => (
-                <mesh key={xOffset} position={[element.length * xOffset, -0.58, 0]} castShadow>
-                  <boxGeometry args={[0.13, 1.3, 0.13]} />
-                  <meshStandardMaterial color={railColor} roughness={0.48} />
-                </mesh>
+          {railsAlongZ
+            ? [-1, 1].map((xSign) => (
+                <group key={xSign} position={[xSign * (element.length / 2 + 0.12), railBaseY, 0]}>
+                  <mesh castShadow>
+                    <boxGeometry args={[0.12, 0.12, element.width]} />
+                    <meshStandardMaterial color={railColor} roughness={0.42} />
+                  </mesh>
+                  {railOffsets.map((zOffset) => (
+                    <mesh key={zOffset} position={[0, -0.58, element.width * zOffset]} castShadow>
+                      <boxGeometry args={[0.13, 1.3, 0.13]} />
+                      <meshStandardMaterial color={railColor} roughness={0.48} />
+                    </mesh>
+                  ))}
+                </group>
+              ))
+            : [-1, 1].map((zSign) => (
+                <group key={zSign} position={[0, railBaseY, zSign * (element.width / 2 + 0.12)]}>
+                  <mesh castShadow>
+                    <boxGeometry args={[element.length, 0.12, 0.12]} />
+                    <meshStandardMaterial color={railColor} roughness={0.42} />
+                  </mesh>
+                  {railOffsets.map((xOffset) => (
+                    <mesh key={xOffset} position={[element.length * xOffset, -0.58, 0]} castShadow>
+                      <boxGeometry args={[0.13, 1.3, 0.13]} />
+                      <meshStandardMaterial color={railColor} roughness={0.48} />
+                    </mesh>
+                  ))}
+                </group>
               ))}
-            </group>
-          ))}
         </>
       )}
     </group>
@@ -260,7 +305,12 @@ function ProjectElement({ element, viewMode }: { element: ProjectRenderElement; 
   return (
     <>
       {renderedElement}
-      {viewMode === 'internal' && <DebugLabel element={element} />}
+      {viewMode === 'internal' && (
+        <>
+          <FootprintOutline element={element} />
+          <DebugLabel element={element} />
+        </>
+      )}
     </>
   );
 }
