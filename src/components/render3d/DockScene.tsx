@@ -2,8 +2,9 @@ import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import { Canvas, useThree } from '@react-three/fiber';
 import { forwardRef, useEffect, useImperativeHandle, useRef, type ElementRef } from 'react';
 import { FloatingDockModel } from '@/components/render3d/FloatingDockModel';
+import { ProjectDockModel } from '@/components/render3d/ProjectDockModel';
 import { WaterPlane } from '@/components/render3d/WaterPlane';
-import type { CameraPreset, DockRenderSettings } from '@/components/render3d/types';
+import type { CameraPreset, DockRenderSettings, ProjectRenderModel } from '@/components/render3d/types';
 
 export interface DockSceneHandle {
   exportPng: () => void;
@@ -12,6 +13,7 @@ export interface DockSceneHandle {
 interface DockSceneProps {
   settings: DockRenderSettings;
   cameraPreset: CameraPreset;
+  projectModel?: ProjectRenderModel | null;
 }
 
 const cameraPositions: Record<CameraPreset, [number, number, number]> = {
@@ -36,7 +38,7 @@ function CameraRig({ preset }: { preset: CameraPreset }) {
   return <OrbitControls ref={controlsRef} makeDefault enableDamping dampingFactor={0.08} maxPolarAngle={Math.PI / 2.05} />;
 }
 
-export const DockScene = forwardRef<DockSceneHandle, DockSceneProps>(({ settings, cameraPreset }, ref) => {
+export const DockScene = forwardRef<DockSceneHandle, DockSceneProps>(({ settings, cameraPreset, projectModel }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useImperativeHandle(ref, () => ({
@@ -69,7 +71,7 @@ export const DockScene = forwardRef<DockSceneHandle, DockSceneProps>(({ settings
       <directionalLight position={[18, 28, 16]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} />
       <hemisphereLight args={['#dbeafe', '#6b7280', 0.55]} />
       <WaterPlane />
-      <FloatingDockModel settings={settings} />
+      {projectModel ? <ProjectDockModel model={projectModel} /> : <FloatingDockModel settings={settings} />}
       <gridHelper args={[80, 40, '#94a3b8', '#cbd5e1']} position={[0, 0.01, 0]} />
     </Canvas>
   );

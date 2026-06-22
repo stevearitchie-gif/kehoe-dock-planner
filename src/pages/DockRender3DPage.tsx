@@ -1,10 +1,14 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { useAuth } from '@/components/auth/useAuth';
 import { AppShell } from '@/components/layout/AppShell';
 import { CameraPresetControls } from '@/components/render3d/CameraPresetControls';
 import { DockScene, type DockSceneHandle } from '@/components/render3d/DockScene';
 import { RenderControlPanel } from '@/components/render3d/RenderControlPanel';
-import type { CameraPreset, DockRenderSettings } from '@/components/render3d/types';
+import { buildProjectRenderModel } from '@/components/render3d/projectModelAdapter';
+import { getProject } from '@/features/projects/projectService';
+import type { CameraPreset, DockRenderSettings, ProjectRenderModel } from '@/components/render3d/types';
+import type { DockProject } from '@/types/dock';
 
 const defaultRenderSettings: DockRenderSettings = {
   dockLength: 24,
@@ -19,10 +23,84 @@ const defaultRenderSettings: DockRenderSettings = {
 
 export function DockRender3DPage() {
   const { projectId } = useParams<{ projectId: string }>();
+  const { user } = useAuth();
   const sceneRef = useRef<DockSceneHandle | null>(null);
   const [settings, setSettings] = useState<DockRenderSettings>(defaultRenderSettings);
   const [cameraPreset, setCameraPreset] = useState<CameraPreset>('isometric');
+  const [project, setProject] = useState<DockProject | null>(null);
+  const [isLoadingProject, setIsLoadingProject] = useState(false);
+  const [loadMessage, setLoadMessage] = useState<string | null>(null);
   const canReturnToEditor = Boolean(projectId && projectId !== 'local-test');
+
+  useEffect(() => {
+    let isActive = true;
+
+    setProject(null);
+    setLoadMessage(null);
+
+    if (!projectId || projectId === 'local-test') {
+      return () => {
+        isActive = false;
+      };
+    }
+
+    if (!user?.uid) {
+      setLoadMessage('Project data unavailable. Showing local proof-of-concept fallback.');
+      return () => {
+        isActive = false;
+      };
+    }
+
+    setIsLoadingProject(true);
+
+    getProject(user.uid, projectId)
+      .then((loadedProject) => {
+        if (!isActive) {
+          return;
+        }
+
+        if (!loadedProject) {
+          setLoadMessage('Project not found. Showing local proof-of-concept fallback.');
+          return;
+        }
+
+        setProject(loadedProject);
+      })
+      .catch((error) => {
+        console.error('Failed to load project for 3D render', error);
+        if (isActive) {
+          setLoadMessage('Project load failed. Showing local proof-of-concept fallback.');
+        }
+      })
+      .finally(() => {
+        if (isActive) {
+          setIsLoadingProject(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [projectId, user?.uid]);
+
+  const projectModel = useMemo<ProjectRenderModel | null>(() => {
+    if (!project) {
+      return null;
+    }
+
+    return buildProjectRenderModel(project);
+  }, [project]);
+
+  const sourceNotice =
+    projectModel
+      ? `Rendering from project data: ${projectModel.projectName}`
+      : 'Rendering local proof-of-concept fallback';
+  const detailNotice =
+    projectModel
+      ? `${projectModel.elements.length} supported element${projectModel.elements.length === 1 ? '' : 's'} using ${projectModel.sourceUnitLabel}${
+          projectModel.unsupportedCount > 0 ? `; ${projectModel.unsupportedCount} unsupported element${projectModel.unsupportedCount === 1 ? '' : 's'} skipped` : ''
+        }`
+      : loadMessage;
 
   return (
     <AppShell className="h-screen overflow-hidden">
@@ -33,6 +111,7 @@ export function DockRender3DPage() {
               Project {projectId ?? 'local'}
             </p>
             <h1 className="truncate text-xl font-semibold text-slate-900">3D Dock Render</h1>
+            <p className="mt-1 text-sm text-slate-500">{sourceNotice}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <CameraPresetControls activePreset={cameraPreset} onPresetChange={setCameraPreset} />
@@ -63,13 +142,46 @@ export function DockRender3DPage() {
 
         <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
           <section className="relative min-h-[420px] flex-1 bg-sky-50">
-            <DockScene ref={sceneRef} settings={settings} cameraPreset={cameraPreset} />
+            <DockScene ref={sceneRef} settings={settings} cameraPreset={cameraPreset} projectModel={projectModel} />
+            {(isLoadingProject || detailNotice) && (
+              <div className="absolute left-4 top-4 max-w-md rounded-md border border-slate-200 bg-white/90 px-3 py-2 text-sm text-slate-700 shadow-sm">
+                {isLoadingProject ? 'Loading saved project data...' : detailNotice}
+              </div>
+            )}
           </section>
-          <RenderControlPanel
-            settings={settings}
-            onSettingsChange={setSettings}
-            onExportPng={() => sceneRef.current?.exportPng()}
-          />
+          {projectModel ? (
+            <aside className="w-full border-t border-slate-200 bg-white p-4 lg:w-80 lg:border-l lg:border-t-0">
+              <h2 className="text-base font-semibold text-slate-900">Project Render</h2>
+              <p className="mt-1 text-sm text-slate-500">Basic geometry generated from the saved 2D drawing.</p>
+              <dl className="mt-5 grid gap-3 text-sm">
+                <div>
+                  <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Source</dt>
+                  <dd className="mt-1 text-slate-800">{projectModel.projectName}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Elements</dt>
+                  <dd className="mt-1 text-slate-800">{projectModel.elements.length}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Scale</dt>
+                  <dd className="mt-1 text-slate-800">{projectModel.sourceUnitLabel}</dd>
+                </div>
+              </dl>
+              <button
+                type="button"
+                onClick={() => sceneRef.current?.exportPng()}
+                className="mt-5 w-full rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700"
+              >
+                Export PNG
+              </button>
+            </aside>
+          ) : (
+            <RenderControlPanel
+              settings={settings}
+              onSettingsChange={setSettings}
+              onExportPng={() => sceneRef.current?.exportPng()}
+            />
+          )}
         </main>
       </div>
     </AppShell>

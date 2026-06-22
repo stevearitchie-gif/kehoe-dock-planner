@@ -13,6 +13,38 @@ export interface DockRenderSettings {
 
 export type CameraPreset = 'isometric' | 'top' | 'side' | 'front';
 
+export type RenderSource = 'project' | 'fallback';
+
+export type ProjectRenderElementType =
+  | 'floating_dock'
+  | 'stationary_dock'
+  | 'ramp_with_rails'
+  | 'ramp_without_rails'
+  | 'steps'
+  | 'boat_lift'
+  | 'roof_overlay';
+
+export interface ProjectRenderElement {
+  id: string;
+  type: ProjectRenderElementType;
+  label: string;
+  x: number;
+  z: number;
+  length: number;
+  width: number;
+  rotation: number;
+  color: string;
+  opacity: number;
+  elevation: number;
+}
+
+export interface ProjectRenderModel {
+  projectName: string;
+  elements: ProjectRenderElement[];
+  sourceUnitLabel: string;
+  unsupportedCount: number;
+}
+
 export const deckFinishLabels: Record<DeckFinish, string> = {
   'pressure-treated': 'Pressure treated',
   'composite-grey': 'Composite grey',
