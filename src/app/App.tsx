@@ -41,6 +41,17 @@ export function App() {
       />
 
       <Route
+        path="/render3d/quote-preview/:previewId"
+        element={
+          <ProtectedRoute>
+            <Suspense fallback={<Render3DLoadingFallback />}>
+              <DockRender3DPage />
+            </Suspense>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/render3d/:projectId"
         element={
           <ProtectedRoute>

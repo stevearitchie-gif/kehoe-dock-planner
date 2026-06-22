@@ -45,6 +45,9 @@ export interface ProjectRenderElement {
   sourceHeight: number;
   sourceRotation: number;
   anchorInterpretation: string;
+  deckFinish?: DeckFinish;
+  tubeDiameterFt?: number;
+  productSourceLabel?: string;
 }
 
 export interface ProjectRenderModel {

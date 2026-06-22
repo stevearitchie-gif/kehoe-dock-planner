@@ -222,6 +222,8 @@ function KehoeFloatingDockElement({ element, viewMode }: { element: ProjectRende
         footprintLengthFt={element.width}
         opacity={element.opacity}
         viewMode={viewMode}
+        deckFinish={element.deckFinish}
+        tubeDiameterFt={element.tubeDiameterFt}
         deckColorOverride={viewMode === 'internal' ? element.color : undefined}
       />
     </group>

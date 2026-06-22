@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useMatch, useParams } from 'react-router-dom';
 import { useAuth } from '@/components/auth/useAuth';
 import { AppShell } from '@/components/layout/AppShell';
 import { CameraPresetControls } from '@/components/render3d/CameraPresetControls';
 import { DockScene, type DockSceneHandle } from '@/components/render3d/DockScene';
 import { RenderControlPanel } from '@/components/render3d/RenderControlPanel';
+import { buildProductConfigurationRenderModel } from '@/components/render3d/productConfigAdapter';
 import { buildProjectRenderModel } from '@/components/render3d/projectModelAdapter';
+import { sampleQuoteProductConfigurations } from '@/components/render3d/sampleQuoteProductConfig';
 import { getProject } from '@/features/projects/projectService';
 import type { CameraPreset, DockRenderSettings, ProjectRenderModel, RenderViewMode } from '@/components/render3d/types';
 import type { DockProject } from '@/types/dock';
@@ -23,6 +25,9 @@ const defaultRenderSettings: DockRenderSettings = {
 
 export function DockRender3DPage() {
   const { projectId } = useParams<{ projectId: string }>();
+  const quotePreviewMatch = useMatch('/render3d/quote-preview/:previewId');
+  const previewId = quotePreviewMatch?.params.previewId;
+  const isQuotePreview = previewId === 'local-test';
   const { user } = useAuth();
   const sceneRef = useRef<DockSceneHandle | null>(null);
   const [settings, setSettings] = useState<DockRenderSettings>(defaultRenderSettings);
@@ -31,7 +36,7 @@ export function DockRender3DPage() {
   const [project, setProject] = useState<DockProject | null>(null);
   const [isLoadingProject, setIsLoadingProject] = useState(false);
   const [loadMessage, setLoadMessage] = useState<string | null>(null);
-  const canReturnToEditor = Boolean(projectId && projectId !== 'local-test');
+  const canReturnToEditor = Boolean(projectId && projectId !== 'local-test' && !isQuotePreview);
 
   useEffect(() => {
     let isActive = true;
@@ -39,7 +44,7 @@ export function DockRender3DPage() {
     setProject(null);
     setLoadMessage(null);
 
-    if (!projectId || projectId === 'local-test') {
+    if (isQuotePreview || !projectId || projectId === 'local-test') {
       return () => {
         isActive = false;
       };
@@ -82,7 +87,7 @@ export function DockRender3DPage() {
     return () => {
       isActive = false;
     };
-  }, [projectId, user?.uid]);
+  }, [isQuotePreview, projectId, user?.uid]);
 
   const projectModel = useMemo<ProjectRenderModel | null>(() => {
     if (!project) {
@@ -92,18 +97,32 @@ export function DockRender3DPage() {
     return buildProjectRenderModel(project);
   }, [project]);
 
+  const quotePreviewModel = useMemo<ProjectRenderModel | null>(() => {
+    if (!isQuotePreview) {
+      return null;
+    }
+
+    return buildProductConfigurationRenderModel(sampleQuoteProductConfigurations);
+  }, [isQuotePreview]);
+
+  const activeModel = quotePreviewModel ?? projectModel;
+  const isModelFromQuote = Boolean(quotePreviewModel);
   const sourceNotice =
-    projectModel
-      ? `Rendering from project data: ${projectModel.projectName}`
+    isModelFromQuote
+      ? 'Rendering from quote ProductConfiguration sample'
+      : projectModel
+        ? `Rendering from project data: ${projectModel.projectName}`
       : 'Rendering local proof-of-concept fallback';
   const detailNotice =
-    projectModel
-      ? `${projectModel.hasProjectScale ? '' : 'Project scale not found, using approximate fallback scale. '}${projectModel.elements.length} supported element${
-          projectModel.elements.length === 1 ? '' : 's'
-        } using ${projectModel.sourceUnitLabel}${
-          projectModel.unsupportedCount > 0
-            ? `; skipped ${projectModel.unsupportedCount} unsupported element${projectModel.unsupportedCount === 1 ? '' : 's'}${
-                projectModel.unsupportedTypes.length > 0 ? ` (${projectModel.unsupportedTypes.join(', ')})` : ''
+    activeModel
+      ? `${isModelFromQuote ? 'Standalone quote preview. ' : ''}${
+          activeModel.hasProjectScale ? '' : 'Project scale not found, using approximate fallback scale. '
+        }${activeModel.elements.length} supported element${activeModel.elements.length === 1 ? '' : 's'} using ${
+          activeModel.sourceUnitLabel
+        }${
+          activeModel.unsupportedCount > 0
+            ? `; skipped ${activeModel.unsupportedCount} unsupported element${activeModel.unsupportedCount === 1 ? '' : 's'}${
+                activeModel.unsupportedTypes.length > 0 ? ` (${activeModel.unsupportedTypes.join(', ')})` : ''
               }`
             : ''
         }`
@@ -116,9 +135,11 @@ export function DockRender3DPage() {
         <header className="flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-3">
           <div className="min-w-0">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-              Project {projectId ?? 'local'}
+              {isModelFromQuote ? `Quote Preview ${previewId ?? ''}` : `Project ${projectId ?? 'local'}`}
             </p>
-            <h1 className="truncate text-xl font-semibold text-slate-900">3D Dock Render</h1>
+            <h1 className="truncate text-xl font-semibold text-slate-900">
+              {isModelFromQuote ? 'Quote 3D Product Preview' : '3D Dock Render'}
+            </h1>
             <p className="mt-1 text-sm text-slate-500">{sourceNotice}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -150,6 +171,13 @@ export function DockRender3DPage() {
               >
                 Back to Editor
               </Link>
+            ) : isModelFromQuote ? (
+              <Link
+                to="/projects"
+                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              >
+                Back
+              </Link>
             ) : (
               <button
                 type="button"
@@ -174,7 +202,7 @@ export function DockRender3DPage() {
               ref={sceneRef}
               settings={settings}
               cameraPreset={cameraPreset}
-              projectModel={projectModel}
+              projectModel={activeModel}
               viewMode={viewMode}
             />
             {showTechnicalNotice && (
@@ -183,32 +211,36 @@ export function DockRender3DPage() {
               </div>
             )}
           </section>
-          {projectModel ? (
+          {activeModel ? (
             <aside className="w-full border-t border-slate-200 bg-white p-4 lg:w-80 lg:border-l lg:border-t-0">
-              <h2 className="text-base font-semibold text-slate-900">Project Render</h2>
-              <p className="mt-1 text-sm text-slate-500">Basic geometry generated from the saved 2D drawing.</p>
+              <h2 className="text-base font-semibold text-slate-900">{isModelFromQuote ? 'Quote Preview' : 'Project Render'}</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                {isModelFromQuote
+                  ? 'Standalone product geometry generated from sample quote configuration.'
+                  : 'Basic geometry generated from the saved 2D drawing.'}
+              </p>
               <dl className="mt-5 grid gap-3 text-sm">
                 <div>
                   <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Source</dt>
-                  <dd className="mt-1 text-slate-800">{projectModel.projectName}</dd>
+                  <dd className="mt-1 text-slate-800">{activeModel.projectName}</dd>
                 </div>
                 <div>
                   <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Elements</dt>
-                  <dd className="mt-1 text-slate-800">{projectModel.elements.length}</dd>
+                  <dd className="mt-1 text-slate-800">{activeModel.elements.length}</dd>
                 </div>
                 <div>
                   <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Scale</dt>
-                  <dd className="mt-1 text-slate-800">{projectModel.sourceUnitLabel}</dd>
+                  <dd className="mt-1 text-slate-800">{activeModel.sourceUnitLabel}</dd>
                 </div>
-                {!projectModel.hasProjectScale && (
+                {!activeModel.hasProjectScale && (
                   <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
                     Project scale not found, using approximate fallback scale.
                   </div>
                 )}
-                {viewMode === 'internal' && projectModel.unsupportedTypes.length > 0 && (
+                {viewMode === 'internal' && activeModel.unsupportedTypes.length > 0 && (
                   <div>
                     <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Skipped Types</dt>
-                    <dd className="mt-1 text-slate-800">{projectModel.unsupportedTypes.join(', ')}</dd>
+                    <dd className="mt-1 text-slate-800">{activeModel.unsupportedTypes.join(', ')}</dd>
                   </div>
                 )}
               </dl>
