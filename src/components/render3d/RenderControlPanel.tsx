@@ -23,7 +23,7 @@ export function RenderControlPanel({ settings, onSettingsChange, onExportPng }: 
   };
 
   return (
-    <aside className="w-full border-t border-slate-200 bg-white p-4 lg:w-80 lg:border-l lg:border-t-0">
+    <aside className="max-h-[45vh] w-full shrink-0 overflow-y-auto border-t border-slate-200 bg-white p-4 lg:h-full lg:max-h-none lg:w-80 lg:border-l lg:border-t-0">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-slate-900">Render Controls</h2>
