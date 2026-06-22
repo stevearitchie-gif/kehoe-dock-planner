@@ -17,6 +17,7 @@ const FASCIA_DEPTH_FT = 0.92;
 const FASCIA_THICKNESS_FT = 0.22;
 const BOARD_SPACING_FT = 0.5;
 const DEFAULT_TUBE_DIAMETER_FT = 2;
+const TUBE_TOP_CLEARANCE_FT = 0.08;
 const PONTOON_INSET_FT = 0.95;
 const CROSS_MEMBER_SPACING_FT = 4;
 const CLEAT_WIDTH_FT = 0.42;
@@ -76,19 +77,20 @@ function DeckBoardLines({
 
 function Pontoon({
   x,
+  y,
   length,
   diameter,
   color,
   endColor,
 }: {
   x: number;
+  y: number;
   length: number;
   diameter: number;
   color: string;
   endColor: string;
 }) {
   const radius = diameter / 2;
-  const y = radius * 0.55;
 
   return (
     <group position={[x, y, 0]}>
@@ -253,6 +255,7 @@ export function KehoeFloatingDock({
   const pontoonDiameter = Math.min(tubeDiameterFt, maxTubeDiameterInsideFootprint);
   const pontoonInset = Math.min(Math.max(PONTOON_INSET_FT, pontoonDiameter * 0.55), Math.max(0.28, footprintWidthFt * 0.24));
   const pontoonX = Math.min(footprintWidthFt / 2 - pontoonDiameter / 2 - 0.08, Math.max(0.32, footprintWidthFt / 2 - pontoonInset));
+  const pontoonY = FASCIA_DEPTH_FT - TUBE_TOP_CLEARANCE_FT - pontoonDiameter / 2;
 
   return (
     <group>
@@ -288,6 +291,7 @@ export function KehoeFloatingDock({
         <Pontoon
           key={side}
           x={side * pontoonX}
+          y={pontoonY}
           length={footprintLengthFt}
           diameter={pontoonDiameter}
           color={materials.pontoon}
