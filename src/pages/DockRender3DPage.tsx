@@ -273,9 +273,10 @@ function QuotePreviewControlPanel({
 
 export function DockRender3DPage() {
   const { projectId } = useParams<{ projectId: string }>();
-  const quotePreviewMatch = useMatch('/render3d/quote-preview/:previewId');
-  const previewId = quotePreviewMatch?.params.previewId;
-  const isQuotePreview = previewId === 'local-test';
+  const dedicatedQuotePreviewMatch = useMatch('/quote-preview-3d/:previewId');
+  const nestedQuotePreviewMatch = useMatch('/render3d/quote-preview/:previewId');
+  const previewId = dedicatedQuotePreviewMatch?.params.previewId ?? nestedQuotePreviewMatch?.params.previewId;
+  const isQuotePreview = Boolean(dedicatedQuotePreviewMatch || nestedQuotePreviewMatch) && previewId === 'local-test';
   const { user } = useAuth();
   const sceneRef = useRef<DockSceneHandle | null>(null);
   const [settings, setSettings] = useState<DockRenderSettings>(defaultRenderSettings);
