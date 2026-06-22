@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useMatch, useParams } from 'react-router-dom';
+import { Link, useMatch, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/components/auth/useAuth';
 import { AppShell } from '@/components/layout/AppShell';
 import { CameraPresetControls } from '@/components/render3d/CameraPresetControls';
@@ -273,10 +273,12 @@ function QuotePreviewControlPanel({
 
 export function DockRender3DPage() {
   const { projectId } = useParams<{ projectId: string }>();
+  const [searchParams] = useSearchParams();
   const dedicatedQuotePreviewMatch = useMatch('/quote-preview-3d/:previewId');
   const nestedQuotePreviewMatch = useMatch('/render3d/quote-preview/:previewId');
   const previewId = dedicatedQuotePreviewMatch?.params.previewId ?? nestedQuotePreviewMatch?.params.previewId;
-  const isQuotePreview = Boolean(dedicatedQuotePreviewMatch || nestedQuotePreviewMatch) && previewId === 'local-test';
+  const isQueryQuotePreview = projectId === 'local-test' && searchParams.get('mode') === 'quote-preview';
+  const isQuotePreview = (Boolean(dedicatedQuotePreviewMatch || nestedQuotePreviewMatch) && previewId === 'local-test') || isQueryQuotePreview;
   const { user } = useAuth();
   const sceneRef = useRef<DockSceneHandle | null>(null);
   const [settings, setSettings] = useState<DockRenderSettings>(defaultRenderSettings);
