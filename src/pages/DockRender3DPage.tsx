@@ -9,6 +9,7 @@ import { buildProductConfigurationRenderModel } from '@/components/render3d/prod
 import { buildProjectRenderModel } from '@/components/render3d/projectModelAdapter';
 import { sampleQuoteProductConfigurations } from '@/components/render3d/sampleQuoteProductConfig';
 import { getProject } from '@/features/projects/projectService';
+import type { ProductConfiguration } from '@/components/render3d/productConfigTypes';
 import type { CameraPreset, DockRenderSettings, ProjectRenderModel, RenderViewMode } from '@/components/render3d/types';
 import type { DockProject } from '@/types/dock';
 
@@ -22,6 +23,37 @@ const defaultRenderSettings: DockRenderSettings = {
   railingsEnabled: true,
   deckFinish: 'pressure-treated',
 };
+
+const materialLabels: Record<string, string> = {
+  pressure_treated_wood: 'Pressure treated wood',
+  tru_north_pvc: 'Tru North PVC',
+  composite_grey: 'Composite grey',
+  composite_brown: 'Composite brown',
+  steel: 'Steel',
+  painted_steel: 'Painted steel',
+  aluminum: 'Aluminum',
+  standard: 'Standard',
+  sandblast_epoxy_paint: 'Sandblast and epoxy paint',
+  unknown: 'Unknown',
+};
+
+function formatMaterial(value?: string) {
+  return value ? materialLabels[value] ?? value : 'Not specified';
+}
+
+function formatFeet(value?: number) {
+  return Number.isFinite(value) ? `${value} ft` : 'Not specified';
+}
+
+function getQuotePreviewDetails(configurations: ProductConfiguration[]) {
+  const floatingDock = configurations.find((config) => config.productType === 'floating_dock');
+  const ramp = configurations.find((config) => config.productType === 'ramp_with_rails' || config.productType === 'ramp_without_rails');
+
+  return {
+    floatingDock,
+    ramp,
+  };
+}
 
 export function DockRender3DPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -104,6 +136,10 @@ export function DockRender3DPage() {
 
     return buildProductConfigurationRenderModel(sampleQuoteProductConfigurations);
   }, [isQuotePreview]);
+  const quotePreviewDetails = useMemo(
+    () => (isQuotePreview ? getQuotePreviewDetails(sampleQuoteProductConfigurations) : null),
+    [isQuotePreview],
+  );
 
   const activeModel = quotePreviewModel ?? projectModel;
   const isModelFromQuote = Boolean(quotePreviewModel);
@@ -205,8 +241,18 @@ export function DockRender3DPage() {
               projectModel={activeModel}
               viewMode={viewMode}
             />
+            {isModelFromQuote && (
+              <div className="absolute left-4 top-4 max-w-xl rounded-lg border border-amber-300 bg-amber-50/95 px-4 py-3 text-sm text-amber-950 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Sample Quote Preview</p>
+                <p className="mt-1 font-medium">Generated from ProductConfiguration, not a saved Dock Planner layout</p>
+              </div>
+            )}
             {showTechnicalNotice && (
-              <div className="absolute left-4 top-4 max-w-md rounded-md border border-slate-200 bg-white/90 px-3 py-2 text-sm text-slate-700 shadow-sm">
+              <div
+                className={`absolute left-4 ${
+                  isModelFromQuote ? 'top-28' : 'top-4'
+                } max-w-md rounded-md border border-slate-200 bg-white/90 px-3 py-2 text-sm text-slate-700 shadow-sm`}
+              >
                 {isLoadingProject ? 'Loading saved project data...' : detailNotice}
               </div>
             )}
@@ -244,6 +290,54 @@ export function DockRender3DPage() {
                   </div>
                 )}
               </dl>
+              {isModelFromQuote && quotePreviewDetails && (
+                <div className="mt-5 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Sample Quote Preview</p>
+                  <p className="mt-1 text-amber-950">Generated from ProductConfiguration, not a saved Dock Planner layout.</p>
+                  <dl className="mt-4 grid gap-3">
+                    <div>
+                      <dt className="text-xs font-medium uppercase tracking-wide text-amber-800">Floating Dock Size</dt>
+                      <dd className="mt-1 text-slate-900">
+                        {formatFeet(quotePreviewDetails.floatingDock?.dimensions?.lengthFt)} x{' '}
+                        {formatFeet(quotePreviewDetails.floatingDock?.dimensions?.widthFt)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium uppercase tracking-wide text-amber-800">Deck Material</dt>
+                      <dd className="mt-1 text-slate-900">{formatMaterial(quotePreviewDetails.floatingDock?.material?.deck)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium uppercase tracking-wide text-amber-800">Tube Diameter</dt>
+                      <dd className="mt-1 text-slate-900">
+                        {formatFeet(quotePreviewDetails.floatingDock?.floatingDock?.tubeDiameterFt)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium uppercase tracking-wide text-amber-800">Ramp Type</dt>
+                      <dd className="mt-1 text-slate-900">{quotePreviewDetails.ramp?.displayName ?? 'Not specified'}</dd>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <dt className="text-xs font-medium uppercase tracking-wide text-amber-800">Ramp Length</dt>
+                        <dd className="mt-1 text-slate-900">{formatFeet(quotePreviewDetails.ramp?.dimensions?.lengthFt)}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-medium uppercase tracking-wide text-amber-800">Ramp Width</dt>
+                        <dd className="mt-1 text-slate-900">{formatFeet(quotePreviewDetails.ramp?.dimensions?.widthFt)}</dd>
+                      </div>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium uppercase tracking-wide text-amber-800">Ramp Material</dt>
+                      <dd className="mt-1 text-slate-900">
+                        {formatMaterial(quotePreviewDetails.ramp?.material?.frame)}
+                        {quotePreviewDetails.ramp?.material?.deck
+                          ? ` frame with ${formatMaterial(quotePreviewDetails.ramp.material.deck).toLowerCase()} deck`
+                          : ''}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => sceneRef.current?.exportPng()}
