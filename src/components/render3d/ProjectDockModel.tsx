@@ -1,4 +1,5 @@
 import { Text } from '@react-three/drei';
+import { KehoeRampWithRails } from '@/components/render3d/products/KehoeRampWithRails';
 import type { ProjectRenderElement, ProjectRenderModel, RenderViewMode } from '@/components/render3d/types';
 
 interface RampElevationInfo {
@@ -377,6 +378,49 @@ function RampElement({
   );
 }
 
+function hasValidRampProductData(element: ProjectRenderElement, elevationInfo: RampElevationInfo) {
+  return (
+    Number.isFinite(element.length) &&
+    Number.isFinite(element.width) &&
+    element.length > 0 &&
+    element.width > 0 &&
+    Number.isFinite(elevationInfo.deckTopHeight) &&
+    Number.isFinite(elevationInfo.lowerEndHeight)
+  );
+}
+
+function KehoeRampWithRailsElement({
+  element,
+  viewMode,
+  elevationInfo,
+}: {
+  element: ProjectRenderElement;
+  viewMode: RenderViewMode;
+  elevationInfo: RampElevationInfo;
+}) {
+  if (!hasValidRampProductData(element, elevationInfo)) {
+    return <RampElement element={element} viewMode={viewMode} elevationInfo={elevationInfo} />;
+  }
+
+  return (
+    <group position={[element.x, 0, element.z]} rotation={[0, element.rotation, 0]}>
+      <KehoeRampWithRails
+        footprintWidthFt={element.length}
+        footprintLengthFt={element.width}
+        opacity={element.opacity}
+        viewMode={viewMode}
+        slope={{
+          hasConnection: elevationInfo.hasConnection,
+          dockEndSign: elevationInfo.dockEndSign,
+          dockEndHeightFt: elevationInfo.deckTopHeight,
+          lowerEndHeightFt: elevationInfo.lowerEndHeight,
+          visualDockEndZFt: elevationInfo.visualDockEndZ,
+        }}
+      />
+    </group>
+  );
+}
+
 function StepsElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
   const stepCount = 4;
   const stepDepth = element.length / stepCount;
@@ -683,6 +727,27 @@ function ProjectElement({
       renderedElement = <PlatformElement element={element} viewMode={viewMode} />;
       break;
     case 'ramp_with_rails':
+      renderedElement = (
+        <KehoeRampWithRailsElement
+          element={element}
+          viewMode={viewMode}
+          elevationInfo={
+            rampElevation ?? {
+              hasConnection: false,
+              dockEndSign: 1,
+              connectionDistance: null,
+              deckTopHeight: RAMP_FLAT_TOP_HEIGHT,
+              lowerEndHeight: RAMP_FLAT_TOP_HEIGHT,
+              railAxisLabel: RAMP_RAIL_AXIS_LABEL,
+              dockEdgeLabel: 'none',
+              visualDockEndZ: null,
+              visualTrimApplied: false,
+              visualTrimDistance: 0,
+            }
+          }
+        />
+      );
+      break;
     case 'ramp_without_rails':
       renderedElement = (
         <RampElement
