@@ -9,6 +9,10 @@ interface RampElevationInfo {
   deckTopHeight: number;
   lowerEndHeight: number;
   railAxisLabel: string;
+  dockEdgeLabel: string;
+  visualDockEndZ: number | null;
+  visualTrimApplied: boolean;
+  visualTrimDistance: number;
 }
 
 interface ProjectDockModelProps {
@@ -22,6 +26,8 @@ const RAMP_FLAT_TOP_HEIGHT = RAMP_THICKNESS + RAMP_MIN_BOTTOM_HEIGHT;
 const RAMP_MIN_HEIGHT_DIFFERENCE = 0.35;
 const RAMP_MAX_HEIGHT_DIFFERENCE = 0.6;
 const RAMP_RAIL_AXIS_LABEL = 'local Y / 3D Z';
+const RAMP_DOCK_EDGE_CLEARANCE = 0.04;
+const RAMP_MAX_VISUAL_TRIM_RATIO = 0.4;
 const FLOATING_DOCK_DECK_TOP_HEIGHT = 0.52;
 const STATIONARY_DOCK_DECK_TOP_HEIGHT = 0.68;
 
@@ -42,8 +48,9 @@ function getLocalRampTopHeight(z: number, width: number, elevationInfo: RampElev
     return elevationInfo.deckTopHeight;
   }
 
-  const normalized = z / (width / 2);
-  const dockEndWeight = elevationInfo.dockEndSign === 1 ? (normalized + 1) / 2 : (1 - normalized) / 2;
+  const lowerEndZ = -elevationInfo.dockEndSign * (width / 2);
+  const dockEndZ = elevationInfo.visualDockEndZ ?? elevationInfo.dockEndSign * (width / 2);
+  const dockEndWeight = Math.max(0, Math.min(1, (z - lowerEndZ) / (dockEndZ - lowerEndZ)));
 
   return elevationInfo.lowerEndHeight + (elevationInfo.deckTopHeight - elevationInfo.lowerEndHeight) * dockEndWeight;
 }
@@ -62,12 +69,18 @@ function DeckBoardLines({
   rampElevation?: RampElevationInfo;
 }) {
   const lineCount = Math.max(3, Math.min(18, Math.round(width / 0.75)));
-  const spacing = width / lineCount;
+  const zStart = rampElevation?.hasConnection
+    ? Math.min(-rampElevation.dockEndSign * (width / 2), rampElevation.visualDockEndZ ?? rampElevation.dockEndSign * (width / 2))
+    : -width / 2;
+  const zEnd = rampElevation?.hasConnection
+    ? Math.max(-rampElevation.dockEndSign * (width / 2), rampElevation.visualDockEndZ ?? rampElevation.dockEndSign * (width / 2))
+    : width / 2;
+  const spacing = (zEnd - zStart) / lineCount;
 
   return (
     <>
       {Array.from({ length: lineCount + 1 }, (_, index) => {
-        const z = -width / 2 + index * spacing;
+        const z = zStart + index * spacing;
         const lineY = rampElevation ? getLocalRampTopHeight(z, width, rampElevation) + 0.025 : y;
 
         return (
@@ -93,7 +106,9 @@ function DebugLabel({ element, rampElevation }: { element: ProjectRenderElement;
           (rampElevation?.deckTopHeight ?? RAMP_FLAT_TOP_HEIGHT) - (rampElevation?.lowerEndHeight ?? RAMP_FLAT_TOP_HEIGHT)
         ).toFixed(2)}\naxis:${rampElevation?.railAxisLabel ?? RAMP_RAIL_AXIS_LABEL} dist:${
           rampElevation?.connectionDistance?.toFixed(2) ?? 'n/a'
-        }`
+        }\nedge:${rampElevation?.dockEdgeLabel ?? 'n/a'} trim:${rampElevation?.visualTrimApplied ? 'yes' : 'no'} ${(
+          rampElevation?.visualTrimDistance ?? 0
+        ).toFixed(2)}`
       : '';
 
   return (
@@ -199,36 +214,41 @@ function SlopedRampDeck({
   elevationInfo: RampElevationInfo;
 }) {
   const halfLength = element.length / 2;
-  const halfWidth = element.width / 2;
-  const topNegativeZ = getLocalRampTopHeight(-halfWidth, element.width, elevationInfo);
-  const topPositiveZ = getLocalRampTopHeight(halfWidth, element.width, elevationInfo);
+  const lowerEndZ = elevationInfo.hasConnection ? -elevationInfo.dockEndSign * (element.width / 2) : -element.width / 2;
+  const dockEndZ = elevationInfo.hasConnection
+    ? elevationInfo.visualDockEndZ ?? elevationInfo.dockEndSign * (element.width / 2)
+    : element.width / 2;
+  const zMin = Math.min(lowerEndZ, dockEndZ);
+  const zMax = Math.max(lowerEndZ, dockEndZ);
+  const topNegativeZ = getLocalRampTopHeight(zMin, element.width, elevationInfo);
+  const topPositiveZ = getLocalRampTopHeight(zMax, element.width, elevationInfo);
   const bottomNegativeZ = topNegativeZ - RAMP_THICKNESS;
   const bottomPositiveZ = topPositiveZ - RAMP_THICKNESS;
   const vertices = new Float32Array([
     -halfLength,
     bottomNegativeZ,
-    -halfWidth,
+    zMin,
     halfLength,
     bottomNegativeZ,
-    -halfWidth,
+    zMin,
     halfLength,
     bottomPositiveZ,
-    halfWidth,
+    zMax,
     -halfLength,
     bottomPositiveZ,
-    halfWidth,
+    zMax,
     -halfLength,
     topNegativeZ,
-    -halfWidth,
+    zMin,
     halfLength,
     topNegativeZ,
-    -halfWidth,
+    zMin,
     halfLength,
     topPositiveZ,
-    halfWidth,
+    zMax,
     -halfLength,
     topPositiveZ,
-    halfWidth,
+    zMax,
   ]);
   const indices = new Uint16Array([
     4, 5, 6, 4, 6, 7,
@@ -264,22 +284,28 @@ function RampRail({
   elevationInfo: RampElevationInfo;
 }) {
   const x = xSign * (element.length / 2 + 0.12);
-  const zA = -element.width / 2;
-  const zB = element.width / 2;
+  const lowerEndZ = elevationInfo.hasConnection ? -elevationInfo.dockEndSign * (element.width / 2) : -element.width / 2;
+  const dockEndZ = elevationInfo.hasConnection
+    ? elevationInfo.visualDockEndZ ?? elevationInfo.dockEndSign * (element.width / 2)
+    : element.width / 2;
+  const zA = Math.min(lowerEndZ, dockEndZ);
+  const zB = Math.max(lowerEndZ, dockEndZ);
   const yA = getLocalRampTopHeight(zA, element.width, elevationInfo) + 0.9;
   const yB = getLocalRampTopHeight(zB, element.width, elevationInfo) + 0.9;
   const beamCenterY = (yA + yB) / 2;
-  const beamLength = Math.hypot(element.width, yB - yA);
-  const slopeAngle = Math.atan2(yA - yB, element.width);
+  const railSpan = zB - zA;
+  const beamLength = Math.hypot(railSpan, yB - yA);
+  const beamCenterZ = (zA + zB) / 2;
+  const slopeAngle = Math.atan2(yA - yB, railSpan);
 
   return (
     <group position={[x, 0, 0]}>
-      <mesh position={[0, beamCenterY, 0]} rotation={[slopeAngle, 0, 0]} castShadow>
+      <mesh position={[0, beamCenterY, beamCenterZ]} rotation={[slopeAngle, 0, 0]} castShadow>
         <boxGeometry args={[0.12, 0.12, beamLength]} />
         <meshStandardMaterial color={railColor} roughness={0.42} />
       </mesh>
       {railOffsets.map((zOffset) => {
-        const z = element.width * zOffset;
+        const z = zA + (zOffset + 0.5) * railSpan;
         const topHeight = getLocalRampTopHeight(z, element.width, elevationInfo);
 
         return (
@@ -290,6 +316,29 @@ function RampRail({
         );
       })}
     </group>
+  );
+}
+
+function RampConnectionPlate({
+  element,
+  elevationInfo,
+  viewMode,
+}: {
+  element: ProjectRenderElement;
+  elevationInfo: RampElevationInfo;
+  viewMode: RenderViewMode;
+}) {
+  if (!elevationInfo.hasConnection || elevationInfo.visualDockEndZ === null) {
+    return null;
+  }
+
+  const plateColor = viewMode === 'customer' ? '#c9c2b4' : '#f59e0b';
+
+  return (
+    <mesh position={[0, elevationInfo.deckTopHeight + 0.035, elevationInfo.visualDockEndZ]} castShadow receiveShadow>
+      <boxGeometry args={[element.length + 0.22, 0.06, 0.22]} />
+      <meshStandardMaterial color={plateColor} roughness={0.55} metalness={viewMode === 'customer' ? 0.08 : 0} />
+    </mesh>
   );
 }
 
@@ -316,6 +365,7 @@ function RampElement({
         y={element.elevation + RAMP_THICKNESS + 0.035}
         rampElevation={elevationInfo}
       />
+      <RampConnectionPlate element={element} elevationInfo={elevationInfo} viewMode={viewMode} />
       {hasRails && (
         <>
           {[-1, 1].map((xSign) => (
@@ -468,6 +518,30 @@ function getDistanceToPlatformFootprint(point: { x: number; z: number }, platfor
   return Math.hypot(outsideX, outsideZ);
 }
 
+function worldPointToPlatformLocal(point: { x: number; z: number }, platform: ProjectRenderElement) {
+  const dx = point.x - platform.x;
+  const dz = point.z - platform.z;
+  const cos = Math.cos(platform.rotation);
+  const sin = Math.sin(platform.rotation);
+
+  return {
+    x: dx * cos - dz * sin,
+    z: dx * sin + dz * cos,
+  };
+}
+
+function getDockEdgeLabel(point: { x: number; z: number }, platform: ProjectRenderElement) {
+  const local = worldPointToPlatformLocal(point, platform);
+  const xDistance = platform.length / 2 - Math.abs(local.x);
+  const zDistance = platform.width / 2 - Math.abs(local.z);
+
+  if (xDistance < zDistance) {
+    return local.x >= 0 ? '+X dock edge' : '-X dock edge';
+  }
+
+  return local.z >= 0 ? '+Z dock edge' : '-Z dock edge';
+}
+
 function getClosestPlatformForPoint(point: { x: number; z: number }, platforms: ProjectRenderElement[]) {
   return platforms.reduce<{
     platform: ProjectRenderElement | null;
@@ -482,6 +556,59 @@ function getClosestPlatformForPoint(point: { x: number; z: number }, platforms: 
   );
 }
 
+function getRampVisualDockEndZ(element: ProjectRenderElement, platform: ProjectRenderElement, dockEndSign: -1 | 1) {
+  const fullDockEndZ = dockEndSign * (element.width / 2);
+  const lowerEndZ = -fullDockEndZ;
+  const fullDockEndDistance = getDistanceToPlatformFootprint(localPointToWorld(element, 0, fullDockEndZ), platform);
+
+  if (fullDockEndDistance > RAMP_DOCK_EDGE_CLEARANCE) {
+    return {
+      visualDockEndZ: fullDockEndZ,
+      trimApplied: false,
+      trimDistance: 0,
+      dockEdgeLabel: getDockEdgeLabel(localPointToWorld(element, 0, fullDockEndZ), platform),
+    };
+  }
+
+  const lowerEndDistance = getDistanceToPlatformFootprint(localPointToWorld(element, 0, lowerEndZ), platform);
+
+  if (lowerEndDistance <= RAMP_DOCK_EDGE_CLEARANCE) {
+    return {
+      visualDockEndZ: fullDockEndZ,
+      trimApplied: false,
+      trimDistance: 0,
+      dockEdgeLabel: getDockEdgeLabel(localPointToWorld(element, 0, fullDockEndZ), platform),
+    };
+  }
+
+  let insideZ = fullDockEndZ;
+  let outsideZ = lowerEndZ;
+
+  for (let index = 0; index < 18; index += 1) {
+    const midZ = (insideZ + outsideZ) / 2;
+    const distance = getDistanceToPlatformFootprint(localPointToWorld(element, 0, midZ), platform);
+
+    if (distance <= RAMP_DOCK_EDGE_CLEARANCE) {
+      insideZ = midZ;
+    } else {
+      outsideZ = midZ;
+    }
+  }
+
+  const maxTrimDistance = element.width * RAMP_MAX_VISUAL_TRIM_RATIO;
+  const rawTrimDistance = Math.abs(fullDockEndZ - outsideZ);
+  const trimDistance = Math.min(rawTrimDistance, maxTrimDistance);
+  const visualDockEndZ = fullDockEndZ - dockEndSign * trimDistance;
+  const edgePoint = localPointToWorld(element, 0, visualDockEndZ);
+
+  return {
+    visualDockEndZ,
+    trimApplied: trimDistance > 0.05,
+    trimDistance,
+    dockEdgeLabel: getDockEdgeLabel(edgePoint, platform),
+  };
+}
+
 function getRampElevationInfo(element: ProjectRenderElement, platforms: ProjectRenderElement[]): RampElevationInfo {
   if (!isRampElement(element) || platforms.length === 0) {
     return {
@@ -491,6 +618,10 @@ function getRampElevationInfo(element: ProjectRenderElement, platforms: ProjectR
       deckTopHeight: RAMP_FLAT_TOP_HEIGHT,
       lowerEndHeight: RAMP_FLAT_TOP_HEIGHT,
       railAxisLabel: RAMP_RAIL_AXIS_LABEL,
+      dockEdgeLabel: 'none',
+      visualDockEndZ: null,
+      visualTrimApplied: false,
+      visualTrimDistance: 0,
     };
   }
 
@@ -510,10 +641,15 @@ function getRampElevationInfo(element: ProjectRenderElement, platforms: ProjectR
       deckTopHeight: RAMP_FLAT_TOP_HEIGHT,
       lowerEndHeight: RAMP_FLAT_TOP_HEIGHT,
       railAxisLabel: RAMP_RAIL_AXIS_LABEL,
+      dockEdgeLabel: 'not detected',
+      visualDockEndZ: null,
+      visualTrimApplied: false,
+      visualTrimDistance: 0,
     };
   }
 
   const deckTopHeight = getPlatformDeckTopHeight(closest.platform);
+  const visualConnection = getRampVisualDockEndZ(element, closest.platform, dockEndSign);
 
   return {
     hasConnection: true,
@@ -523,6 +659,10 @@ function getRampElevationInfo(element: ProjectRenderElement, platforms: ProjectR
     deckTopHeight,
     lowerEndHeight: getRampLowerEndHeight(deckTopHeight),
     railAxisLabel: RAMP_RAIL_AXIS_LABEL,
+    dockEdgeLabel: visualConnection.dockEdgeLabel,
+    visualDockEndZ: visualConnection.visualDockEndZ,
+    visualTrimApplied: visualConnection.trimApplied,
+    visualTrimDistance: visualConnection.trimDistance,
   };
 }
 
@@ -556,6 +696,10 @@ function ProjectElement({
               deckTopHeight: RAMP_FLAT_TOP_HEIGHT,
               lowerEndHeight: RAMP_FLAT_TOP_HEIGHT,
               railAxisLabel: RAMP_RAIL_AXIS_LABEL,
+              dockEdgeLabel: 'none',
+              visualDockEndZ: null,
+              visualTrimApplied: false,
+              visualTrimDistance: 0,
             }
           }
         />
