@@ -1,10 +1,25 @@
 import { Text } from '@react-three/drei';
 import type { ProjectRenderElement, ProjectRenderModel, RenderViewMode } from '@/components/render3d/types';
 
+interface RampElevationInfo {
+  hasConnection: boolean;
+  dockEndSign: -1 | 1;
+  connectedPlatformType?: ProjectRenderElement['type'];
+  connectionDistance: number | null;
+  deckTopHeight: number;
+  lowerEndHeight: number;
+}
+
 interface ProjectDockModelProps {
   model: ProjectRenderModel;
   viewMode: RenderViewMode;
 }
+
+const RAMP_THICKNESS = 0.32;
+const RAMP_LOWER_END_HEIGHT = 0.12;
+const RAMP_FLAT_TOP_HEIGHT = RAMP_THICKNESS;
+const FLOATING_DOCK_DECK_TOP_HEIGHT = 0.52;
+const STATIONARY_DOCK_DECK_TOP_HEIGHT = 0.68;
 
 function getDeckColor(element: ProjectRenderElement, viewMode: RenderViewMode) {
   if (viewMode === 'internal') {
@@ -18,24 +33,62 @@ function getDeckColor(element: ProjectRenderElement, viewMode: RenderViewMode) {
   return '#b08a5a';
 }
 
-function DeckBoardLines({ length, width, y, color = '#6b5438' }: { length: number; width: number; y: number; color?: string }) {
+function getLocalRampTopHeight(z: number, width: number, elevationInfo: RampElevationInfo) {
+  if (!elevationInfo.hasConnection) {
+    return elevationInfo.deckTopHeight;
+  }
+
+  const normalized = z / (width / 2);
+  const dockEndWeight = elevationInfo.dockEndSign === 1 ? (normalized + 1) / 2 : (1 - normalized) / 2;
+
+  return elevationInfo.lowerEndHeight + (elevationInfo.deckTopHeight - elevationInfo.lowerEndHeight) * dockEndWeight;
+}
+
+function DeckBoardLines({
+  length,
+  width,
+  y,
+  color = '#6b5438',
+  rampElevation,
+}: {
+  length: number;
+  width: number;
+  y: number;
+  color?: string;
+  rampElevation?: RampElevationInfo;
+}) {
   const lineCount = Math.max(3, Math.min(18, Math.round(width / 0.75)));
   const spacing = width / lineCount;
 
   return (
     <>
-      {Array.from({ length: lineCount + 1 }, (_, index) => (
-        <mesh key={index} position={[0, y, -width / 2 + index * spacing]} receiveShadow>
-          <boxGeometry args={[length + 0.02, 0.018, 0.018]} />
-          <meshStandardMaterial color={color} roughness={0.82} />
-        </mesh>
-      ))}
+      {Array.from({ length: lineCount + 1 }, (_, index) => {
+        const z = -width / 2 + index * spacing;
+        const lineY = rampElevation ? getLocalRampTopHeight(z, width, rampElevation) + 0.025 : y;
+
+        return (
+          <mesh key={index} position={[0, lineY, z]} receiveShadow>
+            <boxGeometry args={[length + 0.02, 0.018, 0.018]} />
+            <meshStandardMaterial color={color} roughness={0.82} />
+          </mesh>
+        );
+      })}
     </>
   );
 }
 
-function DebugLabel({ element }: { element: ProjectRenderElement }) {
+function DebugLabel({ element, rampElevation }: { element: ProjectRenderElement; rampElevation?: RampElevationInfo }) {
   const railDiagnostic = element.type === 'ramp_with_rails' ? '\nrails: local Y edges' : '';
+  const rampDiagnostic =
+    element.type === 'ramp_with_rails' || element.type === 'ramp_without_rails'
+      ? `\nramp dock: ${
+          rampElevation?.hasConnection
+            ? `${rampElevation.dockEndSign === 1 ? '+Z' : '-Z'} ${rampElevation.connectedPlatformType ?? 'dock'}`
+            : 'not detected'
+        }\ndeck top:${(rampElevation?.deckTopHeight ?? RAMP_FLAT_TOP_HEIGHT).toFixed(2)} lower:${(
+          rampElevation?.lowerEndHeight ?? RAMP_FLAT_TOP_HEIGHT
+        ).toFixed(2)} dist:${rampElevation?.connectionDistance?.toFixed(2) ?? 'n/a'}`
+      : '';
 
   return (
     <Text
@@ -50,7 +103,7 @@ function DebugLabel({ element }: { element: ProjectRenderElement }) {
         element.sourceCenterX,
       )} z:${Math.round(element.sourceCenterY)}\nw:${Math.round(
         element.sourceWidth,
-      )} h:${Math.round(element.sourceHeight)} r:${Math.round(element.sourceRotation)}deg\n${element.anchorInterpretation}\n${element.scaleSourceLabel}${railDiagnostic}`}
+      )} h:${Math.round(element.sourceHeight)} r:${Math.round(element.sourceRotation)}deg\n${element.anchorInterpretation}\n${element.scaleSourceLabel}${railDiagnostic}${rampDiagnostic}`}
     </Text>
   );
 }
@@ -130,37 +183,136 @@ function PlatformElement({ element, viewMode }: { element: ProjectRenderElement;
   );
 }
 
-function RampElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
+function SlopedRampDeck({
+  element,
+  deckColor,
+  elevationInfo,
+}: {
+  element: ProjectRenderElement;
+  deckColor: string;
+  elevationInfo: RampElevationInfo;
+}) {
+  const halfLength = element.length / 2;
+  const halfWidth = element.width / 2;
+  const topNegativeZ = getLocalRampTopHeight(-halfWidth, element.width, elevationInfo);
+  const topPositiveZ = getLocalRampTopHeight(halfWidth, element.width, elevationInfo);
+  const bottomNegativeZ = topNegativeZ - RAMP_THICKNESS;
+  const bottomPositiveZ = topPositiveZ - RAMP_THICKNESS;
+  const vertices = new Float32Array([
+    -halfLength,
+    bottomNegativeZ,
+    -halfWidth,
+    halfLength,
+    bottomNegativeZ,
+    -halfWidth,
+    halfLength,
+    bottomPositiveZ,
+    halfWidth,
+    -halfLength,
+    bottomPositiveZ,
+    halfWidth,
+    -halfLength,
+    topNegativeZ,
+    -halfWidth,
+    halfLength,
+    topNegativeZ,
+    -halfWidth,
+    halfLength,
+    topPositiveZ,
+    halfWidth,
+    -halfLength,
+    topPositiveZ,
+    halfWidth,
+  ]);
+  const indices = new Uint16Array([
+    4, 5, 6, 4, 6, 7,
+    0, 2, 1, 0, 3, 2,
+    0, 1, 5, 0, 5, 4,
+    3, 7, 6, 3, 6, 2,
+    0, 4, 7, 0, 7, 3,
+    1, 2, 6, 1, 6, 5,
+  ]);
+
+  return (
+    <mesh castShadow receiveShadow>
+      <bufferGeometry onUpdate={(geometry) => geometry.computeVertexNormals()}>
+        <bufferAttribute attach="attributes-position" args={[vertices, 3]} />
+        <bufferAttribute attach="index" args={[indices, 1]} />
+      </bufferGeometry>
+      <meshStandardMaterial color={deckColor} roughness={0.76} transparent opacity={element.opacity} />
+    </mesh>
+  );
+}
+
+function RampRail({
+  element,
+  xSign,
+  railColor,
+  railOffsets,
+  elevationInfo,
+}: {
+  element: ProjectRenderElement;
+  xSign: number;
+  railColor: string;
+  railOffsets: number[];
+  elevationInfo: RampElevationInfo;
+}) {
+  const x = xSign * (element.length / 2 + 0.12);
+  const zA = -element.width / 2;
+  const zB = element.width / 2;
+  const yA = getLocalRampTopHeight(zA, element.width, elevationInfo) + 0.9;
+  const yB = getLocalRampTopHeight(zB, element.width, elevationInfo) + 0.9;
+  const beamCenterY = (yA + yB) / 2;
+  const slopeAngle = Math.asin(Math.max(-0.95, Math.min(0.95, (yA - yB) / element.width)));
+
+  return (
+    <group position={[x, 0, 0]}>
+      <mesh position={[0, beamCenterY, 0]} rotation={[slopeAngle, 0, 0]} castShadow>
+        <boxGeometry args={[0.12, 0.12, element.width]} />
+        <meshStandardMaterial color={railColor} roughness={0.42} />
+      </mesh>
+      {railOffsets.map((zOffset) => {
+        const z = element.width * zOffset;
+        const topHeight = getLocalRampTopHeight(z, element.width, elevationInfo);
+
+        return (
+          <mesh key={zOffset} position={[0, topHeight + 0.65, z]} castShadow>
+            <boxGeometry args={[0.13, 1.3, 0.13]} />
+            <meshStandardMaterial color={railColor} roughness={0.48} />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+}
+
+function RampElement({
+  element,
+  viewMode,
+  elevationInfo,
+}: {
+  element: ProjectRenderElement;
+  viewMode: RenderViewMode;
+  elevationInfo: RampElevationInfo;
+}) {
   const hasRails = element.type === 'ramp_with_rails';
-  const rampThickness = 0.32;
-  const rampY = element.elevation + rampThickness / 2;
   const railColor = viewMode === 'customer' ? '#f8fafc' : '#e2e8f0';
   const deckColor = viewMode === 'customer' ? '#aa8454' : element.color;
-  const railBaseY = element.elevation + rampThickness + 0.9;
   const railOffsets = [-0.45, 0, 0.45];
 
   return (
     <group position={[element.x, 0, element.z]} rotation={[0, element.rotation, 0]}>
-      <mesh position={[0, rampY, 0]} castShadow receiveShadow>
-        <boxGeometry args={[element.length, rampThickness, element.width]} />
-        <meshStandardMaterial color={deckColor} roughness={0.76} transparent opacity={element.opacity} />
-      </mesh>
-      <DeckBoardLines length={element.length} width={element.width} y={element.elevation + rampThickness + 0.035} />
+      <SlopedRampDeck element={element} deckColor={deckColor} elevationInfo={elevationInfo} />
+      <DeckBoardLines
+        length={element.length}
+        width={element.width}
+        y={element.elevation + RAMP_THICKNESS + 0.035}
+        rampElevation={elevationInfo}
+      />
       {hasRails && (
         <>
           {[-1, 1].map((xSign) => (
-            <group key={xSign} position={[xSign * (element.length / 2 + 0.12), railBaseY, 0]}>
-              <mesh castShadow>
-                <boxGeometry args={[0.12, 0.12, element.width]} />
-                <meshStandardMaterial color={railColor} roughness={0.42} />
-              </mesh>
-              {railOffsets.map((zOffset) => (
-                <mesh key={zOffset} position={[0, -0.58, element.width * zOffset]} castShadow>
-                  <boxGeometry args={[0.13, 1.3, 0.13]} />
-                  <meshStandardMaterial color={railColor} roughness={0.48} />
-                </mesh>
-              ))}
-            </group>
+            <RampRail key={xSign} element={element} xSign={xSign} railColor={railColor} railOffsets={railOffsets} elevationInfo={elevationInfo} />
           ))}
         </>
       )}
@@ -265,7 +417,103 @@ function RoofOverlayElement({ element, viewMode }: { element: ProjectRenderEleme
   );
 }
 
-function ProjectElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
+function isRampElement(element: ProjectRenderElement) {
+  return element.type === 'ramp_with_rails' || element.type === 'ramp_without_rails';
+}
+
+function isPlatformElement(element: ProjectRenderElement) {
+  return element.type === 'floating_dock' || element.type === 'stationary_dock';
+}
+
+function getPlatformDeckTopHeight(element: ProjectRenderElement) {
+  return element.type === 'stationary_dock' ? STATIONARY_DOCK_DECK_TOP_HEIGHT : FLOATING_DOCK_DECK_TOP_HEIGHT;
+}
+
+function localPointToWorld(element: ProjectRenderElement, localX: number, localZ: number) {
+  const cos = Math.cos(element.rotation);
+  const sin = Math.sin(element.rotation);
+
+  return {
+    x: element.x + localX * cos + localZ * sin,
+    z: element.z - localX * sin + localZ * cos,
+  };
+}
+
+function getDistanceToPlatformFootprint(point: { x: number; z: number }, platform: ProjectRenderElement) {
+  const dx = point.x - platform.x;
+  const dz = point.z - platform.z;
+  const cos = Math.cos(platform.rotation);
+  const sin = Math.sin(platform.rotation);
+  const localX = dx * cos - dz * sin;
+  const localZ = dx * sin + dz * cos;
+  const outsideX = Math.max(Math.abs(localX) - platform.length / 2, 0);
+  const outsideZ = Math.max(Math.abs(localZ) - platform.width / 2, 0);
+
+  return Math.hypot(outsideX, outsideZ);
+}
+
+function getClosestPlatformForPoint(point: { x: number; z: number }, platforms: ProjectRenderElement[]) {
+  return platforms.reduce<{
+    platform: ProjectRenderElement | null;
+    distance: number;
+  }>(
+    (closest, platform) => {
+      const distance = getDistanceToPlatformFootprint(point, platform);
+
+      return distance < closest.distance ? { platform, distance } : closest;
+    },
+    { platform: null, distance: Number.POSITIVE_INFINITY },
+  );
+}
+
+function getRampElevationInfo(element: ProjectRenderElement, platforms: ProjectRenderElement[]): RampElevationInfo {
+  if (!isRampElement(element) || platforms.length === 0) {
+    return {
+      hasConnection: false,
+      dockEndSign: 1,
+      connectionDistance: null,
+      deckTopHeight: RAMP_FLAT_TOP_HEIGHT,
+      lowerEndHeight: RAMP_FLAT_TOP_HEIGHT,
+    };
+  }
+
+  const negativeEnd = localPointToWorld(element, 0, -element.width / 2);
+  const positiveEnd = localPointToWorld(element, 0, element.width / 2);
+  const negativeClosest = getClosestPlatformForPoint(negativeEnd, platforms);
+  const positiveClosest = getClosestPlatformForPoint(positiveEnd, platforms);
+  const dockEndSign: -1 | 1 = negativeClosest.distance <= positiveClosest.distance ? -1 : 1;
+  const closest = dockEndSign === -1 ? negativeClosest : positiveClosest;
+  const connectionThreshold = Math.max(1.5, Math.min(element.length, element.width) * 0.75);
+
+  if (!closest.platform || closest.distance > connectionThreshold) {
+    return {
+      hasConnection: false,
+      dockEndSign,
+      connectionDistance: Number.isFinite(closest.distance) ? closest.distance : null,
+      deckTopHeight: RAMP_FLAT_TOP_HEIGHT,
+      lowerEndHeight: RAMP_FLAT_TOP_HEIGHT,
+    };
+  }
+
+  return {
+    hasConnection: true,
+    dockEndSign,
+    connectedPlatformType: closest.platform.type,
+    connectionDistance: closest.distance,
+    deckTopHeight: getPlatformDeckTopHeight(closest.platform),
+    lowerEndHeight: RAMP_LOWER_END_HEIGHT,
+  };
+}
+
+function ProjectElement({
+  element,
+  viewMode,
+  rampElevation,
+}: {
+  element: ProjectRenderElement;
+  viewMode: RenderViewMode;
+  rampElevation?: RampElevationInfo;
+}) {
   let renderedElement: JSX.Element | null = null;
 
   switch (element.type) {
@@ -275,7 +523,21 @@ function ProjectElement({ element, viewMode }: { element: ProjectRenderElement; 
       break;
     case 'ramp_with_rails':
     case 'ramp_without_rails':
-      renderedElement = <RampElement element={element} viewMode={viewMode} />;
+      renderedElement = (
+        <RampElement
+          element={element}
+          viewMode={viewMode}
+          elevationInfo={
+            rampElevation ?? {
+              hasConnection: false,
+              dockEndSign: 1,
+              connectionDistance: null,
+              deckTopHeight: RAMP_FLAT_TOP_HEIGHT,
+              lowerEndHeight: RAMP_FLAT_TOP_HEIGHT,
+            }
+          }
+        />
+      );
       break;
     case 'steps':
       renderedElement = <StepsElement element={element} viewMode={viewMode} />;
@@ -296,7 +558,7 @@ function ProjectElement({ element, viewMode }: { element: ProjectRenderElement; 
       {viewMode === 'internal' && (
         <>
           <FootprintOutline element={element} />
-          <DebugLabel element={element} />
+          <DebugLabel element={element} rampElevation={rampElevation} />
         </>
       )}
     </>
@@ -304,11 +566,15 @@ function ProjectElement({ element, viewMode }: { element: ProjectRenderElement; 
 }
 
 export function ProjectDockModel({ model, viewMode }: ProjectDockModelProps) {
+  const platforms = model.elements.filter(isPlatformElement);
+
   return (
     <group>
-      {model.elements.map((element) => (
-        <ProjectElement key={element.id} element={element} viewMode={viewMode} />
-      ))}
+      {model.elements.map((element) => {
+        const rampElevation = isRampElement(element) ? getRampElevationInfo(element, platforms) : undefined;
+
+        return <ProjectElement key={element.id} element={element} viewMode={viewMode} rampElevation={rampElevation} />;
+      })}
     </group>
   );
 }
