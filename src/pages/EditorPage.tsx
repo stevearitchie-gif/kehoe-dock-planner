@@ -2149,6 +2149,12 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
             >
               Export PDF
             </button>
+            <Link
+              to={`/render3d/${projectId ?? project.id}`}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+            >
+              View 3D
+            </Link>
             <button
               type="button"
               onClick={handleZoomOut}

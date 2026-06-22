@@ -22,6 +22,7 @@ export function DockRender3DPage() {
   const sceneRef = useRef<DockSceneHandle | null>(null);
   const [settings, setSettings] = useState<DockRenderSettings>(defaultRenderSettings);
   const [cameraPreset, setCameraPreset] = useState<CameraPreset>('isometric');
+  const canReturnToEditor = Boolean(projectId && projectId !== 'local-test');
 
   return (
     <AppShell className="h-screen overflow-hidden">
@@ -35,12 +36,22 @@ export function DockRender3DPage() {
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <CameraPresetControls activePreset={cameraPreset} onPresetChange={setCameraPreset} />
-            <Link
-              to={`/editor/${projectId ?? 'local'}`}
-              className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-            >
-              Editor
-            </Link>
+            {canReturnToEditor ? (
+              <Link
+                to={`/editor/${projectId}`}
+                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              >
+                Back to Editor
+              </Link>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-400"
+              >
+                Back to Editor
+              </button>
+            )}
             <Link
               to="/projects"
               className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
