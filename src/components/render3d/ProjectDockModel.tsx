@@ -1,4 +1,5 @@
 import { Text } from '@react-three/drei';
+import { KehoeFloatingDock } from '@/components/render3d/products/KehoeFloatingDock';
 import { KehoeRampWithRails } from '@/components/render3d/products/KehoeRampWithRails';
 import type { ProjectRenderElement, ProjectRenderModel, RenderViewMode } from '@/components/render3d/types';
 
@@ -201,6 +202,28 @@ function PlatformElement({ element, viewMode }: { element: ProjectRenderElement;
           </mesh>
         )),
       )}
+    </group>
+  );
+}
+
+function hasValidPlatformProductData(element: ProjectRenderElement) {
+  return Number.isFinite(element.length) && Number.isFinite(element.width) && element.length > 0 && element.width > 0;
+}
+
+function KehoeFloatingDockElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
+  if (!hasValidPlatformProductData(element)) {
+    return <PlatformElement element={element} viewMode={viewMode} />;
+  }
+
+  return (
+    <group position={[element.x, 0, element.z]} rotation={[0, element.rotation, 0]}>
+      <KehoeFloatingDock
+        footprintWidthFt={element.length}
+        footprintLengthFt={element.width}
+        opacity={element.opacity}
+        viewMode={viewMode}
+        deckColorOverride={viewMode === 'internal' ? element.color : undefined}
+      />
     </group>
   );
 }
@@ -723,6 +746,8 @@ function ProjectElement({
 
   switch (element.type) {
     case 'floating_dock':
+      renderedElement = <KehoeFloatingDockElement element={element} viewMode={viewMode} />;
+      break;
     case 'stationary_dock':
       renderedElement = <PlatformElement element={element} viewMode={viewMode} />;
       break;
