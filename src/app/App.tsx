@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { DockRender3DPage } from '@/pages/DockRender3DPage';
 import { EditorPage } from '@/pages/EditorPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { ProjectsPage } from '@/pages/ProjectsPage';
@@ -23,6 +24,15 @@ export function App() {
         element={
           <ProtectedRoute>
             <EditorPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/render3d/:projectId"
+        element={
+          <ProtectedRoute>
+            <DockRender3DPage />
           </ProtectedRoute>
         }
       />
