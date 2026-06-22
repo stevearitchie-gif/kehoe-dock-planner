@@ -35,6 +35,8 @@ function DeckBoardLines({ length, width, y, color = '#6b5438' }: { length: numbe
 }
 
 function DebugLabel({ element }: { element: ProjectRenderElement }) {
+  const railDiagnostic = element.type === 'ramp_with_rails' ? '\nrails: local Y edges' : '';
+
   return (
     <Text
       position={[element.x, 4.7, element.z]}
@@ -48,7 +50,7 @@ function DebugLabel({ element }: { element: ProjectRenderElement }) {
         element.sourceCenterX,
       )} z:${Math.round(element.sourceCenterY)}\nw:${Math.round(
         element.sourceWidth,
-      )} h:${Math.round(element.sourceHeight)} r:${Math.round(element.sourceRotation)}deg\n${element.anchorInterpretation}\n${element.scaleSourceLabel}`}
+      )} h:${Math.round(element.sourceHeight)} r:${Math.round(element.sourceRotation)}deg\n${element.anchorInterpretation}\n${element.scaleSourceLabel}${railDiagnostic}`}
     </Text>
   );
 }
@@ -135,7 +137,6 @@ function RampElement({ element, viewMode }: { element: ProjectRenderElement; vie
   const railColor = viewMode === 'customer' ? '#f8fafc' : '#e2e8f0';
   const deckColor = viewMode === 'customer' ? '#aa8454' : element.color;
   const railBaseY = element.elevation + rampThickness + 0.9;
-  const railsAlongZ = element.width > element.length;
   const railOffsets = [-0.45, 0, 0.45];
 
   return (
@@ -147,35 +148,20 @@ function RampElement({ element, viewMode }: { element: ProjectRenderElement; vie
       <DeckBoardLines length={element.length} width={element.width} y={element.elevation + rampThickness + 0.035} />
       {hasRails && (
         <>
-          {railsAlongZ
-            ? [-1, 1].map((xSign) => (
-                <group key={xSign} position={[xSign * (element.length / 2 + 0.12), railBaseY, 0]}>
-                  <mesh castShadow>
-                    <boxGeometry args={[0.12, 0.12, element.width]} />
-                    <meshStandardMaterial color={railColor} roughness={0.42} />
-                  </mesh>
-                  {railOffsets.map((zOffset) => (
-                    <mesh key={zOffset} position={[0, -0.58, element.width * zOffset]} castShadow>
-                      <boxGeometry args={[0.13, 1.3, 0.13]} />
-                      <meshStandardMaterial color={railColor} roughness={0.48} />
-                    </mesh>
-                  ))}
-                </group>
-              ))
-            : [-1, 1].map((zSign) => (
-                <group key={zSign} position={[0, railBaseY, zSign * (element.width / 2 + 0.12)]}>
-                  <mesh castShadow>
-                    <boxGeometry args={[element.length, 0.12, 0.12]} />
-                    <meshStandardMaterial color={railColor} roughness={0.42} />
-                  </mesh>
-                  {railOffsets.map((xOffset) => (
-                    <mesh key={xOffset} position={[element.length * xOffset, -0.58, 0]} castShadow>
-                      <boxGeometry args={[0.13, 1.3, 0.13]} />
-                      <meshStandardMaterial color={railColor} roughness={0.48} />
-                    </mesh>
-                  ))}
-                </group>
+          {[-1, 1].map((xSign) => (
+            <group key={xSign} position={[xSign * (element.length / 2 + 0.12), railBaseY, 0]}>
+              <mesh castShadow>
+                <boxGeometry args={[0.12, 0.12, element.width]} />
+                <meshStandardMaterial color={railColor} roughness={0.42} />
+              </mesh>
+              {railOffsets.map((zOffset) => (
+                <mesh key={zOffset} position={[0, -0.58, element.width * zOffset]} castShadow>
+                  <boxGeometry args={[0.13, 1.3, 0.13]} />
+                  <meshStandardMaterial color={railColor} roughness={0.48} />
+                </mesh>
               ))}
+            </group>
+          ))}
         </>
       )}
     </group>
