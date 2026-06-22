@@ -7,7 +7,7 @@ import { DockScene, type DockSceneHandle } from '@/components/render3d/DockScene
 import { RenderControlPanel } from '@/components/render3d/RenderControlPanel';
 import { buildProjectRenderModel } from '@/components/render3d/projectModelAdapter';
 import { getProject } from '@/features/projects/projectService';
-import type { CameraPreset, DockRenderSettings, ProjectRenderModel } from '@/components/render3d/types';
+import type { CameraPreset, DockRenderSettings, ProjectRenderModel, RenderViewMode } from '@/components/render3d/types';
 import type { DockProject } from '@/types/dock';
 
 const defaultRenderSettings: DockRenderSettings = {
@@ -27,6 +27,7 @@ export function DockRender3DPage() {
   const sceneRef = useRef<DockSceneHandle | null>(null);
   const [settings, setSettings] = useState<DockRenderSettings>(defaultRenderSettings);
   const [cameraPreset, setCameraPreset] = useState<CameraPreset>('isometric');
+  const [viewMode, setViewMode] = useState<RenderViewMode>('customer');
   const [project, setProject] = useState<DockProject | null>(null);
   const [isLoadingProject, setIsLoadingProject] = useState(false);
   const [loadMessage, setLoadMessage] = useState<string | null>(null);
@@ -97,10 +98,17 @@ export function DockRender3DPage() {
       : 'Rendering local proof-of-concept fallback';
   const detailNotice =
     projectModel
-      ? `${projectModel.elements.length} supported element${projectModel.elements.length === 1 ? '' : 's'} using ${projectModel.sourceUnitLabel}${
-          projectModel.unsupportedCount > 0 ? `; ${projectModel.unsupportedCount} unsupported element${projectModel.unsupportedCount === 1 ? '' : 's'} skipped` : ''
+      ? `${projectModel.hasProjectScale ? '' : 'Project scale not found, using approximate fallback scale. '}${projectModel.elements.length} supported element${
+          projectModel.elements.length === 1 ? '' : 's'
+        } using ${projectModel.sourceUnitLabel}${
+          projectModel.unsupportedCount > 0
+            ? `; skipped ${projectModel.unsupportedCount} unsupported element${projectModel.unsupportedCount === 1 ? '' : 's'}${
+                projectModel.unsupportedTypes.length > 0 ? ` (${projectModel.unsupportedTypes.join(', ')})` : ''
+              }`
+            : ''
         }`
       : loadMessage;
+  const showTechnicalNotice = viewMode === 'internal' && (isLoadingProject || detailNotice);
 
   return (
     <AppShell className="h-screen overflow-hidden">
@@ -114,6 +122,26 @@ export function DockRender3DPage() {
             <p className="mt-1 text-sm text-slate-500">{sourceNotice}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <div className="flex rounded-md border border-slate-300 bg-white p-1">
+              <button
+                type="button"
+                onClick={() => setViewMode('customer')}
+                className={`rounded px-3 py-1.5 text-sm font-medium ${
+                  viewMode === 'customer' ? 'bg-brand-600 text-white' : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                Customer View
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('internal')}
+                className={`rounded px-3 py-1.5 text-sm font-medium ${
+                  viewMode === 'internal' ? 'bg-brand-600 text-white' : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                Internal View
+              </button>
+            </div>
             <CameraPresetControls activePreset={cameraPreset} onPresetChange={setCameraPreset} />
             {canReturnToEditor ? (
               <Link
@@ -142,8 +170,14 @@ export function DockRender3DPage() {
 
         <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
           <section className="relative min-h-[420px] flex-1 bg-sky-50">
-            <DockScene ref={sceneRef} settings={settings} cameraPreset={cameraPreset} projectModel={projectModel} />
-            {(isLoadingProject || detailNotice) && (
+            <DockScene
+              ref={sceneRef}
+              settings={settings}
+              cameraPreset={cameraPreset}
+              projectModel={projectModel}
+              viewMode={viewMode}
+            />
+            {showTechnicalNotice && (
               <div className="absolute left-4 top-4 max-w-md rounded-md border border-slate-200 bg-white/90 px-3 py-2 text-sm text-slate-700 shadow-sm">
                 {isLoadingProject ? 'Loading saved project data...' : detailNotice}
               </div>
@@ -166,6 +200,17 @@ export function DockRender3DPage() {
                   <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Scale</dt>
                   <dd className="mt-1 text-slate-800">{projectModel.sourceUnitLabel}</dd>
                 </div>
+                {!projectModel.hasProjectScale && (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
+                    Project scale not found, using approximate fallback scale.
+                  </div>
+                )}
+                {viewMode === 'internal' && projectModel.unsupportedTypes.length > 0 && (
+                  <div>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Skipped Types</dt>
+                    <dd className="mt-1 text-slate-800">{projectModel.unsupportedTypes.join(', ')}</dd>
+                  </div>
+                )}
               </dl>
               <button
                 type="button"

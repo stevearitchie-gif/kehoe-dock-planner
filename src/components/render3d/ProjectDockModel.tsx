@@ -1,31 +1,67 @@
-import type { ProjectRenderElement, ProjectRenderModel } from '@/components/render3d/types';
+import type { ProjectRenderElement, ProjectRenderModel, RenderViewMode } from '@/components/render3d/types';
 
 interface ProjectDockModelProps {
   model: ProjectRenderModel;
+  viewMode: RenderViewMode;
 }
 
-function PlatformElement({ element }: { element: ProjectRenderElement }) {
+function getDeckColor(element: ProjectRenderElement, viewMode: RenderViewMode) {
+  if (viewMode === 'internal') {
+    return element.color;
+  }
+
+  if (element.type === 'stationary_dock') {
+    return '#9b7a52';
+  }
+
+  return '#b08a5a';
+}
+
+function DeckBoardLines({ length, width, y, color = '#6b5438' }: { length: number; width: number; y: number; color?: string }) {
+  const lineCount = Math.max(3, Math.min(18, Math.round(width / 0.75)));
+  const spacing = width / lineCount;
+
+  return (
+    <>
+      {Array.from({ length: lineCount + 1 }, (_, index) => (
+        <mesh key={index} position={[0, y, -width / 2 + index * spacing]} receiveShadow>
+          <boxGeometry args={[length + 0.02, 0.018, 0.018]} />
+          <meshStandardMaterial color={color} roughness={0.82} />
+        </mesh>
+      ))}
+    </>
+  );
+}
+
+function PlatformElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
   const isFloatingDock = element.type === 'floating_dock';
   const isStationaryDock = element.type === 'stationary_dock';
-  const platformHeight = isStationaryDock ? 0.75 : 0.55;
+  const platformHeight = isStationaryDock ? 0.62 : 0.46;
   const platformY = element.elevation + platformHeight / 2;
+  const deckColor = getDeckColor(element, viewMode);
+  const sideColor = viewMode === 'customer' ? '#6f5738' : element.color;
 
   return (
     <group position={[element.x, 0, element.z]} rotation={[0, element.rotation, 0]}>
       <mesh position={[0, platformY, 0]} castShadow receiveShadow>
         <boxGeometry args={[element.length, platformHeight, element.width]} />
-        <meshStandardMaterial color={element.color} roughness={0.72} transparent opacity={element.opacity} />
+        <meshStandardMaterial color={deckColor} roughness={0.76} transparent opacity={element.opacity} />
       </mesh>
+      <mesh position={[0, element.elevation + platformHeight + 0.018, 0]} receiveShadow>
+        <boxGeometry args={[element.length + 0.03, 0.025, element.width + 0.03]} />
+        <meshStandardMaterial color={deckColor} roughness={0.82} transparent opacity={element.opacity} />
+      </mesh>
+      <DeckBoardLines length={element.length} width={element.width} y={element.elevation + platformHeight + 0.04} />
 
       {isFloatingDock && (
         <>
           <mesh position={[0, 0.16, -element.width * 0.32]} castShadow receiveShadow>
             <boxGeometry args={[element.length * 0.82, 0.32, Math.max(0.45, element.width * 0.16)]} />
-            <meshStandardMaterial color="#d7dee7" roughness={0.58} />
+            <meshStandardMaterial color={viewMode === 'customer' ? '#eef2f4' : '#d7dee7'} roughness={0.58} />
           </mesh>
           <mesh position={[0, 0.16, element.width * 0.32]} castShadow receiveShadow>
             <boxGeometry args={[element.length * 0.82, 0.32, Math.max(0.45, element.width * 0.16)]} />
-            <meshStandardMaterial color="#d7dee7" roughness={0.58} />
+            <meshStandardMaterial color={viewMode === 'customer' ? '#eef2f4' : '#d7dee7'} roughness={0.58} />
           </mesh>
         </>
       )}
@@ -38,7 +74,7 @@ function PlatformElement({ element }: { element: ProjectRenderElement }) {
             castShadow
           >
             <boxGeometry args={[0.22, Math.max(0.4, platformY), 0.22]} />
-            <meshStandardMaterial color="#64748b" roughness={0.5} />
+            <meshStandardMaterial color={sideColor} roughness={0.58} />
           </mesh>
         )),
       )}
@@ -46,29 +82,34 @@ function PlatformElement({ element }: { element: ProjectRenderElement }) {
   );
 }
 
-function RampElement({ element }: { element: ProjectRenderElement }) {
+function RampElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
   const hasRails = element.type === 'ramp_with_rails';
   const rampThickness = 0.32;
   const rampY = element.elevation + 0.62;
+  const railColor = viewMode === 'customer' ? '#f8fafc' : '#e2e8f0';
+  const deckColor = viewMode === 'customer' ? '#aa8454' : element.color;
 
   return (
     <group position={[element.x, 0, element.z]} rotation={[0, element.rotation, 0]}>
       <mesh position={[0, rampY, 0]} rotation={[0, 0, -0.18]} castShadow receiveShadow>
         <boxGeometry args={[element.length, rampThickness, element.width]} />
-        <meshStandardMaterial color={element.color} roughness={0.74} transparent opacity={element.opacity} />
+        <meshStandardMaterial color={deckColor} roughness={0.76} transparent opacity={element.opacity} />
       </mesh>
+      <group rotation={[0, 0, -0.18]}>
+        <DeckBoardLines length={element.length} width={element.width} y={rampY + rampThickness / 2 + 0.035} />
+      </group>
       {hasRails && (
         <>
           {[-1, 1].map((zSign) => (
             <group key={zSign} position={[0, rampY + 1.2, zSign * (element.width / 2 + 0.12)]}>
               <mesh castShadow>
-                <boxGeometry args={[element.length, 0.16, 0.16]} />
-                <meshStandardMaterial color="#e2e8f0" roughness={0.42} />
+                <boxGeometry args={[element.length, 0.12, 0.12]} />
+                <meshStandardMaterial color={railColor} roughness={0.42} />
               </mesh>
-              {[-0.42, 0, 0.42].map((xOffset) => (
+              {[-0.45, 0, 0.45].map((xOffset) => (
                 <mesh key={xOffset} position={[element.length * xOffset, -0.58, 0]} castShadow>
-                  <boxGeometry args={[0.16, 1.3, 0.16]} />
-                  <meshStandardMaterial color="#cbd5e1" roughness={0.48} />
+                  <boxGeometry args={[0.13, 1.3, 0.13]} />
+                  <meshStandardMaterial color={railColor} roughness={0.48} />
                 </mesh>
               ))}
             </group>
@@ -79,9 +120,10 @@ function RampElement({ element }: { element: ProjectRenderElement }) {
   );
 }
 
-function StepsElement({ element }: { element: ProjectRenderElement }) {
+function StepsElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
   const stepCount = 4;
   const stepDepth = element.length / stepCount;
+  const stepColor = viewMode === 'customer' ? '#a98255' : element.color;
 
   return (
     <group position={[element.x, 0, element.z]} rotation={[0, element.rotation, 0]}>
@@ -90,7 +132,7 @@ function StepsElement({ element }: { element: ProjectRenderElement }) {
         return (
           <mesh key={index} position={[-element.length / 2 + stepDepth * (index + 0.5), element.elevation + height / 2, 0]} castShadow receiveShadow>
             <boxGeometry args={[stepDepth, height, element.width]} />
-            <meshStandardMaterial color={element.color} roughness={0.68} transparent opacity={element.opacity} />
+            <meshStandardMaterial color={stepColor} roughness={0.72} transparent opacity={element.opacity} />
           </mesh>
         );
       })}
@@ -98,9 +140,11 @@ function StepsElement({ element }: { element: ProjectRenderElement }) {
   );
 }
 
-function BoatLiftElement({ element }: { element: ProjectRenderElement }) {
-  const postHeight = 3.2;
+function BoatLiftElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
+  const postHeight = 3.6;
   const beamY = element.elevation + postHeight;
+  const frameColor = viewMode === 'customer' ? '#dbe4ea' : '#0e7490';
+  const cableColor = viewMode === 'customer' ? '#64748b' : '#155e75';
   const postPositions = [
     [-element.length / 2, -element.width / 2],
     [element.length / 2, -element.width / 2],
@@ -112,77 +156,91 @@ function BoatLiftElement({ element }: { element: ProjectRenderElement }) {
     <group position={[element.x, 0, element.z]} rotation={[0, element.rotation, 0]}>
       {postPositions.map(([x, z]) => (
         <mesh key={`${x}-${z}`} position={[x, element.elevation + postHeight / 2, z]} castShadow>
-          <boxGeometry args={[0.18, postHeight, 0.18]} />
-          <meshStandardMaterial color="#0e7490" roughness={0.38} />
+          <boxGeometry args={[0.16, postHeight, 0.16]} />
+          <meshStandardMaterial color={frameColor} roughness={0.36} metalness={0.12} />
         </mesh>
       ))}
       {[-element.width / 2, element.width / 2].map((z) => (
         <mesh key={z} position={[0, beamY, z]} castShadow>
           <boxGeometry args={[element.length, 0.16, 0.16]} />
-          <meshStandardMaterial color="#155e75" roughness={0.36} />
+          <meshStandardMaterial color={frameColor} roughness={0.36} metalness={0.12} />
+        </mesh>
+      ))}
+      {[-element.length / 2, element.length / 2].map((x) => (
+        <mesh key={x} position={[x, beamY, 0]} castShadow>
+          <boxGeometry args={[0.14, 0.14, element.width]} />
+          <meshStandardMaterial color={frameColor} roughness={0.36} metalness={0.12} />
+        </mesh>
+      ))}
+      {[-0.24, 0.24].map((xOffset) => (
+        <mesh key={xOffset} position={[element.length * xOffset, element.elevation + postHeight * 0.48, 0]} castShadow>
+          <boxGeometry args={[0.05, postHeight * 0.86, 0.05]} />
+          <meshStandardMaterial color={cableColor} roughness={0.5} />
         </mesh>
       ))}
       <mesh position={[0, element.elevation + 0.18, 0]} receiveShadow>
-        <boxGeometry args={[element.length * 0.72, 0.08, element.width * 0.22]} />
-        <meshStandardMaterial color="#94a3b8" roughness={0.55} />
+        <boxGeometry args={[element.length * 0.7, 0.08, element.width * 0.24]} />
+        <meshStandardMaterial color={viewMode === 'customer' ? '#b6c4cc' : '#94a3b8'} roughness={0.55} />
       </mesh>
     </group>
   );
 }
 
-function RoofOverlayElement({ element }: { element: ProjectRenderElement }) {
-  const roofY = element.elevation + 3.4;
+function RoofOverlayElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
+  const roofY = element.elevation + 3.8;
+  const canopyColor = viewMode === 'customer' ? '#f3f8fb' : element.color;
+  const frameColor = viewMode === 'customer' ? '#cbd5e1' : '#475569';
 
   return (
     <group position={[element.x, 0, element.z]} rotation={[0, element.rotation, 0]}>
       <mesh position={[0, roofY, 0]} castShadow>
         <boxGeometry args={[element.length, 0.12, element.width]} />
-        <meshStandardMaterial color={element.color} roughness={0.35} transparent opacity={0.28} />
+        <meshStandardMaterial color={canopyColor} roughness={0.26} transparent opacity={0.36} />
       </mesh>
       <mesh position={[0, roofY + 0.08, -element.width / 2]} castShadow>
         <boxGeometry args={[element.length, 0.12, 0.12]} />
-        <meshStandardMaterial color="#475569" roughness={0.45} />
+        <meshStandardMaterial color={frameColor} roughness={0.45} />
       </mesh>
       <mesh position={[0, roofY + 0.08, element.width / 2]} castShadow>
         <boxGeometry args={[element.length, 0.12, 0.12]} />
-        <meshStandardMaterial color="#475569" roughness={0.45} />
+        <meshStandardMaterial color={frameColor} roughness={0.45} />
       </mesh>
       <mesh position={[-element.length / 2, roofY + 0.08, 0]} castShadow>
         <boxGeometry args={[0.12, 0.12, element.width]} />
-        <meshStandardMaterial color="#475569" roughness={0.45} />
+        <meshStandardMaterial color={frameColor} roughness={0.45} />
       </mesh>
       <mesh position={[element.length / 2, roofY + 0.08, 0]} castShadow>
         <boxGeometry args={[0.12, 0.12, element.width]} />
-        <meshStandardMaterial color="#475569" roughness={0.45} />
+        <meshStandardMaterial color={frameColor} roughness={0.45} />
       </mesh>
     </group>
   );
 }
 
-function ProjectElement({ element }: { element: ProjectRenderElement }) {
+function ProjectElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
   switch (element.type) {
     case 'floating_dock':
     case 'stationary_dock':
-      return <PlatformElement element={element} />;
+      return <PlatformElement element={element} viewMode={viewMode} />;
     case 'ramp_with_rails':
     case 'ramp_without_rails':
-      return <RampElement element={element} />;
+      return <RampElement element={element} viewMode={viewMode} />;
     case 'steps':
-      return <StepsElement element={element} />;
+      return <StepsElement element={element} viewMode={viewMode} />;
     case 'boat_lift':
-      return <BoatLiftElement element={element} />;
+      return <BoatLiftElement element={element} viewMode={viewMode} />;
     case 'roof_overlay':
-      return <RoofOverlayElement element={element} />;
+      return <RoofOverlayElement element={element} viewMode={viewMode} />;
     default:
       return null;
   }
 }
 
-export function ProjectDockModel({ model }: ProjectDockModelProps) {
+export function ProjectDockModel({ model, viewMode }: ProjectDockModelProps) {
   return (
     <group>
       {model.elements.map((element) => (
-        <ProjectElement key={element.id} element={element} />
+        <ProjectElement key={element.id} element={element} viewMode={viewMode} />
       ))}
     </group>
   );

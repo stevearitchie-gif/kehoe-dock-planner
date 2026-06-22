@@ -18,7 +18,7 @@ function isProjectRenderElementType(type: DockObjectType): type is ProjectRender
   return supportedObjectTypes.has(type);
 }
 
-function getFeetPerPixel(project: DockProject): { feetPerPixel: number; sourceUnitLabel: string } {
+function getFeetPerPixel(project: DockProject): { feetPerPixel: number; sourceUnitLabel: string; hasProjectScale: boolean } {
   const scale = project.scale;
 
   if (scale && scale.pixels > 0 && scale.realLength > 0) {
@@ -26,12 +26,14 @@ function getFeetPerPixel(project: DockProject): { feetPerPixel: number; sourceUn
     return {
       feetPerPixel: realLengthInFeet / scale.pixels,
       sourceUnitLabel: `project scale (${scale.unit})`,
+      hasProjectScale: true,
     };
   }
 
   return {
     feetPerPixel: 1 / FALLBACK_PIXELS_PER_FOOT,
     sourceUnitLabel: 'fallback scale',
+    hasProjectScale: false,
   };
 }
 
@@ -44,12 +46,15 @@ function getObjectCenter(object: DockObject) {
 
 export function buildProjectRenderModel(project: DockProject): ProjectRenderModel | null {
   const supportedObjects = project.objects.filter((object) => isProjectRenderElementType(object.type));
+  const unsupportedTypes = Array.from(
+    new Set(project.objects.filter((object) => !isProjectRenderElementType(object.type)).map((object) => object.type)),
+  ).sort();
 
   if (supportedObjects.length === 0) {
     return null;
   }
 
-  const { feetPerPixel, sourceUnitLabel } = getFeetPerPixel(project);
+  const { feetPerPixel, sourceUnitLabel, hasProjectScale } = getFeetPerPixel(project);
   const centers = supportedObjects.map(getObjectCenter);
   const originX = centers.reduce((total, point) => total + point.x, 0) / centers.length;
   const originY = centers.reduce((total, point) => total + point.y, 0) / centers.length;
@@ -76,6 +81,8 @@ export function buildProjectRenderModel(project: DockProject): ProjectRenderMode
     projectName: project.name,
     elements,
     sourceUnitLabel,
+    hasProjectScale,
     unsupportedCount: project.objects.length - supportedObjects.length,
+    unsupportedTypes,
   };
 }

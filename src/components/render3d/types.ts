@@ -13,7 +13,7 @@ export interface DockRenderSettings {
 
 export type CameraPreset = 'isometric' | 'top' | 'side' | 'front';
 
-export type RenderSource = 'project' | 'fallback';
+export type RenderViewMode = 'customer' | 'internal';
 
 export type ProjectRenderElementType =
   | 'floating_dock'
@@ -42,7 +42,9 @@ export interface ProjectRenderModel {
   projectName: string;
   elements: ProjectRenderElement[];
   sourceUnitLabel: string;
+  hasProjectScale: boolean;
   unsupportedCount: number;
+  unsupportedTypes: string[];
 }
 
 export const deckFinishLabels: Record<DeckFinish, string> = {
