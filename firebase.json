@@ -41,6 +41,15 @@
         ]
       },
       {
+        "source": "/login",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-store, no-cache, must-revalidate, max-age=0"
+          }
+        ]
+      },
+      {
         "source": "/projects",
         "headers": [
           {
@@ -51,6 +60,15 @@
       },
       {
         "source": "/projects/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-store, no-cache, must-revalidate, max-age=0"
+          }
+        ]
+      },
+      {
+        "source": "/editor",
         "headers": [
           {
             "key": "Cache-Control",

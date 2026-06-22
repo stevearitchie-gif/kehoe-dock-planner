@@ -6,6 +6,8 @@ import { ProjectsTable } from '@/components/projects/ProjectsTable';
 import { createProject, listProjects, removeProject } from '@/features/projects/projectService';
 import { DockProject } from '@/types/dock';
 
+const appBuildLabel = '3D Beta build: feature/3d-dock-render-poc / quote-preview-route-test';
+
 function buildNewProject(): DockProject {
   const now = new Date().toISOString();
 
@@ -204,7 +206,16 @@ export function ProjectsPage() {
           >
             {isDeletingProject ? 'Deleting...' : 'Delete Project'}
           </button>
+
+          <button
+            className="rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100"
+            onClick={() => navigate('/render3d/local-test?mode=quote-preview')}
+          >
+            Quote Preview Test
+          </button>
         </div>
+
+        <p className="mt-6 text-xs font-medium text-slate-500">{appBuildLabel}</p>
       </div>
     </AppShell>
   );
