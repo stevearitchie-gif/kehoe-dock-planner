@@ -8,6 +8,7 @@ interface RampElevationInfo {
   connectionDistance: number | null;
   deckTopHeight: number;
   lowerEndHeight: number;
+  railAxisLabel: string;
 }
 
 interface ProjectDockModelProps {
@@ -15,9 +16,12 @@ interface ProjectDockModelProps {
   viewMode: RenderViewMode;
 }
 
-const RAMP_THICKNESS = 0.32;
-const RAMP_LOWER_END_HEIGHT = 0.12;
-const RAMP_FLAT_TOP_HEIGHT = RAMP_THICKNESS;
+const RAMP_THICKNESS = 0.18;
+const RAMP_MIN_BOTTOM_HEIGHT = 0.04;
+const RAMP_FLAT_TOP_HEIGHT = RAMP_THICKNESS + RAMP_MIN_BOTTOM_HEIGHT;
+const RAMP_MIN_HEIGHT_DIFFERENCE = 0.35;
+const RAMP_MAX_HEIGHT_DIFFERENCE = 0.6;
+const RAMP_RAIL_AXIS_LABEL = 'local Y / 3D Z';
 const FLOATING_DOCK_DECK_TOP_HEIGHT = 0.52;
 const STATIONARY_DOCK_DECK_TOP_HEIGHT = 0.68;
 
@@ -81,13 +85,15 @@ function DebugLabel({ element, rampElevation }: { element: ProjectRenderElement;
   const railDiagnostic = element.type === 'ramp_with_rails' ? '\nrails: local Y edges' : '';
   const rampDiagnostic =
     element.type === 'ramp_with_rails' || element.type === 'ramp_without_rails'
-      ? `\nramp dock: ${
-          rampElevation?.hasConnection
-            ? `${rampElevation.dockEndSign === 1 ? '+Z' : '-Z'} ${rampElevation.connectedPlatformType ?? 'dock'}`
-            : 'not detected'
-        }\ndeck top:${(rampElevation?.deckTopHeight ?? RAMP_FLAT_TOP_HEIGHT).toFixed(2)} lower:${(
-          rampElevation?.lowerEndHeight ?? RAMP_FLAT_TOP_HEIGHT
-        ).toFixed(2)} dist:${rampElevation?.connectionDistance?.toFixed(2) ?? 'n/a'}`
+      ? `\nramp dock detected:${rampElevation?.hasConnection ? 'true' : 'false'}\ndock end:${
+          rampElevation?.dockEndSign === 1 ? '+Z' : '-Z'
+        } ${rampElevation?.connectedPlatformType ?? ''}\ndock h:${(rampElevation?.deckTopHeight ?? RAMP_FLAT_TOP_HEIGHT).toFixed(
+          2,
+        )} lower h:${(rampElevation?.lowerEndHeight ?? RAMP_FLAT_TOP_HEIGHT).toFixed(2)} diff:${(
+          (rampElevation?.deckTopHeight ?? RAMP_FLAT_TOP_HEIGHT) - (rampElevation?.lowerEndHeight ?? RAMP_FLAT_TOP_HEIGHT)
+        ).toFixed(2)}\naxis:${rampElevation?.railAxisLabel ?? RAMP_RAIL_AXIS_LABEL} dist:${
+          rampElevation?.connectionDistance?.toFixed(2) ?? 'n/a'
+        }`
       : '';
 
   return (
@@ -263,12 +269,13 @@ function RampRail({
   const yA = getLocalRampTopHeight(zA, element.width, elevationInfo) + 0.9;
   const yB = getLocalRampTopHeight(zB, element.width, elevationInfo) + 0.9;
   const beamCenterY = (yA + yB) / 2;
-  const slopeAngle = Math.asin(Math.max(-0.95, Math.min(0.95, (yA - yB) / element.width)));
+  const beamLength = Math.hypot(element.width, yB - yA);
+  const slopeAngle = Math.atan2(yA - yB, element.width);
 
   return (
     <group position={[x, 0, 0]}>
       <mesh position={[0, beamCenterY, 0]} rotation={[slopeAngle, 0, 0]} castShadow>
-        <boxGeometry args={[0.12, 0.12, element.width]} />
+        <boxGeometry args={[0.12, 0.12, beamLength]} />
         <meshStandardMaterial color={railColor} roughness={0.42} />
       </mesh>
       {railOffsets.map((zOffset) => {
@@ -429,6 +436,15 @@ function getPlatformDeckTopHeight(element: ProjectRenderElement) {
   return element.type === 'stationary_dock' ? STATIONARY_DOCK_DECK_TOP_HEIGHT : FLOATING_DOCK_DECK_TOP_HEIGHT;
 }
 
+function getRampLowerEndHeight(deckTopHeight: number) {
+  const preferredHeightDifference = Math.max(
+    RAMP_MIN_HEIGHT_DIFFERENCE,
+    Math.min(RAMP_MAX_HEIGHT_DIFFERENCE, deckTopHeight - (RAMP_THICKNESS + RAMP_MIN_BOTTOM_HEIGHT)),
+  );
+
+  return Math.max(RAMP_THICKNESS + RAMP_MIN_BOTTOM_HEIGHT, deckTopHeight - preferredHeightDifference);
+}
+
 function localPointToWorld(element: ProjectRenderElement, localX: number, localZ: number) {
   const cos = Math.cos(element.rotation);
   const sin = Math.sin(element.rotation);
@@ -474,6 +490,7 @@ function getRampElevationInfo(element: ProjectRenderElement, platforms: ProjectR
       connectionDistance: null,
       deckTopHeight: RAMP_FLAT_TOP_HEIGHT,
       lowerEndHeight: RAMP_FLAT_TOP_HEIGHT,
+      railAxisLabel: RAMP_RAIL_AXIS_LABEL,
     };
   }
 
@@ -492,16 +509,20 @@ function getRampElevationInfo(element: ProjectRenderElement, platforms: ProjectR
       connectionDistance: Number.isFinite(closest.distance) ? closest.distance : null,
       deckTopHeight: RAMP_FLAT_TOP_HEIGHT,
       lowerEndHeight: RAMP_FLAT_TOP_HEIGHT,
+      railAxisLabel: RAMP_RAIL_AXIS_LABEL,
     };
   }
+
+  const deckTopHeight = getPlatformDeckTopHeight(closest.platform);
 
   return {
     hasConnection: true,
     dockEndSign,
     connectedPlatformType: closest.platform.type,
     connectionDistance: closest.distance,
-    deckTopHeight: getPlatformDeckTopHeight(closest.platform),
-    lowerEndHeight: RAMP_LOWER_END_HEIGHT,
+    deckTopHeight,
+    lowerEndHeight: getRampLowerEndHeight(deckTopHeight),
+    railAxisLabel: RAMP_RAIL_AXIS_LABEL,
   };
 }
 
@@ -534,6 +555,7 @@ function ProjectElement({
               connectionDistance: null,
               deckTopHeight: RAMP_FLAT_TOP_HEIGHT,
               lowerEndHeight: RAMP_FLAT_TOP_HEIGHT,
+              railAxisLabel: RAMP_RAIL_AXIS_LABEL,
             }
           }
         />
