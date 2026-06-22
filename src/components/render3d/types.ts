@@ -36,6 +36,7 @@ export interface ProjectRenderElement {
   color: string;
   opacity: number;
   elevation: number;
+  scaleSourceLabel: string;
 }
 
 export interface ProjectRenderModel {
@@ -43,6 +44,9 @@ export interface ProjectRenderModel {
   elements: ProjectRenderElement[];
   sourceUnitLabel: string;
   hasProjectScale: boolean;
+  scalePixels: number | null;
+  scaleRealLength: number | null;
+  scaleUnit: string | null;
   unsupportedCount: number;
   unsupportedTypes: string[];
 }

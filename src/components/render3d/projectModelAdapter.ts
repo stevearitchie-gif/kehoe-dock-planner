@@ -18,15 +18,27 @@ function isProjectRenderElementType(type: DockObjectType): type is ProjectRender
   return supportedObjectTypes.has(type);
 }
 
-function getFeetPerPixel(project: DockProject): { feetPerPixel: number; sourceUnitLabel: string; hasProjectScale: boolean } {
+function getFeetPerPixel(project: DockProject): {
+  feetPerPixel: number;
+  sourceUnitLabel: string;
+  hasProjectScale: boolean;
+  scalePixels: number | null;
+  scaleRealLength: number | null;
+  scaleUnit: string | null;
+} {
   const scale = project.scale;
+  const scalePixels = Number(scale?.pixels);
+  const scaleRealLength = Number(scale?.realLength);
 
-  if (scale && scale.pixels > 0 && scale.realLength > 0) {
-    const realLengthInFeet = scale.unit === 'm' ? scale.realLength * FEET_PER_METER : scale.realLength;
+  if (scale && Number.isFinite(scalePixels) && Number.isFinite(scaleRealLength) && scalePixels > 0 && scaleRealLength > 0) {
+    const realLengthInFeet = scale.unit === 'm' ? scaleRealLength * FEET_PER_METER : scaleRealLength;
     return {
-      feetPerPixel: realLengthInFeet / scale.pixels,
-      sourceUnitLabel: `project scale (${scale.unit})`,
+      feetPerPixel: realLengthInFeet / scalePixels,
+      sourceUnitLabel: `${scalePixels.toFixed(0)} px = ${scaleRealLength} ${scale.unit}`,
       hasProjectScale: true,
+      scalePixels,
+      scaleRealLength,
+      scaleUnit: scale.unit,
     };
   }
 
@@ -34,6 +46,9 @@ function getFeetPerPixel(project: DockProject): { feetPerPixel: number; sourceUn
     feetPerPixel: 1 / FALLBACK_PIXELS_PER_FOOT,
     sourceUnitLabel: 'fallback scale',
     hasProjectScale: false,
+    scalePixels: Number.isFinite(scalePixels) ? scalePixels : null,
+    scaleRealLength: Number.isFinite(scaleRealLength) ? scaleRealLength : null,
+    scaleUnit: scale?.unit ?? null,
   };
 }
 
@@ -54,7 +69,7 @@ export function buildProjectRenderModel(project: DockProject): ProjectRenderMode
     return null;
   }
 
-  const { feetPerPixel, sourceUnitLabel, hasProjectScale } = getFeetPerPixel(project);
+  const { feetPerPixel, sourceUnitLabel, hasProjectScale, scalePixels, scaleRealLength, scaleUnit } = getFeetPerPixel(project);
   const centers = supportedObjects.map(getObjectCenter);
   const originX = centers.reduce((total, point) => total + point.x, 0) / centers.length;
   const originY = centers.reduce((total, point) => total + point.y, 0) / centers.length;
@@ -73,7 +88,8 @@ export function buildProjectRenderModel(project: DockProject): ProjectRenderMode
       rotation: -(object.rotation * Math.PI) / 180,
       color: object.color || '#9a8f63',
       opacity: object.opacity ?? 1,
-      elevation: object.metadata?.elevation ?? 0,
+      elevation: 0,
+      scaleSourceLabel: hasProjectScale ? 'project scale' : 'fallback scale',
     };
   });
 
@@ -82,6 +98,9 @@ export function buildProjectRenderModel(project: DockProject): ProjectRenderMode
     elements,
     sourceUnitLabel,
     hasProjectScale,
+    scalePixels,
+    scaleRealLength,
+    scaleUnit,
     unsupportedCount: project.objects.length - supportedObjects.length,
     unsupportedTypes,
   };

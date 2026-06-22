@@ -1,3 +1,4 @@
+import { Text } from '@react-three/drei';
 import type { ProjectRenderElement, ProjectRenderModel, RenderViewMode } from '@/components/render3d/types';
 
 interface ProjectDockModelProps {
@@ -30,6 +31,21 @@ function DeckBoardLines({ length, width, y, color = '#6b5438' }: { length: numbe
         </mesh>
       ))}
     </>
+  );
+}
+
+function DebugLabel({ element }: { element: ProjectRenderElement }) {
+  return (
+    <Text
+      position={[element.x, 4.7, element.z]}
+      rotation={[-Math.PI / 2, 0, 0]}
+      fontSize={0.65}
+      color="#0f172a"
+      anchorX="center"
+      anchorY="middle"
+    >
+      {`${element.type}\n${element.scaleSourceLabel}`}
+    </Text>
   );
 }
 
@@ -85,23 +101,22 @@ function PlatformElement({ element, viewMode }: { element: ProjectRenderElement;
 function RampElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
   const hasRails = element.type === 'ramp_with_rails';
   const rampThickness = 0.32;
-  const rampY = element.elevation + 0.62;
+  const rampY = element.elevation + rampThickness / 2;
   const railColor = viewMode === 'customer' ? '#f8fafc' : '#e2e8f0';
   const deckColor = viewMode === 'customer' ? '#aa8454' : element.color;
+  const railBaseY = element.elevation + rampThickness + 0.9;
 
   return (
     <group position={[element.x, 0, element.z]} rotation={[0, element.rotation, 0]}>
-      <mesh position={[0, rampY, 0]} rotation={[0, 0, -0.18]} castShadow receiveShadow>
+      <mesh position={[0, rampY, 0]} castShadow receiveShadow>
         <boxGeometry args={[element.length, rampThickness, element.width]} />
         <meshStandardMaterial color={deckColor} roughness={0.76} transparent opacity={element.opacity} />
       </mesh>
-      <group rotation={[0, 0, -0.18]}>
-        <DeckBoardLines length={element.length} width={element.width} y={rampY + rampThickness / 2 + 0.035} />
-      </group>
+      <DeckBoardLines length={element.length} width={element.width} y={element.elevation + rampThickness + 0.035} />
       {hasRails && (
         <>
           {[-1, 1].map((zSign) => (
-            <group key={zSign} position={[0, rampY + 1.2, zSign * (element.width / 2 + 0.12)]}>
+            <group key={zSign} position={[0, railBaseY, zSign * (element.width / 2 + 0.12)]}>
               <mesh castShadow>
                 <boxGeometry args={[element.length, 0.12, 0.12]} />
                 <meshStandardMaterial color={railColor} roughness={0.42} />
@@ -218,22 +233,36 @@ function RoofOverlayElement({ element, viewMode }: { element: ProjectRenderEleme
 }
 
 function ProjectElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
+  let renderedElement: JSX.Element | null = null;
+
   switch (element.type) {
     case 'floating_dock':
     case 'stationary_dock':
-      return <PlatformElement element={element} viewMode={viewMode} />;
+      renderedElement = <PlatformElement element={element} viewMode={viewMode} />;
+      break;
     case 'ramp_with_rails':
     case 'ramp_without_rails':
-      return <RampElement element={element} viewMode={viewMode} />;
+      renderedElement = <RampElement element={element} viewMode={viewMode} />;
+      break;
     case 'steps':
-      return <StepsElement element={element} viewMode={viewMode} />;
+      renderedElement = <StepsElement element={element} viewMode={viewMode} />;
+      break;
     case 'boat_lift':
-      return <BoatLiftElement element={element} viewMode={viewMode} />;
+      renderedElement = <BoatLiftElement element={element} viewMode={viewMode} />;
+      break;
     case 'roof_overlay':
-      return <RoofOverlayElement element={element} viewMode={viewMode} />;
+      renderedElement = <RoofOverlayElement element={element} viewMode={viewMode} />;
+      break;
     default:
       return null;
   }
+
+  return (
+    <>
+      {renderedElement}
+      {viewMode === 'internal' && <DebugLabel element={element} />}
+    </>
+  );
 }
 
 export function ProjectDockModel({ model, viewMode }: ProjectDockModelProps) {
