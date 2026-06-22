@@ -24,6 +24,20 @@ const defaultRenderSettings: DockRenderSettings = {
   deckFinish: 'pressure-treated',
 };
 
+type QuotePreviewDeckMaterial = 'pressure_treated_wood' | 'composite_grey';
+type QuotePreviewRampMaterial = 'aluminum';
+
+interface QuotePreviewControlState {
+  dockLengthFt: number;
+  dockWidthFt: number;
+  deckMaterial: QuotePreviewDeckMaterial;
+  tubeDiameterFt: number;
+  rampEnabled: boolean;
+  rampLengthFt: number;
+  rampWidthFt: number;
+  rampMaterial: QuotePreviewRampMaterial;
+}
+
 const materialLabels: Record<string, string> = {
   pressure_treated_wood: 'Pressure treated wood',
   tru_north_pvc: 'Tru North PVC',
@@ -36,6 +50,97 @@ const materialLabels: Record<string, string> = {
   sandblast_epoxy_paint: 'Sandblast and epoxy paint',
   unknown: 'Unknown',
 };
+
+function getDefaultQuotePreviewControls(): QuotePreviewControlState {
+  const details = getQuotePreviewDetails(sampleQuoteProductConfigurations);
+
+  return {
+    dockLengthFt: details.floatingDock?.dimensions?.lengthFt ?? 20,
+    dockWidthFt: details.floatingDock?.dimensions?.widthFt ?? 20,
+    deckMaterial: details.floatingDock?.material?.deck === 'composite_grey' ? 'composite_grey' : 'pressure_treated_wood',
+    tubeDiameterFt: details.floatingDock?.floatingDock?.tubeDiameterFt ?? 2,
+    rampEnabled: Boolean(details.ramp),
+    rampLengthFt: details.ramp?.dimensions?.lengthFt ?? 24,
+    rampWidthFt: details.ramp?.dimensions?.widthFt ?? 4,
+    rampMaterial: 'aluminum',
+  };
+}
+
+function buildQuotePreviewConfigurations(controls: QuotePreviewControlState): ProductConfiguration[] {
+  const floatingDock: ProductConfiguration = {
+    id: 'quote-floating-dock-20x20',
+    source: 'quote',
+    quoteLineItemId: 'sample-quote-line-floating-dock',
+    productType: 'floating_dock',
+    productFamily: 'kehoe_floating_dock',
+    displayName: `Floating Dock, ${controls.dockLengthFt} ft x ${controls.dockWidthFt} ft`,
+    quantity: 1,
+    dimensions: {
+      lengthFt: controls.dockLengthFt,
+      widthFt: controls.dockWidthFt,
+    },
+    material: {
+      deck: controls.deckMaterial,
+      frame: 'steel',
+      finish: 'standard',
+    },
+    floatingDock: {
+      layout: 'single',
+      sectionRole: 'main',
+      tubeType: 'standard_steel',
+      tubeDiameterFt: controls.tubeDiameterFt,
+      tubeSpecificationText: `${controls.tubeDiameterFt} ft steel floatation tubes`,
+    },
+    layout: {
+      xFt: 0,
+      yFt: 0,
+      rotationDeg: 0,
+    },
+    notes: {
+      customerWording: 'Editable sample quote configuration for a steel tube floating dock.',
+    },
+  };
+
+  if (!controls.rampEnabled) {
+    return [floatingDock];
+  }
+
+  return [
+    floatingDock,
+    {
+      id: 'quote-ramp-with-rails-24',
+      source: 'quote',
+      quoteLineItemId: 'sample-quote-line-ramp',
+      productType: 'ramp_with_rails',
+      productFamily: 'kehoe_ramp_with_rails',
+      displayName: `${formatMaterial(controls.rampMaterial)} Ramp With Rails, ${controls.rampWidthFt} ft x ${controls.rampLengthFt} ft`,
+      quantity: 1,
+      dimensions: {
+        lengthFt: controls.rampLengthFt,
+        widthFt: controls.rampWidthFt,
+      },
+      material: {
+        deck: 'composite_grey',
+        frame: controls.rampMaterial,
+        finish: 'standard',
+      },
+      ramp: {
+        hasRails: true,
+        connectionPoint: 'Dock edge',
+      },
+      layout: {
+        xFt: 0,
+        yFt: controls.dockWidthFt / 2 + controls.rampLengthFt / 2,
+        rotationDeg: 0,
+        connectedToId: floatingDock.id,
+        connectionEdge: 'bottom',
+      },
+      notes: {
+        customerWording: 'Editable sample quote configuration for a ramp with rails connected to the floating dock.',
+      },
+    },
+  ];
+}
 
 function formatMaterial(value?: string) {
   return value ? materialLabels[value] ?? value : 'Not specified';
@@ -55,6 +160,117 @@ function getQuotePreviewDetails(configurations: ProductConfiguration[]) {
   };
 }
 
+function toPositiveNumber(value: string, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function QuotePreviewControlPanel({
+  controls,
+  onChange,
+}: {
+  controls: QuotePreviewControlState;
+  onChange: (updates: Partial<QuotePreviewControlState>) => void;
+}) {
+  return (
+    <div className="mt-5 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Internal Quote Controls</p>
+      <div className="mt-3 grid gap-3">
+        <label className="grid gap-1">
+          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Floating Dock Length</span>
+          <input
+            type="number"
+            min="1"
+            step="1"
+            value={controls.dockLengthFt}
+            onChange={(event) => onChange({ dockLengthFt: toPositiveNumber(event.target.value, controls.dockLengthFt) })}
+            className="rounded-md border border-slate-300 px-2 py-1.5 text-slate-900"
+          />
+        </label>
+        <label className="grid gap-1">
+          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Floating Dock Width</span>
+          <input
+            type="number"
+            min="1"
+            step="1"
+            value={controls.dockWidthFt}
+            onChange={(event) => onChange({ dockWidthFt: toPositiveNumber(event.target.value, controls.dockWidthFt) })}
+            className="rounded-md border border-slate-300 px-2 py-1.5 text-slate-900"
+          />
+        </label>
+        <label className="grid gap-1">
+          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Deck Material</span>
+          <select
+            value={controls.deckMaterial}
+            onChange={(event) => onChange({ deckMaterial: event.target.value as QuotePreviewDeckMaterial })}
+            className="rounded-md border border-slate-300 px-2 py-1.5 text-slate-900"
+          >
+            <option value="pressure_treated_wood">Pressure treated wood</option>
+            <option value="composite_grey">Composite grey</option>
+          </select>
+        </label>
+        <label className="grid gap-1">
+          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Tube Diameter</span>
+          <input
+            type="number"
+            min="0.5"
+            step="0.25"
+            value={controls.tubeDiameterFt}
+            onChange={(event) => onChange({ tubeDiameterFt: toPositiveNumber(event.target.value, controls.tubeDiameterFt) })}
+            className="rounded-md border border-slate-300 px-2 py-1.5 text-slate-900"
+          />
+        </label>
+        <label className="flex items-center gap-2 text-sm font-medium text-slate-800">
+          <input
+            type="checkbox"
+            checked={controls.rampEnabled}
+            onChange={(event) => onChange({ rampEnabled: event.target.checked })}
+            className="h-4 w-4 rounded border-slate-300"
+          />
+          Ramp enabled
+        </label>
+        <div className={controls.rampEnabled ? 'grid gap-3' : 'grid gap-3 opacity-50'}>
+          <label className="grid gap-1">
+            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Ramp Length</span>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={controls.rampLengthFt}
+              disabled={!controls.rampEnabled}
+              onChange={(event) => onChange({ rampLengthFt: toPositiveNumber(event.target.value, controls.rampLengthFt) })}
+              className="rounded-md border border-slate-300 px-2 py-1.5 text-slate-900 disabled:bg-slate-100"
+            />
+          </label>
+          <label className="grid gap-1">
+            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Ramp Width</span>
+            <input
+              type="number"
+              min="1"
+              step="0.5"
+              value={controls.rampWidthFt}
+              disabled={!controls.rampEnabled}
+              onChange={(event) => onChange({ rampWidthFt: toPositiveNumber(event.target.value, controls.rampWidthFt) })}
+              className="rounded-md border border-slate-300 px-2 py-1.5 text-slate-900 disabled:bg-slate-100"
+            />
+          </label>
+          <label className="grid gap-1">
+            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Ramp Material</span>
+            <select
+              value={controls.rampMaterial}
+              disabled={!controls.rampEnabled}
+              onChange={() => onChange({ rampMaterial: 'aluminum' })}
+              className="rounded-md border border-slate-300 px-2 py-1.5 text-slate-900 disabled:bg-slate-100"
+            >
+              <option value="aluminum">Aluminum</option>
+            </select>
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function DockRender3DPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const quotePreviewMatch = useMatch('/render3d/quote-preview/:previewId');
@@ -68,6 +284,7 @@ export function DockRender3DPage() {
   const [project, setProject] = useState<DockProject | null>(null);
   const [isLoadingProject, setIsLoadingProject] = useState(false);
   const [loadMessage, setLoadMessage] = useState<string | null>(null);
+  const [quotePreviewControls, setQuotePreviewControls] = useState<QuotePreviewControlState>(() => getDefaultQuotePreviewControls());
   const canReturnToEditor = Boolean(projectId && projectId !== 'local-test' && !isQuotePreview);
 
   useEffect(() => {
@@ -129,16 +346,21 @@ export function DockRender3DPage() {
     return buildProjectRenderModel(project);
   }, [project]);
 
+  const quotePreviewConfigurations = useMemo(
+    () => buildQuotePreviewConfigurations(quotePreviewControls),
+    [quotePreviewControls],
+  );
+
   const quotePreviewModel = useMemo<ProjectRenderModel | null>(() => {
     if (!isQuotePreview) {
       return null;
     }
 
-    return buildProductConfigurationRenderModel(sampleQuoteProductConfigurations);
-  }, [isQuotePreview]);
+    return buildProductConfigurationRenderModel(quotePreviewConfigurations);
+  }, [isQuotePreview, quotePreviewConfigurations]);
   const quotePreviewDetails = useMemo(
-    () => (isQuotePreview ? getQuotePreviewDetails(sampleQuoteProductConfigurations) : null),
-    [isQuotePreview],
+    () => (isQuotePreview ? getQuotePreviewDetails(quotePreviewConfigurations) : null),
+    [isQuotePreview, quotePreviewConfigurations],
   );
 
   const activeModel = quotePreviewModel ?? projectModel;
@@ -290,6 +512,12 @@ export function DockRender3DPage() {
                   </div>
                 )}
               </dl>
+              {isModelFromQuote && (
+                <QuotePreviewControlPanel
+                  controls={quotePreviewControls}
+                  onChange={(updates) => setQuotePreviewControls((current) => ({ ...current, ...updates }))}
+                />
+              )}
               {isModelFromQuote && quotePreviewDetails && (
                 <div className="mt-5 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm">
                   <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Sample Quote Preview</p>
