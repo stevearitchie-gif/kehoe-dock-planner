@@ -44,9 +44,11 @@ function DebugLabel({ element }: { element: ProjectRenderElement }) {
       anchorX="center"
       anchorY="middle"
     >
-      {`${element.type}\n2D x:${Math.round(element.sourceX)} y:${Math.round(element.sourceY)}\nw:${Math.round(
+      {`${element.type}\nraw x:${Math.round(element.sourceX)} y:${Math.round(element.sourceY)}\ncenter x:${Math.round(
+        element.sourceCenterX,
+      )} z:${Math.round(element.sourceCenterY)}\nw:${Math.round(
         element.sourceWidth,
-      )} h:${Math.round(element.sourceHeight)} r:${Math.round(element.sourceRotation)}deg\n${element.scaleSourceLabel}`}
+      )} h:${Math.round(element.sourceHeight)} r:${Math.round(element.sourceRotation)}deg\n${element.anchorInterpretation}\n${element.scaleSourceLabel}`}
     </Text>
   );
 }

@@ -39,9 +39,12 @@ export interface ProjectRenderElement {
   scaleSourceLabel: string;
   sourceX: number;
   sourceY: number;
+  sourceCenterX: number;
+  sourceCenterY: number;
   sourceWidth: number;
   sourceHeight: number;
   sourceRotation: number;
+  anchorInterpretation: string;
 }
 
 export interface ProjectRenderModel {

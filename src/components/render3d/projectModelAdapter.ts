@@ -53,9 +53,13 @@ function getFeetPerPixel(project: DockProject): {
 }
 
 function getObjectCenter(object: DockObject) {
+  const rotationRadians = (object.rotation * Math.PI) / 180;
+  const halfWidth = object.width / 2;
+  const halfHeight = object.height / 2;
+
   return {
-    x: object.x + object.width / 2,
-    y: object.y + object.height / 2,
+    x: object.x + halfWidth * Math.cos(rotationRadians) - halfHeight * Math.sin(rotationRadians),
+    y: object.y + halfWidth * Math.sin(rotationRadians) + halfHeight * Math.cos(rotationRadians),
   };
 }
 
@@ -92,9 +96,12 @@ export function buildProjectRenderModel(project: DockProject): ProjectRenderMode
       scaleSourceLabel: hasProjectScale ? 'project scale' : 'fallback scale',
       sourceX: object.x,
       sourceY: object.y,
+      sourceCenterX: center.x,
+      sourceCenterY: center.y,
       sourceWidth: object.width,
       sourceHeight: object.height,
       sourceRotation: object.rotation,
+      anchorInterpretation: 'top-left group origin, center adjusted for rotation',
     };
   });
 
