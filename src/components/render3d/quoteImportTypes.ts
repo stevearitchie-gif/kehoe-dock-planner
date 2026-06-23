@@ -1,7 +1,7 @@
 import type { ProductConfiguration } from '@/components/render3d/productConfigTypes';
 
 export type QuoteImportRampType = 'ramp_with_rails' | 'ramp_without_rails';
-export type QuoteImportDeckMaterial = 'pressure_treated_wood' | 'composite_grey';
+export type QuoteImportDeckMaterial = 'pressure_treated_wood' | 'tru_north_pvc' | 'composite_grey';
 export type QuoteImportRampMaterial = 'aluminum';
 
 export interface NormalizedQuoteImportData {

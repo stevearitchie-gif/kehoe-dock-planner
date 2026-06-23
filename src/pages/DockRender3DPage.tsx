@@ -26,7 +26,7 @@ const defaultRenderSettings: DockRenderSettings = {
   deckFinish: 'pressure-treated',
 };
 
-type QuotePreviewDeckMaterial = 'pressure_treated_wood' | 'composite_grey';
+type QuotePreviewDeckMaterial = 'pressure_treated_wood' | 'tru_north_pvc' | 'composite_grey';
 type QuotePreviewRampMaterial = 'aluminum';
 type QuotePreviewSourceLabel =
   | 'sample quote controls'
@@ -64,7 +64,10 @@ function getDefaultQuotePreviewControls(): QuotePreviewControlState {
   return {
     dockLengthFt: details.floatingDock?.dimensions?.lengthFt ?? 20,
     dockWidthFt: details.floatingDock?.dimensions?.widthFt ?? 20,
-    deckMaterial: details.floatingDock?.material?.deck === 'composite_grey' ? 'composite_grey' : 'pressure_treated_wood',
+    deckMaterial:
+      details.floatingDock?.material?.deck === 'tru_north_pvc' || details.floatingDock?.material?.deck === 'composite_grey'
+        ? details.floatingDock.material.deck
+        : 'pressure_treated_wood',
     tubeDiameterFt: details.floatingDock?.floatingDock?.tubeDiameterFt ?? 2,
     rampEnabled: Boolean(details.ramp),
     rampLengthFt: details.ramp?.dimensions?.lengthFt ?? 24,
@@ -213,6 +216,7 @@ function QuotePreviewControlPanel({
             className="rounded-md border border-slate-300 px-2 py-1.5 text-slate-900"
           >
             <option value="pressure_treated_wood">Pressure treated wood</option>
+            <option value="tru_north_pvc">TruNorth PVC</option>
             <option value="composite_grey">Composite grey</option>
           </select>
         </label>
@@ -461,6 +465,16 @@ export function DockRender3DPage() {
     }
 
     setQuoteImportError(null);
+    setQuotePreviewControls({
+      dockLengthFt: result.normalized.dockLengthFt,
+      dockWidthFt: result.normalized.dockWidthFt,
+      deckMaterial: result.normalized.deckMaterial,
+      tubeDiameterFt: result.normalized.tubeDiameterFt,
+      rampEnabled: result.normalized.rampEnabled,
+      rampLengthFt: result.normalized.rampLengthFt,
+      rampWidthFt: result.normalized.rampWidthFt,
+      rampMaterial: result.normalized.rampMaterial,
+    });
     setActiveQuoteConfigurations(result.configurations);
     setQuotePreviewSourceLabel(result.warnings.length > 0 ? 'pasted quote data plus fallback defaults' : 'pasted quote data');
   };

@@ -83,8 +83,17 @@ function normalizeDeckMaterial(value: unknown, warnings: string[]): QuoteImportD
     return 'pressure_treated_wood';
   }
 
-  const normalized = value.trim().toLowerCase();
-  if (normalized.includes('composite') || normalized.includes('grey') || normalized.includes('gray') || normalized.includes('tru')) {
+  const normalized = value.trim().toLowerCase().replace(/[\s_-]+/g, '');
+  if (
+    normalized === 'pvc' ||
+    normalized.includes('trunorth') ||
+    normalized.includes('vinyl') ||
+    normalized.includes('composite')
+  ) {
+    return 'tru_north_pvc';
+  }
+
+  if (normalized.includes('grey') || normalized.includes('gray')) {
     return 'composite_grey';
   }
 
