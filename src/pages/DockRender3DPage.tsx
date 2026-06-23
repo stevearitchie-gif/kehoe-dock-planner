@@ -7,7 +7,9 @@ import { DockScene, type DockSceneHandle } from '@/components/render3d/DockScene
 import { RenderControlPanel } from '@/components/render3d/RenderControlPanel';
 import { buildProductConfigurationRenderModel } from '@/components/render3d/productConfigAdapter';
 import { buildProjectRenderModel } from '@/components/render3d/projectModelAdapter';
+import { parseQuoteImportJson } from '@/components/render3d/quoteImportAdapter';
 import { sampleQuoteProductConfigurations } from '@/components/render3d/sampleQuoteProductConfig';
+import { sampleQuoteImportPayloadText } from '@/components/render3d/sampleQuoteImportPayload';
 import { getProject } from '@/features/projects/projectService';
 import type { ProductConfiguration } from '@/components/render3d/productConfigTypes';
 import type { CameraPreset, DockRenderSettings, ProjectRenderModel, RenderViewMode } from '@/components/render3d/types';
@@ -271,6 +273,94 @@ function QuotePreviewControlPanel({
   );
 }
 
+function QuoteImportPanel({
+  importText,
+  importError,
+  importWarnings,
+  previewSourceLabel,
+  onImportTextChange,
+  onApplyImport,
+  onLoadSample,
+  onUseManualControls,
+}: {
+  importText: string;
+  importError: string | null;
+  importWarnings: string[];
+  previewSourceLabel: string;
+  onImportTextChange: (value: string) => void;
+  onApplyImport: () => void;
+  onLoadSample: () => void;
+  onUseManualControls: () => void;
+}) {
+  const isUsingImport = previewSourceLabel.startsWith('pasted quote data');
+
+  return (
+    <div className="mt-5 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-800">Quote Import Test</p>
+          <p className="mt-1 text-blue-950">Paste quote-style JSON to test ProductConfiguration import.</p>
+        </div>
+        <span
+          className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold uppercase tracking-wide ${
+            isUsingImport ? 'bg-emerald-100 text-emerald-800' : 'bg-white text-blue-800'
+          }`}
+        >
+          {previewSourceLabel}
+        </span>
+      </div>
+      <textarea
+        value={importText}
+        onChange={(event) => onImportTextChange(event.target.value)}
+        rows={10}
+        spellCheck={false}
+        className="mt-3 w-full rounded-md border border-blue-200 bg-white px-2 py-2 font-mono text-xs text-slate-900"
+      />
+      <div className="mt-3 grid gap-2">
+        <button
+          type="button"
+          onClick={onApplyImport}
+          className="rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700"
+        >
+          Apply Pasted Quote JSON
+        </button>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={onLoadSample}
+            className="rounded-md border border-blue-200 bg-white px-3 py-2 text-sm font-medium text-blue-800 hover:bg-blue-100"
+          >
+            Load Sample JSON
+          </button>
+          <button
+            type="button"
+            onClick={onUseManualControls}
+            className="rounded-md border border-blue-200 bg-white px-3 py-2 text-sm font-medium text-blue-800 hover:bg-blue-100"
+          >
+            Use Manual Controls
+          </button>
+        </div>
+      </div>
+      {importError && <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-red-800">{importError}</p>}
+      {importWarnings.length > 0 && (
+        <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+          <p className="font-medium">Import assumptions</p>
+          <ul className="mt-1 list-disc space-y-1 pl-4">
+            {importWarnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {isUsingImport && (
+        <p className="mt-3 text-xs text-blue-900">
+          Manual controls remain available below. Use Manual Controls to return the preview to editable sample values.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function DockRender3DPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const [searchParams] = useSearchParams();
@@ -288,6 +378,10 @@ export function DockRender3DPage() {
   const [isLoadingProject, setIsLoadingProject] = useState(false);
   const [loadMessage, setLoadMessage] = useState<string | null>(null);
   const [quotePreviewControls, setQuotePreviewControls] = useState<QuotePreviewControlState>(() => getDefaultQuotePreviewControls());
+  const [quoteImportText, setQuoteImportText] = useState(sampleQuoteImportPayloadText);
+  const [importedQuoteConfigurations, setImportedQuoteConfigurations] = useState<ProductConfiguration[] | null>(null);
+  const [quoteImportError, setQuoteImportError] = useState<string | null>(null);
+  const [quoteImportWarnings, setQuoteImportWarnings] = useState<string[]>([]);
   const canReturnToEditor = Boolean(projectId && projectId !== 'local-test' && !isQuotePreview);
 
   useEffect(() => {
@@ -349,10 +443,35 @@ export function DockRender3DPage() {
     return buildProjectRenderModel(project);
   }, [project]);
 
+  const handleApplyQuoteImport = () => {
+    const result = parseQuoteImportJson(quoteImportText);
+    setQuoteImportWarnings(result.warnings);
+
+    if (!result.ok) {
+      setQuoteImportError(result.error);
+      return;
+    }
+
+    setQuoteImportError(null);
+    setImportedQuoteConfigurations(result.configurations);
+  };
+
+  const handleUseManualQuoteControls = () => {
+    setImportedQuoteConfigurations(null);
+    setQuoteImportError(null);
+    setQuoteImportWarnings([]);
+  };
+
   const quotePreviewConfigurations = useMemo(
-    () => buildQuotePreviewConfigurations(quotePreviewControls),
-    [quotePreviewControls],
+    () => importedQuoteConfigurations ?? buildQuotePreviewConfigurations(quotePreviewControls),
+    [importedQuoteConfigurations, quotePreviewControls],
   );
+  const quotePreviewSourceLabel =
+    importedQuoteConfigurations && quoteImportWarnings.length > 0
+      ? 'pasted quote data + fallback defaults'
+      : importedQuoteConfigurations
+        ? 'pasted quote data'
+        : 'sample quote controls';
 
   const quotePreviewModel = useMemo<ProjectRenderModel | null>(() => {
     if (!isQuotePreview) {
@@ -370,7 +489,7 @@ export function DockRender3DPage() {
   const isModelFromQuote = Boolean(quotePreviewModel);
   const sourceNotice =
     isModelFromQuote
-      ? 'Rendering from quote ProductConfiguration sample'
+      ? `Rendering from quote ProductConfiguration (${quotePreviewSourceLabel})`
       : projectModel
         ? `Rendering from project data: ${projectModel.projectName}`
       : 'Rendering local proof-of-concept fallback';
@@ -470,6 +589,7 @@ export function DockRender3DPage() {
               <div className="absolute left-4 top-4 max-w-xl rounded-lg border border-amber-300 bg-amber-50/95 px-4 py-3 text-sm text-amber-950 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Sample Quote Preview</p>
                 <p className="mt-1 font-medium">Generated from ProductConfiguration, not a saved Dock Planner layout</p>
+                <p className="mt-1 text-xs text-amber-800">Preview source: {quotePreviewSourceLabel}</p>
               </div>
             )}
             {showTechnicalNotice && (
@@ -487,7 +607,7 @@ export function DockRender3DPage() {
               <h2 className="text-base font-semibold text-slate-900">{isModelFromQuote ? 'Quote Preview' : 'Project Render'}</h2>
               <p className="mt-1 text-sm text-slate-500">
                 {isModelFromQuote
-                  ? 'Standalone product geometry generated from sample quote configuration.'
+                  ? `Standalone product geometry generated from ${quotePreviewSourceLabel}.`
                   : 'Basic geometry generated from the saved 2D drawing.'}
               </p>
               <dl className="mt-5 grid gap-3 text-sm">
@@ -516,6 +636,21 @@ export function DockRender3DPage() {
                 )}
               </dl>
               {isModelFromQuote && (
+                <QuoteImportPanel
+                  importText={quoteImportText}
+                  importError={quoteImportError}
+                  importWarnings={quoteImportWarnings}
+                  previewSourceLabel={quotePreviewSourceLabel}
+                  onImportTextChange={setQuoteImportText}
+                  onApplyImport={handleApplyQuoteImport}
+                  onLoadSample={() => {
+                    setQuoteImportText(sampleQuoteImportPayloadText);
+                    setQuoteImportError(null);
+                  }}
+                  onUseManualControls={handleUseManualQuoteControls}
+                />
+              )}
+              {isModelFromQuote && (
                 <QuotePreviewControlPanel
                   controls={quotePreviewControls}
                   onChange={(updates) => setQuotePreviewControls((current) => ({ ...current, ...updates }))}
@@ -524,7 +659,9 @@ export function DockRender3DPage() {
               {isModelFromQuote && quotePreviewDetails && (
                 <div className="mt-5 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm">
                   <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Sample Quote Preview</p>
-                  <p className="mt-1 text-amber-950">Generated from ProductConfiguration, not a saved Dock Planner layout.</p>
+                  <p className="mt-1 text-amber-950">
+                    Generated from ProductConfiguration ({quotePreviewSourceLabel}), not a saved Dock Planner layout.
+                  </p>
                   <dl className="mt-4 grid gap-3">
                     <div>
                       <dt className="text-xs font-medium uppercase tracking-wide text-amber-800">Floating Dock Size</dt>
