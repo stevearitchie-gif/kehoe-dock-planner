@@ -28,6 +28,11 @@ const defaultRenderSettings: DockRenderSettings = {
 
 type QuotePreviewDeckMaterial = 'pressure_treated_wood' | 'composite_grey';
 type QuotePreviewRampMaterial = 'aluminum';
+type QuotePreviewSourceLabel =
+  | 'sample quote controls'
+  | 'manual controls'
+  | 'pasted quote data'
+  | 'pasted quote data plus fallback defaults';
 
 interface QuotePreviewControlState {
   dockLengthFt: number;
@@ -378,8 +383,11 @@ export function DockRender3DPage() {
   const [isLoadingProject, setIsLoadingProject] = useState(false);
   const [loadMessage, setLoadMessage] = useState<string | null>(null);
   const [quotePreviewControls, setQuotePreviewControls] = useState<QuotePreviewControlState>(() => getDefaultQuotePreviewControls());
+  const [activeQuoteConfigurations, setActiveQuoteConfigurations] = useState<ProductConfiguration[]>(() =>
+    buildQuotePreviewConfigurations(getDefaultQuotePreviewControls()),
+  );
+  const [quotePreviewSourceLabel, setQuotePreviewSourceLabel] = useState<QuotePreviewSourceLabel>('sample quote controls');
   const [quoteImportText, setQuoteImportText] = useState(sampleQuoteImportPayloadText);
-  const [importedQuoteConfigurations, setImportedQuoteConfigurations] = useState<ProductConfiguration[] | null>(null);
   const [quoteImportError, setQuoteImportError] = useState<string | null>(null);
   const [quoteImportWarnings, setQuoteImportWarnings] = useState<string[]>([]);
   const canReturnToEditor = Boolean(projectId && projectId !== 'local-test' && !isQuotePreview);
@@ -453,36 +461,38 @@ export function DockRender3DPage() {
     }
 
     setQuoteImportError(null);
-    setImportedQuoteConfigurations(result.configurations);
+    setActiveQuoteConfigurations(result.configurations);
+    setQuotePreviewSourceLabel(result.warnings.length > 0 ? 'pasted quote data plus fallback defaults' : 'pasted quote data');
   };
 
   const handleUseManualQuoteControls = () => {
-    setImportedQuoteConfigurations(null);
+    setActiveQuoteConfigurations(buildQuotePreviewConfigurations(quotePreviewControls));
+    setQuotePreviewSourceLabel('manual controls');
     setQuoteImportError(null);
     setQuoteImportWarnings([]);
   };
 
-  const quotePreviewConfigurations = useMemo(
-    () => importedQuoteConfigurations ?? buildQuotePreviewConfigurations(quotePreviewControls),
-    [importedQuoteConfigurations, quotePreviewControls],
-  );
-  const quotePreviewSourceLabel =
-    importedQuoteConfigurations && quoteImportWarnings.length > 0
-      ? 'pasted quote data + fallback defaults'
-      : importedQuoteConfigurations
-        ? 'pasted quote data'
-        : 'sample quote controls';
+  const handleQuotePreviewControlsChange = (updates: Partial<QuotePreviewControlState>) => {
+    setQuotePreviewControls((current) => {
+      const nextControls = { ...current, ...updates };
+      setActiveQuoteConfigurations(buildQuotePreviewConfigurations(nextControls));
+      return nextControls;
+    });
+    setQuotePreviewSourceLabel('manual controls');
+    setQuoteImportError(null);
+    setQuoteImportWarnings([]);
+  };
 
   const quotePreviewModel = useMemo<ProjectRenderModel | null>(() => {
     if (!isQuotePreview) {
       return null;
     }
 
-    return buildProductConfigurationRenderModel(quotePreviewConfigurations);
-  }, [isQuotePreview, quotePreviewConfigurations]);
+    return buildProductConfigurationRenderModel(activeQuoteConfigurations);
+  }, [isQuotePreview, activeQuoteConfigurations]);
   const quotePreviewDetails = useMemo(
-    () => (isQuotePreview ? getQuotePreviewDetails(quotePreviewConfigurations) : null),
-    [isQuotePreview, quotePreviewConfigurations],
+    () => (isQuotePreview ? getQuotePreviewDetails(activeQuoteConfigurations) : null),
+    [isQuotePreview, activeQuoteConfigurations],
   );
 
   const activeModel = quotePreviewModel ?? projectModel;
@@ -653,7 +663,7 @@ export function DockRender3DPage() {
               {isModelFromQuote && (
                 <QuotePreviewControlPanel
                   controls={quotePreviewControls}
-                  onChange={(updates) => setQuotePreviewControls((current) => ({ ...current, ...updates }))}
+                  onChange={handleQuotePreviewControlsChange}
                 />
               )}
               {isModelFromQuote && quotePreviewDetails && (

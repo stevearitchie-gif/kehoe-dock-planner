@@ -735,6 +735,29 @@ function getRampElevationInfo(element: ProjectRenderElement, platforms: ProjectR
   };
 }
 
+function formatKeyNumber(value: number | null | undefined) {
+  return Number.isFinite(value) ? Number(value).toFixed(3) : 'na';
+}
+
+function getElementRenderKey(element: ProjectRenderElement, rampElevation?: RampElevationInfo) {
+  return [
+    element.id,
+    element.type,
+    formatKeyNumber(element.x),
+    formatKeyNumber(element.z),
+    formatKeyNumber(element.length),
+    formatKeyNumber(element.width),
+    formatKeyNumber(element.rotation),
+    formatKeyNumber(element.elevation),
+    element.deckFinish ?? 'deck-default',
+    formatKeyNumber(element.tubeDiameterFt),
+    rampElevation ? String(rampElevation.hasConnection) : 'no-ramp',
+    rampElevation ? formatKeyNumber(rampElevation.deckTopHeight) : 'na',
+    rampElevation ? formatKeyNumber(rampElevation.lowerEndHeight) : 'na',
+    rampElevation ? formatKeyNumber(rampElevation.visualDockEndZ) : 'na',
+  ].join(':');
+}
+
 function ProjectElement({
   element,
   viewMode,
@@ -831,7 +854,7 @@ export function ProjectDockModel({ model, viewMode }: ProjectDockModelProps) {
       {model.elements.map((element) => {
         const rampElevation = isRampElement(element) ? getRampElevationInfo(element, platforms) : undefined;
 
-        return <ProjectElement key={element.id} element={element} viewMode={viewMode} rampElevation={rampElevation} />;
+        return <ProjectElement key={getElementRenderKey(element, rampElevation)} element={element} viewMode={viewMode} rampElevation={rampElevation} />;
       })}
     </group>
   );
