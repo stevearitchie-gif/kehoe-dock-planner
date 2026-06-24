@@ -295,6 +295,41 @@ function RailPosts({
   );
 }
 
+function RailDiagonalBraces({
+  x,
+  zStart,
+  zEnd,
+  footprintLengthFt,
+  slope,
+  color,
+}: {
+  x: number;
+  zStart: number;
+  zEnd: number;
+  footprintLengthFt: number;
+  slope: KehoeRampSlope;
+  color: string;
+}) {
+  const span = zEnd - zStart;
+  const bracePositions = [0.28, 0.72];
+
+  return (
+    <>
+      {bracePositions.map((position, index) => {
+        const z = zStart + span * position;
+        const y = getRampTopHeightAtZ(z, footprintLengthFt, slope) + RAIL_HEIGHT_FT * 0.46;
+
+        return (
+          <mesh key={position} position={[x, y, z]} rotation={[0.38 * (index % 2 === 0 ? 1 : -1), 0, 0]} castShadow>
+            <boxGeometry args={[0.08, 0.08, 1.2]} />
+            <meshStandardMaterial color={color} roughness={0.48} metalness={0.08} />
+          </mesh>
+        );
+      })}
+    </>
+  );
+}
+
 function EndPlate({
   z,
   width,
@@ -317,6 +352,63 @@ function EndPlate({
       <boxGeometry args={[width, 0.06, depth]} />
       <meshStandardMaterial color={color} roughness={0.55} metalness={0.08} />
     </mesh>
+  );
+}
+
+function HingeBarrels({
+  z,
+  width,
+  footprintLengthFt,
+  slope,
+  color,
+}: {
+  z: number;
+  width: number;
+  footprintLengthFt: number;
+  slope: KehoeRampSlope;
+  color: string;
+}) {
+  const y = getRampTopHeightAtZ(z, footprintLengthFt, slope) + 0.12;
+  const barrelWidth = Math.min(0.72, width * 0.18);
+  const xPositions = [-width * 0.28, 0, width * 0.28];
+
+  return (
+    <>
+      {xPositions.map((x) => (
+        <mesh key={x} position={[x, y, z]} rotation={[0, 0, Math.PI / 2]} castShadow>
+          <cylinderGeometry args={[0.08, 0.08, barrelWidth, 16, 1]} />
+          <meshStandardMaterial color={color} roughness={0.38} metalness={0.18} />
+        </mesh>
+      ))}
+    </>
+  );
+}
+
+function LowerRollers({
+  z,
+  width,
+  footprintLengthFt,
+  slope,
+  color,
+}: {
+  z: number;
+  width: number;
+  footprintLengthFt: number;
+  slope: KehoeRampSlope;
+  color: string;
+}) {
+  const y = Math.max(BASE_CLEARANCE_FT + 0.1, getRampTopHeightAtZ(z, footprintLengthFt, slope) - FRAME_DEPTH_FT - 0.02);
+  const xPositions = [-width * 0.32, width * 0.32];
+
+  return (
+    <>
+      {xPositions.map((x) => (
+        <mesh key={x} position={[x, y, z]} rotation={[0, 0, Math.PI / 2]} castShadow receiveShadow>
+          <cylinderGeometry args={[0.11, 0.11, 0.42, 16, 1]} />
+          <meshStandardMaterial color={color} roughness={0.44} metalness={0.12} />
+        </mesh>
+      ))}
+    </>
   );
 }
 
@@ -378,8 +470,12 @@ export function KehoeRampWithRails({
       <CrossMembers width={footprintWidthFt} zStart={zStart} zEnd={zEnd} footprintLengthFt={footprintLengthFt} slope={slope} color={materials.aluminumDark} />
       <RampDeckLines width={deckWidth} zStart={zStart} zEnd={zEnd} footprintLengthFt={footprintLengthFt} slope={slope} color={materials.deckLine} />
       <EndPlate z={lowerEndZ} width={footprintWidthFt + 0.12} footprintLengthFt={footprintLengthFt} slope={slope} color={materials.lowerPlate} depth={0.32} />
+      <LowerRollers z={lowerEndZ} width={footprintWidthFt} footprintLengthFt={footprintLengthFt} slope={slope} color={materials.aluminumDark} />
       {slope.hasConnection && (
-        <EndPlate z={dockEndZ} width={footprintWidthFt + 0.24} footprintLengthFt={footprintLengthFt} slope={slope} color={materials.plate} depth={0.24} />
+        <>
+          <EndPlate z={dockEndZ} width={footprintWidthFt + 0.24} footprintLengthFt={footprintLengthFt} slope={slope} color={materials.plate} depth={0.24} />
+          <HingeBarrels z={dockEndZ} width={footprintWidthFt} footprintLengthFt={footprintLengthFt} slope={slope} color={materials.aluminumDark} />
+        </>
       )}
       {[-1, 1].map((sign) => (
         <group key={sign}>
@@ -403,6 +499,14 @@ export function KehoeRampWithRails({
             slope={slope}
             color={materials.aluminumDark}
             radius={0.1}
+          />
+          <RailDiagonalBraces
+            x={sign * railingX}
+            zStart={zStart}
+            zEnd={zEnd}
+            footprintLengthFt={footprintLengthFt}
+            slope={slope}
+            color={materials.aluminumDark}
           />
         </group>
       ))}

@@ -6,6 +6,43 @@ Kehoe Floating Dock.
 
 Phase 1B target: a parametric floating dock component that can represent Kehoe wood-deck and composite-deck floating dock sections in the 3D project render.
 
+## Current Implementation Status
+
+- Implemented as `src/components/render3d/products/KehoeFloatingDock.tsx`.
+- Used for `floating_dock` elements in saved project renders and ProductConfiguration quote previews.
+- Preserves the 2D footprint, center, rotation, length, and width supplied by the project or quote adapter.
+- Supports pressure-treated, TruNorth/PVC/composite grey, and composite brown visual finishes through `DeckFinish` mapping.
+- Renders a deck slab, deck board detail, perimeter fascia, rub strip, cross members, 24 inch default round tube pontoons, side fasteners, connection plates, and customer-view cleats.
+- Stationary docks intentionally remain outside the product-library scope for now and continue using generic platform geometry.
+
+## Target Scope For Next Implementation
+
+- Keep the component fully parametric and lightweight.
+- Refine the existing sales visual rather than importing CAD.
+- Confirm standard tube centerlines, frame/fascia depth, deck board direction, and connection plate positions before making geometry claims.
+- Add optional spud sleeves, chain pockets, and connection hardware only after confirmed reference dimensions are available.
+
+## Supported Dimensions And Options
+
+- `footprintWidthFt` and `footprintLengthFt` from the 2D project/quote footprint.
+- `tubeDiameterFt`, defaulting to 2 ft for the standard 24 inch steel flotation tube.
+- `deckFinish`: pressure treated, composite grey/TruNorth PVC, composite brown, and cedar-compatible placeholder.
+- Customer/Internal view material differences.
+
+## Visual Rules
+
+- The component must stay inside the source 2D footprint in Top View.
+- Pontoons should sit below the deck/fascia and remain visible from side and angled Customer View.
+- Deck detail should read as board/tread lines without becoming too visually noisy.
+- Internal View footprint outlines and diagnostics are owned by `ProjectDockModel`, not by the product component.
+
+## Material Rules
+
+- Pressure-treated decks use warmer wood colours with subtle plank variation.
+- TruNorth/PVC/composite decks use cooler grey/tan values with cleaner, flatter plank highlights.
+- Steel tubes use dark muted metal colours.
+- Hardware uses satin galvanized/aluminum colours.
+
 ## Source Files Reviewed
 
 Local reference folder:

@@ -4,6 +4,40 @@
 
 Kehoe Standard 24' Aluminum Ramp With Rails.
 
+## Current Implementation Status
+
+- Implemented as `src/components/render3d/products/KehoeRampWithRails.tsx`.
+- Used for `ramp_with_rails` elements in saved project renders and ProductConfiguration quote previews.
+- Preserves the 2D footprint, center, rotation, length, width, rail-side convention, and dock connection trim data calculated by `ProjectDockModel`.
+- Renders a sloped ramp body, aluminum side frames, deck/tread lines, cross members, rail posts, top rails, midrails, dock-end plate, lower plate, hinge barrels, lower rollers, and light rail brace detail.
+- Slope remains a visual sales/rendering approximation only and should not be treated as engineering-grade elevation.
+
+## Target Scope For Next Implementation
+
+- Keep using calculated project/quote footprint and slope inputs.
+- Confirm rail bay spacing, hinge geometry, roller/shore-end details, and frame section placement from CAD/drawings before finalizing product geometry.
+- Add a sibling ramp-without-rails product component by reusing the ramp body and omitting rails.
+
+## Supported Dimensions And Options
+
+- `footprintWidthFt` and `footprintLengthFt` from project or ProductConfiguration data.
+- Visual slope data from `ProjectDockModel`: dock end, dock height, lower end height, and visual trim location.
+- Customer/Internal view materials.
+- Current deck finish is visually grey; future prop should support pressure-treated and composite options.
+
+## Visual Rules
+
+- Top View footprint must match the 2D editor/quote footprint.
+- Railings run along the ramp long sides according to the established 2D convention.
+- The dock-end plate and hinge detail may visually cap/trim overlap, but must not move the source footprint.
+- Lower rollers and plates must stay above the water/base plane.
+
+## Material Rules
+
+- Aluminum members use satin grey, with darker shadowed rail/crossmember accents.
+- Deck/tread surface uses muted grey until exact deck finish data is passed through.
+- Internal View keeps diagnostic colour contrast from the surrounding render layer.
+
 ## Source Files Reviewed
 
 Local reference folder:

@@ -26,16 +26,18 @@ const CLEAT_LENGTH_FT = 0.8;
 function getMaterials(viewMode: RenderViewMode, deckFinish: FloatingDockDeckFinish, deckColorOverride?: string) {
   const isCustomer = viewMode === 'customer';
   const deckColors: Record<FloatingDockDeckFinish, string> = {
-    'pressure-treated': isCustomer ? '#a8794d' : '#9a8f63',
+    'pressure-treated': isCustomer ? '#b98654' : '#9a8f63',
     cedar: '#b57943',
-    'composite-grey': '#9a9c96',
+    'composite-grey': isCustomer ? '#9ea4a1' : '#8d99a6',
     'composite-brown': '#8a5f3d',
   };
+  const isComposite = deckFinish === 'composite-grey' || deckFinish === 'composite-brown';
 
   return {
     deck: deckColorOverride || deckColors[deckFinish],
-    deckLine: deckFinish === 'composite-grey' ? '#6f736f' : '#654424',
-    fascia: deckFinish === 'composite-grey' ? '#8b8f8d' : '#7c5534',
+    deckAlt: isComposite ? (deckFinish === 'composite-grey' ? '#b4b8b4' : '#9a704b') : '#c0915d',
+    deckLine: isComposite ? '#656b68' : '#654424',
+    fascia: isComposite ? (deckFinish === 'composite-grey' ? '#7f8582' : '#755033') : '#7c5534',
     fasciaDark: '#1f2933',
     pontoon: isCustomer ? '#2c2119' : '#334155',
     pontoonEnd: isCustomer ? '#3a2b21' : '#475569',
@@ -43,6 +45,42 @@ function getMaterials(viewMode: RenderViewMode, deckFinish: FloatingDockDeckFini
     metal: isCustomer ? '#cbd5d8' : '#d1d5db',
     fastener: isCustomer ? '#d8dee2' : '#f8fafc',
   };
+}
+
+function DeckPlankHighlights({
+  width,
+  length,
+  y,
+  color,
+  deckFinish,
+}: {
+  width: number;
+  length: number;
+  y: number;
+  color: string;
+  deckFinish: FloatingDockDeckFinish;
+}) {
+  const plankCount = Math.max(4, Math.min(24, Math.round(length / 2)));
+  const plankLength = length / plankCount;
+  const isComposite = deckFinish === 'composite-grey' || deckFinish === 'composite-brown';
+
+  return (
+    <>
+      {Array.from({ length: plankCount }, (_, index) => {
+        if (isComposite && index % 2 === 1) {
+          return null;
+        }
+
+        const z = -length / 2 + plankLength * (index + 0.5);
+        return (
+          <mesh key={index} position={[0, y, z]} receiveShadow>
+            <boxGeometry args={[width - 0.26, 0.012, Math.max(0.16, plankLength * 0.72)]} />
+            <meshStandardMaterial color={color} roughness={isComposite ? 0.64 : 0.84} transparent opacity={isComposite ? 0.22 : 0.28} />
+          </mesh>
+        );
+      })}
+    </>
+  );
 }
 
 function DeckBoardLines({
@@ -263,6 +301,7 @@ export function KehoeFloatingDock({
         <boxGeometry args={[footprintWidthFt, DECK_THICKNESS_FT, footprintLengthFt]} />
         <meshStandardMaterial color={materials.deck} roughness={0.78} transparent opacity={opacity} />
       </mesh>
+      <DeckPlankHighlights width={footprintWidthFt} length={footprintLengthFt} y={deckTopY + 0.012} color={materials.deckAlt} deckFinish={deckFinish} />
       <DeckBoardLines width={footprintWidthFt} length={footprintLengthFt} y={deckTopY + 0.018} color={materials.deckLine} />
 
       <mesh position={[0, fasciaY, -footprintLengthFt / 2 + FASCIA_THICKNESS_FT / 2]} castShadow receiveShadow>
