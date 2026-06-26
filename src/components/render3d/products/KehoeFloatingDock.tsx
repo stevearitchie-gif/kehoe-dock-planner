@@ -15,15 +15,14 @@ export interface KehoeFloatingDockProps {
 const DECK_THICKNESS_FT = 0.22;
 const FASCIA_DEPTH_FT = 0.92;
 const FASCIA_THICKNESS_FT = 0.22;
-const BOARD_SPACING_FT = 0.5;
+const BOARD_SPACING_FT = 0.9;
 const DEFAULT_TUBE_DIAMETER_FT = 2;
 const TUBE_TOP_CLEARANCE_FT = 0.08;
 const PONTOON_INSET_FT = 0.95;
 const CROSS_MEMBER_SPACING_FT = 4;
 const CLEAT_WIDTH_FT = 0.42;
 const CLEAT_LENGTH_FT = 0.8;
-const DECK_HIGHLIGHT_OFFSET_FT = 0.032;
-const DECK_LINE_OFFSET_FT = 0.062;
+const DECK_LINE_OFFSET_FT = 0.045;
 
 function getMaterials(viewMode: RenderViewMode, deckFinish: FloatingDockDeckFinish, deckColorOverride?: string) {
   const isCustomer = viewMode === 'customer';
@@ -37,8 +36,7 @@ function getMaterials(viewMode: RenderViewMode, deckFinish: FloatingDockDeckFini
 
   return {
     deck: deckColorOverride || deckColors[deckFinish],
-    deckAlt: isComposite ? (deckFinish === 'composite-grey' ? '#b4b8b4' : '#9a704b') : '#c0915d',
-    deckLine: isComposite ? '#656b68' : '#654424',
+    deckLine: isComposite ? '#858b88' : '#9b6f48',
     fascia: isComposite ? (deckFinish === 'composite-grey' ? '#7f8582' : '#755033') : '#7c5534',
     fasciaDark: '#1f2933',
     pontoon: isCustomer ? '#2c2119' : '#334155',
@@ -47,42 +45,6 @@ function getMaterials(viewMode: RenderViewMode, deckFinish: FloatingDockDeckFini
     metal: isCustomer ? '#cbd5d8' : '#d1d5db',
     fastener: isCustomer ? '#d8dee2' : '#f8fafc',
   };
-}
-
-function DeckPlankHighlights({
-  width,
-  length,
-  y,
-  color,
-  deckFinish,
-}: {
-  width: number;
-  length: number;
-  y: number;
-  color: string;
-  deckFinish: FloatingDockDeckFinish;
-}) {
-  const stripCount = Math.max(4, Math.min(14, Math.round(width / 0.75)));
-  const stripWidth = width / stripCount;
-  const isComposite = deckFinish === 'composite-grey' || deckFinish === 'composite-brown';
-
-  return (
-    <>
-      {Array.from({ length: stripCount }, (_, index) => {
-        if (isComposite && index % 2 === 1) {
-          return null;
-        }
-
-        const x = -width / 2 + stripWidth * (index + 0.5);
-        return (
-          <mesh key={index} position={[x, y, 0]} receiveShadow>
-            <boxGeometry args={[Math.max(0.12, stripWidth * 0.62), 0.014, length - 0.28]} />
-            <meshStandardMaterial color={color} roughness={isComposite ? 0.66 : 0.86} />
-          </mesh>
-        );
-      })}
-    </>
-  );
 }
 
 function DeckBoardLines({
@@ -96,17 +58,17 @@ function DeckBoardLines({
   y: number;
   color: string;
 }) {
-  const lineCount = Math.max(3, Math.min(28, Math.round(width / BOARD_SPACING_FT)));
+  const lineCount = Math.max(2, Math.min(16, Math.round(width / BOARD_SPACING_FT)));
   const spacing = width / lineCount;
 
   return (
     <>
-      {Array.from({ length: lineCount + 1 }, (_, index) => {
-        const x = -width / 2 + index * spacing;
+      {Array.from({ length: Math.max(0, lineCount - 1) }, (_, index) => {
+        const x = -width / 2 + (index + 1) * spacing;
 
         return (
-          <mesh key={index} position={[x, y, 0]} receiveShadow>
-            <boxGeometry args={[0.018, 0.014, length - 0.18]} />
+          <mesh key={index} position={[x, y, 0]}>
+            <boxGeometry args={[0.01, 0.01, length - 0.32]} />
             <meshStandardMaterial color={color} roughness={0.82} />
           </mesh>
         );
@@ -303,13 +265,6 @@ export function KehoeFloatingDock({
         <boxGeometry args={[footprintWidthFt, DECK_THICKNESS_FT, footprintLengthFt]} />
         <meshStandardMaterial color={materials.deck} roughness={0.78} transparent={opacity < 1} opacity={opacity} />
       </mesh>
-      <DeckPlankHighlights
-        width={footprintWidthFt}
-        length={footprintLengthFt}
-        y={deckTopY + DECK_HIGHLIGHT_OFFSET_FT}
-        color={materials.deckAlt}
-        deckFinish={deckFinish}
-      />
       <DeckBoardLines width={footprintWidthFt} length={footprintLengthFt} y={deckTopY + DECK_LINE_OFFSET_FT} color={materials.deckLine} />
 
       <mesh position={[0, fasciaY, -footprintLengthFt / 2 + FASCIA_THICKNESS_FT / 2]} castShadow receiveShadow>
