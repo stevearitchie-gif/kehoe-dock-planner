@@ -62,21 +62,21 @@ function DeckPlankHighlights({
   color: string;
   deckFinish: FloatingDockDeckFinish;
 }) {
-  const plankCount = Math.max(4, Math.min(24, Math.round(length / 2)));
-  const plankLength = length / plankCount;
+  const stripCount = Math.max(4, Math.min(14, Math.round(width / 0.75)));
+  const stripWidth = width / stripCount;
   const isComposite = deckFinish === 'composite-grey' || deckFinish === 'composite-brown';
 
   return (
     <>
-      {Array.from({ length: plankCount }, (_, index) => {
+      {Array.from({ length: stripCount }, (_, index) => {
         if (isComposite && index % 2 === 1) {
           return null;
         }
 
-        const z = -length / 2 + plankLength * (index + 0.5);
+        const x = -width / 2 + stripWidth * (index + 0.5);
         return (
-          <mesh key={index} position={[0, y, z]} receiveShadow>
-            <boxGeometry args={[width - 0.26, 0.014, Math.max(0.16, plankLength * 0.72)]} />
+          <mesh key={index} position={[x, y, 0]} receiveShadow>
+            <boxGeometry args={[Math.max(0.12, stripWidth * 0.62), 0.014, length - 0.28]} />
             <meshStandardMaterial color={color} roughness={isComposite ? 0.66 : 0.86} />
           </mesh>
         );
@@ -96,17 +96,17 @@ function DeckBoardLines({
   y: number;
   color: string;
 }) {
-  const lineCount = Math.max(4, Math.min(80, Math.round(length / BOARD_SPACING_FT)));
-  const spacing = length / lineCount;
+  const lineCount = Math.max(3, Math.min(28, Math.round(width / BOARD_SPACING_FT)));
+  const spacing = width / lineCount;
 
   return (
     <>
       {Array.from({ length: lineCount + 1 }, (_, index) => {
-        const z = -length / 2 + index * spacing;
+        const x = -width / 2 + index * spacing;
 
         return (
-          <mesh key={index} position={[0, y, z]} receiveShadow>
-            <boxGeometry args={[width - 0.18, 0.014, 0.018]} />
+          <mesh key={index} position={[x, y, 0]} receiveShadow>
+            <boxGeometry args={[0.018, 0.014, length - 0.18]} />
             <meshStandardMaterial color={color} roughness={0.82} />
           </mesh>
         );
