@@ -22,6 +22,8 @@ const PONTOON_INSET_FT = 0.95;
 const CROSS_MEMBER_SPACING_FT = 4;
 const CLEAT_WIDTH_FT = 0.42;
 const CLEAT_LENGTH_FT = 0.8;
+const DECK_HIGHLIGHT_OFFSET_FT = 0.032;
+const DECK_LINE_OFFSET_FT = 0.062;
 
 function getMaterials(viewMode: RenderViewMode, deckFinish: FloatingDockDeckFinish, deckColorOverride?: string) {
   const isCustomer = viewMode === 'customer';
@@ -74,8 +76,8 @@ function DeckPlankHighlights({
         const z = -length / 2 + plankLength * (index + 0.5);
         return (
           <mesh key={index} position={[0, y, z]} receiveShadow>
-            <boxGeometry args={[width - 0.26, 0.012, Math.max(0.16, plankLength * 0.72)]} />
-            <meshStandardMaterial color={color} roughness={isComposite ? 0.64 : 0.84} transparent opacity={isComposite ? 0.22 : 0.28} />
+            <boxGeometry args={[width - 0.26, 0.014, Math.max(0.16, plankLength * 0.72)]} />
+            <meshStandardMaterial color={color} roughness={isComposite ? 0.66 : 0.86} />
           </mesh>
         );
       })}
@@ -299,24 +301,30 @@ export function KehoeFloatingDock({
     <group>
       <mesh position={[0, deckY, 0]} castShadow receiveShadow>
         <boxGeometry args={[footprintWidthFt, DECK_THICKNESS_FT, footprintLengthFt]} />
-        <meshStandardMaterial color={materials.deck} roughness={0.78} transparent opacity={opacity} />
+        <meshStandardMaterial color={materials.deck} roughness={0.78} transparent={opacity < 1} opacity={opacity} />
       </mesh>
-      <DeckPlankHighlights width={footprintWidthFt} length={footprintLengthFt} y={deckTopY + 0.012} color={materials.deckAlt} deckFinish={deckFinish} />
-      <DeckBoardLines width={footprintWidthFt} length={footprintLengthFt} y={deckTopY + 0.018} color={materials.deckLine} />
+      <DeckPlankHighlights
+        width={footprintWidthFt}
+        length={footprintLengthFt}
+        y={deckTopY + DECK_HIGHLIGHT_OFFSET_FT}
+        color={materials.deckAlt}
+        deckFinish={deckFinish}
+      />
+      <DeckBoardLines width={footprintWidthFt} length={footprintLengthFt} y={deckTopY + DECK_LINE_OFFSET_FT} color={materials.deckLine} />
 
       <mesh position={[0, fasciaY, -footprintLengthFt / 2 + FASCIA_THICKNESS_FT / 2]} castShadow receiveShadow>
         <boxGeometry args={[footprintWidthFt, FASCIA_DEPTH_FT, FASCIA_THICKNESS_FT]} />
-        <meshStandardMaterial color={materials.fascia} roughness={0.72} transparent opacity={opacity} />
+        <meshStandardMaterial color={materials.fascia} roughness={0.72} transparent={opacity < 1} opacity={opacity} />
       </mesh>
       <mesh position={[0, fasciaY, footprintLengthFt / 2 - FASCIA_THICKNESS_FT / 2]} castShadow receiveShadow>
         <boxGeometry args={[footprintWidthFt, FASCIA_DEPTH_FT, FASCIA_THICKNESS_FT]} />
-        <meshStandardMaterial color={materials.fascia} roughness={0.72} transparent opacity={opacity} />
+        <meshStandardMaterial color={materials.fascia} roughness={0.72} transparent={opacity < 1} opacity={opacity} />
       </mesh>
       {[-1, 1].map((side) => (
         <group key={side}>
           <mesh position={[side * (footprintWidthFt / 2 - FASCIA_THICKNESS_FT / 2), fasciaY, 0]} castShadow receiveShadow>
             <boxGeometry args={[FASCIA_THICKNESS_FT, FASCIA_DEPTH_FT, footprintLengthFt]} />
-            <meshStandardMaterial color={materials.fascia} roughness={0.72} transparent opacity={opacity} />
+            <meshStandardMaterial color={materials.fascia} roughness={0.72} transparent={opacity < 1} opacity={opacity} />
           </mesh>
           <mesh position={[side * (footprintWidthFt / 2 + 0.012), rubY, 0]} castShadow>
             <boxGeometry args={[0.035, 0.09, footprintLengthFt * 0.96]} />

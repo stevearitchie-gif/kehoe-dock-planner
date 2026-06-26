@@ -24,6 +24,7 @@ const RAIL_HEIGHT_FT = 42 / 12;
 const MID_RAIL_HEIGHT_FT = 20 / 12;
 const POST_SPACING_FT = 6;
 const BASE_CLEARANCE_FT = 0.035;
+const RAMP_DECK_LINE_OFFSET_FT = 0.042;
 
 function getVisibleSpan(footprintLengthFt: number, slope: KehoeRampSlope) {
   if (!slope.hasConnection) {
@@ -150,7 +151,7 @@ function SlopedBox({
         <bufferAttribute attach="attributes-position" args={[vertices, 3]} />
         <bufferAttribute attach="index" args={[indices, 1]} />
       </bufferGeometry>
-      <meshStandardMaterial color={color} roughness={roughness} metalness={metalness} transparent opacity={opacity} />
+      <meshStandardMaterial color={color} roughness={roughness} metalness={metalness} transparent={opacity < 1} opacity={opacity} />
     </mesh>
   );
 }
@@ -210,7 +211,7 @@ function RampDeckLines({
     <>
       {Array.from({ length: lineCount + 1 }, (_, index) => {
         const z = zStart + index * spacing;
-        const y = getRampTopHeightAtZ(z, footprintLengthFt, slope) + 0.026;
+        const y = getRampTopHeightAtZ(z, footprintLengthFt, slope) + RAMP_DECK_LINE_OFFSET_FT;
 
         return (
           <mesh key={index} position={[0, y, z]} receiveShadow>
