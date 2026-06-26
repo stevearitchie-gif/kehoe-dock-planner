@@ -25,6 +25,7 @@ const MID_RAIL_HEIGHT_FT = 20 / 12;
 const POST_SPACING_FT = 6;
 const BASE_CLEARANCE_FT = 0.035;
 const RAMP_DECK_LINE_OFFSET_FT = 0.042;
+const RAMP_TREAD_SPACING_FT = 1.25;
 
 function getVisibleSpan(footprintLengthFt: number, slope: KehoeRampSlope) {
   if (!slope.hasConnection) {
@@ -67,7 +68,7 @@ function getMaterials(viewMode: RenderViewMode) {
       aluminum: '#d5dcde',
       aluminumDark: '#a8b0b4',
       deck: '#8f9290',
-      deckLine: '#676b68',
+      deckLine: '#7f8582',
       plate: '#c9c2b4',
       lowerPlate: '#b8c0c3',
     };
@@ -204,18 +205,18 @@ function RampDeckLines({
   slope: KehoeRampSlope;
   color: string;
 }) {
-  const lineCount = Math.max(5, Math.min(28, Math.round(Math.abs(zEnd - zStart) / 0.75)));
+  const lineCount = Math.max(3, Math.min(18, Math.round(Math.abs(zEnd - zStart) / RAMP_TREAD_SPACING_FT)));
   const spacing = (zEnd - zStart) / lineCount;
 
   return (
     <>
-      {Array.from({ length: lineCount + 1 }, (_, index) => {
-        const z = zStart + index * spacing;
+      {Array.from({ length: Math.max(0, lineCount - 1) }, (_, index) => {
+        const z = zStart + (index + 1) * spacing;
         const y = getRampTopHeightAtZ(z, footprintLengthFt, slope) + RAMP_DECK_LINE_OFFSET_FT;
 
         return (
-          <mesh key={index} position={[0, y, z]} receiveShadow>
-            <boxGeometry args={[width, 0.014, 0.018]} />
+          <mesh key={index} position={[0, y, z]}>
+            <boxGeometry args={[width * 0.92, 0.01, 0.01]} />
             <meshStandardMaterial color={color} roughness={0.8} />
           </mesh>
         );
