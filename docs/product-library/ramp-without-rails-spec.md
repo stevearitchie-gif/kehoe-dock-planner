@@ -8,15 +8,19 @@ Kehoe ramp without rails is the rail-free variant of the parametric aluminum ram
 
 - Supported as a Dock Planner object type: `ramp_without_rails`.
 - Supported in the 3D project adapter and ProductConfiguration adapter.
-- Rendered today by the generic `RampElement` path in `ProjectDockModel`, not by a dedicated Kehoe product component.
+- Implemented as `src/components/render3d/products/KehoeRampWithoutRails.tsx`.
+- Used for `ramp_without_rails` elements in saved project renders and ProductConfiguration quote previews.
+- Falls back to the generic `RampElement` path only if required ramp dimensions or slope data are invalid.
 - Preserves 2D footprint, position, rotation, slope, and dock connection detection.
 - Quote import can map ramp type to `ramp_without_rails`, but the current residential quote workflow primarily exports the standard ramp-with-rails product.
 
-## Target Scope For Next Implementation
+## Implemented Component Scope
 
-- Create `KehoeRampWithoutRails` by extracting/reusing the sloped ramp body from `KehoeRampWithRails`.
-- Keep all ramp placement, rail-direction, dock connection, and visual trim logic in `ProjectDockModel`.
-- Add side frame, deck/tread lines, cross members, dock-end hinge/plate, and lower-end rollers/feet.
+- `KehoeRampWithoutRails` uses the same local ramp footprint convention as `KehoeRampWithRails`.
+- Local X is the ramp width and local Z is the ramp length.
+- All ramp placement, rotation, dock connection, slope, and visual trim logic remains in `ProjectDockModel`.
+- The component renders a sloped ramp deck, aluminum side frames, subtle tread lines, cross members, dock-end hinge/plate details, and lower-end rollers.
+- It intentionally omits rail posts, handrails, midrails, and rail braces.
 - Do not add elevation engineering claims beyond the current visual slope approximation.
 
 ## Supported Dimensions And Options
@@ -33,6 +37,24 @@ Kehoe ramp without rails is the rail-free variant of the parametric aluminum ram
 - Body should slope along the same local length axis used by ramp-with-rails.
 - No rail elements should be rendered.
 - Dock-end trim/cap should remain visual only and not alter the debug footprint.
+- Tread lines should be subtle, opaque, and slightly offset above the sloped deck surface to avoid z-fighting.
+- Customer View should read as a clean Kehoe aluminum ramp body without the visual weight of handrails.
+
+## Shared Logic With Ramp With Rails
+
+- Same `KehoeRampSlope` shape.
+- Same visible span calculation for dock-end visual trim.
+- Same height interpolation along the ramp length axis.
+- Same deck, side-frame, cross-member, hinge, lower plate, and roller proportions.
+- Same subtle tread spacing and material tone used in the approved ramp-with-rails visual pass.
+
+## Differences From Ramp With Rails
+
+- No vertical rail posts.
+- No top rails.
+- No midrails.
+- No diagonal rail braces.
+- Slightly simpler silhouette for customer-facing previews.
 
 ## Material Rules
 
@@ -53,7 +75,7 @@ Kehoe ramp without rails is the rail-free variant of the parametric aluminum ram
 
 ## Future Enhancements
 
-- Dedicated product component and shared ramp body helpers.
+- Extract shared ramp body helpers if a third ramp variant is added.
 - Deck finish prop.
 - Optional anti-slip/tread plate detail.
 - Confirmed lower-end foot/roller geometry.

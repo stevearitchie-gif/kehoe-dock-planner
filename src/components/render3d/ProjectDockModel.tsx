@@ -1,6 +1,7 @@
 import { Text } from '@react-three/drei';
 import { KehoeFloatingDock } from '@/components/render3d/products/KehoeFloatingDock';
 import { KehoeRampWithRails } from '@/components/render3d/products/KehoeRampWithRails';
+import { KehoeRampWithoutRails } from '@/components/render3d/products/KehoeRampWithoutRails';
 import type { ProjectRenderElement, ProjectRenderModel, RenderViewMode } from '@/components/render3d/types';
 
 interface RampElevationInfo {
@@ -446,6 +447,38 @@ function KehoeRampWithRailsElement({
   );
 }
 
+function KehoeRampWithoutRailsElement({
+  element,
+  viewMode,
+  elevationInfo,
+}: {
+  element: ProjectRenderElement;
+  viewMode: RenderViewMode;
+  elevationInfo: RampElevationInfo;
+}) {
+  if (!hasValidRampProductData(element, elevationInfo)) {
+    return <RampElement element={element} viewMode={viewMode} elevationInfo={elevationInfo} />;
+  }
+
+  return (
+    <group position={[element.x, 0, element.z]} rotation={[0, element.rotation, 0]}>
+      <KehoeRampWithoutRails
+        footprintWidthFt={element.length}
+        footprintLengthFt={element.width}
+        opacity={element.opacity}
+        viewMode={viewMode}
+        slope={{
+          hasConnection: elevationInfo.hasConnection,
+          dockEndSign: elevationInfo.dockEndSign,
+          dockEndHeightFt: elevationInfo.deckTopHeight,
+          lowerEndHeightFt: elevationInfo.lowerEndHeight,
+          visualDockEndZFt: elevationInfo.visualDockEndZ,
+        }}
+      />
+    </group>
+  );
+}
+
 function StepsElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
   const stepCount = 4;
   const stepDepth = element.length / stepCount;
@@ -800,7 +833,7 @@ function ProjectElement({
       break;
     case 'ramp_without_rails':
       renderedElement = (
-        <RampElement
+        <KehoeRampWithoutRailsElement
           element={element}
           viewMode={viewMode}
           elevationInfo={
