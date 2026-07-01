@@ -693,6 +693,8 @@ export function EditorPage() {
   const [isShapeSelectorOpen, setIsShapeSelectorOpen] = useState(false);
   const [isLabelMoveModeEnabled, setIsLabelMoveModeEnabled] = useState(false);
   const [isDeleteConfirmationVisible, setIsDeleteConfirmationVisible] = useState(false);
+  const [isToolsPanelVisible, setIsToolsPanelVisible] = useState(true);
+  const [isDetailsPanelVisible, setIsDetailsPanelVisible] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingSiteImage, setIsUploadingSiteImage] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -955,6 +957,15 @@ export function EditorPage() {
       className: 'border-slate-200 bg-slate-50 text-slate-600',
     };
   }, [isDirty, isSaving, lastSavedAt]);
+
+  const isFocusModeEnabled = !isToolsPanelVisible && !isDetailsPanelVisible;
+  const editorGridTemplateColumns = [
+    isToolsPanelVisible ? '240px' : null,
+    'minmax(0, 1fr)',
+    isDetailsPanelVisible ? '300px' : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   useEffect(() => {
     setIsDeleteConfirmationVisible(false);
@@ -2186,7 +2197,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
   return (
     <AppShell className="h-screen overflow-hidden">
       <div className="flex h-full min-h-0 flex-col">
-        <header className="flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-3">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3">
           <div className="flex min-w-0 items-center gap-4">
             <div className="flex h-12 w-32 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 shadow-sm">
               <img
@@ -2205,25 +2216,58 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
               </div>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex min-w-[320px] flex-1 flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setIsToolsPanelVisible((previous) => !previous)}
+              className="min-h-11 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              aria-pressed={!isToolsPanelVisible}
+            >
+              {isToolsPanelVisible ? 'Hide Tools' : 'Show Tools'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsDetailsPanelVisible((previous) => !previous)}
+              className="min-h-11 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              aria-pressed={!isDetailsPanelVisible}
+            >
+              {isDetailsPanelVisible ? 'Hide Details' : 'Show Details'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (isFocusModeEnabled) {
+                  setIsToolsPanelVisible(true);
+                  setIsDetailsPanelVisible(true);
+                  return;
+                }
+
+                setIsToolsPanelVisible(false);
+                setIsDetailsPanelVisible(false);
+              }}
+              className="min-h-11 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              aria-pressed={isFocusModeEnabled}
+            >
+              {isFocusModeEnabled ? 'Exit Focus' : 'Focus Mode'}
+            </button>
             <button
               type="button"
               onClick={handleSaveProject}
               disabled={isSaving || !isDirty || !userId}
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-h-11 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSaving ? 'Saving...' : 'Save'}
             </button>
             <button
               type="button"
               onClick={handleExportPdf}
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+              className="min-h-11 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
             >
               Export PDF
             </button>
             <Link
               to={`/render3d/${projectId ?? project.id}`}
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              className="min-h-11 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
             >
               View 3D
             </Link>
@@ -2231,25 +2275,25 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
               type="button"
               onClick={handleZoomOut}
               disabled={!canZoomOut}
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-h-11 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               -
             </button>
-            <button className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700">
+            <button className="min-h-11 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700">
               {(zoom * 100).toFixed(0)}%
             </button>
             <button
               type="button"
               onClick={handleZoomIn}
               disabled={!canZoomIn}
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-h-11 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               +
             </button>
             <Link
               to="/projects"
               onClick={handleBackToProjectsClick}
-              className="rounded-md bg-brand-600 px-3 py-2 text-sm text-white hover:bg-brand-700"
+              className="min-h-11 rounded-md bg-brand-600 px-3 py-2 text-sm text-white hover:bg-brand-700"
             >
               Back to Projects
             </Link>
@@ -2262,7 +2306,11 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
           </div>
         )}
 
-        <main className="grid h-full min-h-0 w-full min-w-0 overflow-hidden grid-cols-[240px_minmax(0,1fr)_300px]">
+        <main
+          className="grid h-full min-h-0 w-full min-w-0 overflow-hidden"
+          style={{ gridTemplateColumns: editorGridTemplateColumns }}
+        >
+          {isToolsPanelVisible && (
           <aside className="min-w-0 overflow-y-auto border-r border-slate-200 bg-white p-3">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Tools</p>
 
@@ -2370,6 +2418,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
               </div>
             </div>
           </aside>
+          )}
 
           <section className="min-h-0 min-w-0 overflow-hidden bg-slate-50 p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-3 py-2">
@@ -2422,6 +2471,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
             />
           </section>
 
+          {isDetailsPanelVisible && (
           <aside className="min-w-0 overflow-y-auto border-l border-slate-200 bg-white p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Properties</p>
 
@@ -3476,6 +3526,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
               </div>
             </div>
           </aside>
+          )}
         </main>
       </div>
     </AppShell>
