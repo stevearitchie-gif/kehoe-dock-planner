@@ -61,6 +61,12 @@ const OUTLINE_COLOR_PRESETS = [
 
 type GenericShapeTool = (typeof genericShapeToolModes)[number];
 
+interface SelectedObjectDimensionInputs {
+  objectId: string | null;
+  width: string;
+  height: string;
+}
+
 const shapeToolGroups: { title: string; tools: GenericShapeTool[] }[] = [
   {
     title: 'Lines',
@@ -693,6 +699,11 @@ export function EditorPage() {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [hasInitializedProject, setHasInitializedProject] = useState(false);
+  const [selectedObjectDimensionInputs, setSelectedObjectDimensionInputs] = useState<SelectedObjectDimensionInputs>({
+    objectId: null,
+    width: '',
+    height: '',
+  });
   const objectUrlRef = useRef<string | null>(null);
   const lastSavedSnapshotRef = useRef<string>('');
   const pendingDeletedSiteImagePathsRef = useRef<string[]>([]);
@@ -876,6 +887,14 @@ export function EditorPage() {
     [selectedObjectId, sortedObjects],
   );
 
+  useEffect(() => {
+    setSelectedObjectDimensionInputs({
+      objectId: selectedObject?.id ?? null,
+      width: selectedObject ? formatScaledDimensionValue(selectedObject.width, currentScale) : '',
+      height: selectedObject ? formatScaledDimensionValue(selectedObject.height, currentScale) : '',
+    });
+  }, [currentScale, selectedObject?.height, selectedObject?.id, selectedObject?.width]);
+
   const isSelectedObjectOnTop = selectedObjectIndex === sortedObjects.length - 1;
   const isSelectedObjectOnBottom = selectedObjectIndex === 0;
   const canZoomOut = zoom > MIN_ZOOM;
@@ -948,6 +967,16 @@ export function EditorPage() {
       updatedAt: new Date().toISOString(),
       scale: nextScale,
     }));
+  };
+
+  const handleClearScale = () => {
+    setScalePoints([]);
+    setProject((prev) => ({
+      ...prev,
+      updatedAt: new Date().toISOString(),
+      scale: undefined,
+    }));
+    setSaveMessage('Scale calibration removed.');
   };
 
   const handleToolClick = (toolLabel: string) => {
@@ -1579,7 +1608,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
 
   const handleSelectedObjectWidthChange = (value: string) => {
     const parsedValue = Number(value);
-    if (!Number.isFinite(parsedValue)) {
+    if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
       return;
     }
 
@@ -1593,7 +1622,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
 
   const handleSelectedObjectHeightChange = (value: string) => {
     const parsedValue = Number(value);
-    if (!Number.isFinite(parsedValue)) {
+    if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
       return;
     }
 
@@ -1603,6 +1632,49 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
       ...object,
       height: Math.max(MIN_OBJECT_SIZE, scaledHeight ?? parsedValue),
     }));
+  };
+
+  const restoreSelectedObjectDimensionInput = (axis: 'width' | 'height') => {
+    if (!selectedObject) {
+      return;
+    }
+
+    setSelectedObjectDimensionInputs((current) => ({
+      ...current,
+      objectId: selectedObject.id,
+      [axis]: formatScaledDimensionValue(selectedObject[axis], currentScale),
+    }));
+  };
+
+  const handleSelectedObjectDimensionInputChange = (axis: 'width' | 'height', value: string) => {
+    setSelectedObjectDimensionInputs((current) => ({
+      ...current,
+      objectId: selectedObject?.id ?? null,
+      [axis]: value,
+    }));
+  };
+
+  const commitSelectedObjectDimensionInput = (axis: 'width' | 'height') => {
+    if (!selectedObject) {
+      return;
+    }
+
+    const value = selectedObjectDimensionInputs.objectId === selectedObject.id
+      ? selectedObjectDimensionInputs[axis]
+      : formatScaledDimensionValue(selectedObject[axis], currentScale);
+    const trimmedValue = value.trim();
+    const parsedValue = Number(trimmedValue);
+
+    if (!trimmedValue || !Number.isFinite(parsedValue) || parsedValue <= 0) {
+      restoreSelectedObjectDimensionInput(axis);
+      return;
+    }
+
+    if (axis === 'width') {
+      handleSelectedObjectWidthChange(trimmedValue);
+    } else {
+      handleSelectedObjectHeightChange(trimmedValue);
+    }
   };
 
   const handleSelectedDimensionLengthChange = (feet: number, inches: number) => {
@@ -3042,10 +3114,16 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                             type="number"
                             min={0}
                             step="any"
-                            value={formatScaledDimensionValue(selectedObject.width, currentScale)}
-                            onChange={(event) => handleSelectedObjectWidthChange(event.target.value)}
+                            value={
+                              selectedObjectDimensionInputs.objectId === selectedObject.id
+                                ? selectedObjectDimensionInputs.width
+                                : formatScaledDimensionValue(selectedObject.width, currentScale)
+                            }
+                            onChange={(event) => handleSelectedObjectDimensionInputChange('width', event.target.value)}
+                            onBlur={() => commitSelectedObjectDimensionInput('width')}
                             onKeyDown={(event) => {
                               if (event.key === 'Enter') {
+                                commitSelectedObjectDimensionInput('width');
                                 const heightInput = document.getElementById('selected-object-height-input') as HTMLInputElement | null;
                                 heightInput?.focus();
                                 heightInput?.select();
@@ -3069,10 +3147,16 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                             type="number"
                             min={0}
                             step="any"
-                            value={formatScaledDimensionValue(selectedObject.height, currentScale)}
-                            onChange={(event) => handleSelectedObjectHeightChange(event.target.value)}
+                            value={
+                              selectedObjectDimensionInputs.objectId === selectedObject.id
+                                ? selectedObjectDimensionInputs.height
+                                : formatScaledDimensionValue(selectedObject.height, currentScale)
+                            }
+                            onChange={(event) => handleSelectedObjectDimensionInputChange('height', event.target.value)}
+                            onBlur={() => commitSelectedObjectDimensionInput('height')}
                             onKeyDown={(event) => {
                               if (event.key === 'Enter') {
+                                commitSelectedObjectDimensionInput('height');
                                 event.currentTarget.blur();
                               }
                             }}
@@ -3319,6 +3403,14 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                       <option value="m">m</option>
                     </select>
                   </label>
+                  <button
+                    type="button"
+                    onClick={handleClearScale}
+                    disabled={!canUseProjectScale(currentScale) && scalePoints.length === 0}
+                    className="rounded-md border border-rose-200 bg-white px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 disabled:hover:bg-white"
+                  >
+                    Remove Scale
+                  </button>
                 </div>
               </div>
 
