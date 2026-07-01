@@ -31,6 +31,7 @@ const RAMP_MAX_HEIGHT_DIFFERENCE = 0.6;
 const RAMP_RAIL_AXIS_LABEL = 'local Y / 3D Z';
 const RAMP_DOCK_EDGE_CLEARANCE = 0.04;
 const RAMP_MAX_VISUAL_TRIM_RATIO = 0.4;
+const RAMP_DOCK_END_SURFACE_CLEARANCE = 0.035;
 const KEHOE_FLOATING_DOCK_FASCIA_DEPTH = 0.92;
 const KEHOE_FLOATING_DOCK_DECK_THICKNESS = 0.22;
 const FLOATING_DOCK_DECK_TOP_HEIGHT = KEHOE_FLOATING_DOCK_FASCIA_DEPTH + KEHOE_FLOATING_DOCK_DECK_THICKNESS;
@@ -431,6 +432,8 @@ function KehoeRampWithRailsElement({
     return <RampElement element={element} viewMode={viewMode} elevationInfo={elevationInfo} />;
   }
 
+  const dockEndRenderHeight = getRampDockEndRenderHeight(elevationInfo);
+
   return (
     <group position={[element.x, 0, element.z]} rotation={[0, element.rotation, 0]}>
       <KehoeRampWithRails
@@ -441,7 +444,7 @@ function KehoeRampWithRailsElement({
         slope={{
           hasConnection: elevationInfo.hasConnection,
           dockEndSign: elevationInfo.dockEndSign,
-          dockEndHeightFt: elevationInfo.deckTopHeight,
+          dockEndHeightFt: dockEndRenderHeight,
           lowerEndHeightFt: elevationInfo.lowerEndHeight,
           visualDockEndZFt: elevationInfo.visualDockEndZ,
         }}
@@ -463,6 +466,8 @@ function KehoeRampWithoutRailsElement({
     return <RampElement element={element} viewMode={viewMode} elevationInfo={elevationInfo} />;
   }
 
+  const dockEndRenderHeight = getRampDockEndRenderHeight(elevationInfo);
+
   return (
     <group position={[element.x, 0, element.z]} rotation={[0, element.rotation, 0]}>
       <KehoeRampWithoutRails
@@ -473,7 +478,7 @@ function KehoeRampWithoutRailsElement({
         slope={{
           hasConnection: elevationInfo.hasConnection,
           dockEndSign: elevationInfo.dockEndSign,
-          dockEndHeightFt: elevationInfo.deckTopHeight,
+          dockEndHeightFt: dockEndRenderHeight,
           lowerEndHeightFt: elevationInfo.lowerEndHeight,
           visualDockEndZFt: elevationInfo.visualDockEndZ,
         }}
@@ -598,6 +603,10 @@ function getRampLowerEndHeight(deckTopHeight: number) {
   );
 
   return Math.max(RAMP_THICKNESS + RAMP_MIN_BOTTOM_HEIGHT, deckTopHeight - preferredHeightDifference);
+}
+
+function getRampDockEndRenderHeight(elevationInfo: RampElevationInfo) {
+  return elevationInfo.hasConnection ? elevationInfo.deckTopHeight + RAMP_DOCK_END_SURFACE_CLEARANCE : elevationInfo.deckTopHeight;
 }
 
 function localPointToWorld(element: ProjectRenderElement, localX: number, localZ: number) {
