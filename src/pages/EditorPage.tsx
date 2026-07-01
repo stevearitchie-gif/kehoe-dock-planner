@@ -688,7 +688,7 @@ export function EditorPage() {
   const [activeTool, setActiveTool] = useState<ToolMode>('select');
   const [scalePoints, setScalePoints] = useState<Point[]>([]);
   const [zoom, setZoom] = useState(1);
-  const [isSnapToGridEnabled, setIsSnapToGridEnabled] = useState(true);
+  const [isSnapToGridEnabled, setIsSnapToGridEnabled] = useState(false);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [isShapeSelectorOpen, setIsShapeSelectorOpen] = useState(false);
   const [isLabelMoveModeEnabled, setIsLabelMoveModeEnabled] = useState(false);
@@ -896,6 +896,22 @@ export function EditorPage() {
       height: selectedObject ? formatScaledDimensionValue(selectedObject.height, currentScale) : '',
     });
   }, [currentScale, selectedObject?.height, selectedObject?.id, selectedObject?.width]);
+
+  useEffect(() => {
+    if (!selectedObjectId) {
+      return;
+    }
+
+    setIsDetailsPanelVisible(true);
+
+    window.setTimeout(() => {
+      const sizeSection = document.getElementById('selected-object-size-section');
+      const widthInput = document.getElementById('selected-object-width-input') as HTMLInputElement | null;
+      sizeSection?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      widthInput?.focus();
+      widthInput?.select();
+    }, 80);
+  }, [selectedObjectId]);
 
   const isSelectedObjectOnTop = selectedObjectIndex === sortedObjects.length - 1;
   const isSelectedObjectOnBottom = selectedObjectIndex === 0;
@@ -2757,7 +2773,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
 
               
 
-              <details className="rounded-md border border-slate-200 bg-white">
+              <details className="rounded-md border border-slate-200 bg-white" open={Boolean(selectedObject)}>
                 <summary className="flex cursor-pointer select-none items-center justify-between rounded-md px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50">
                   <span>Selected Element</span>
                   <span className="text-xs text-slate-400">open/close</span>
@@ -3127,7 +3143,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                       </label>
                     </div>
 
-                    <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <div id="selected-object-size-section" className="rounded-md border border-slate-200 bg-slate-50 p-3">
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                         Size and Position
                       </p>
