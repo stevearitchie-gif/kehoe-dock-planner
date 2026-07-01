@@ -396,8 +396,7 @@ export function DockRender3DPage() {
   const [quoteImportError, setQuoteImportError] = useState<string | null>(null);
   const [quoteImportWarnings, setQuoteImportWarnings] = useState<string[]>([]);
   const canReturnToEditor = Boolean(projectId && projectId !== 'local-test' && !isQuotePreview);
-  const showSidePanel = () => setIsSidePanelOpen(true);
-  const hideSidePanel = () => setIsSidePanelOpen(false);
+  const toggleSidePanel = () => setIsSidePanelOpen((isOpen) => !isOpen);
 
   useEffect(() => {
     let isActive = true;
@@ -578,16 +577,14 @@ export function DockRender3DPage() {
             >
               Export PNG
             </button>
-            {isSidePanelOpen && (
-              <button
-                type="button"
-                onClick={hideSidePanel}
-                className="min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                aria-expanded={isSidePanelOpen}
-              >
-                Hide Panel
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={toggleSidePanel}
+              className="min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              aria-expanded={isSidePanelOpen}
+            >
+              {isSidePanelOpen ? 'Hide Panel' : 'Show Panel'}
+            </button>
             {canReturnToEditor ? (
               <Link
                 to={`/editor/${projectId}`}
@@ -620,16 +617,6 @@ export function DockRender3DPage() {
           </div>
         </header>
 
-        {!isSidePanelOpen && (
-          <button
-            type="button"
-            onClick={showSidePanel}
-            className="fixed right-4 top-24 z-50 min-h-11 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-lg hover:bg-slate-100"
-            aria-expanded={isSidePanelOpen}
-          >
-            Show Panel
-          </button>
-        )}
 
         <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
           <section className="relative min-h-[360px] flex-1 bg-sky-50 md:min-h-[460px] lg:min-h-0">
