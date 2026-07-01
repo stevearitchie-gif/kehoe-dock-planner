@@ -396,6 +396,8 @@ export function DockRender3DPage() {
   const [quoteImportError, setQuoteImportError] = useState<string | null>(null);
   const [quoteImportWarnings, setQuoteImportWarnings] = useState<string[]>([]);
   const canReturnToEditor = Boolean(projectId && projectId !== 'local-test' && !isQuotePreview);
+  const showSidePanel = () => setIsSidePanelOpen(true);
+  const hideSidePanel = () => setIsSidePanelOpen(false);
 
   useEffect(() => {
     let isActive = true;
@@ -576,14 +578,16 @@ export function DockRender3DPage() {
             >
               Export PNG
             </button>
-            <button
-              type="button"
-              onClick={() => setIsSidePanelOpen((isOpen) => !isOpen)}
-              className="min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-              aria-expanded={isSidePanelOpen}
-            >
-              {isSidePanelOpen ? 'Hide Panel' : 'Show Panel'}
-            </button>
+            {isSidePanelOpen && (
+              <button
+                type="button"
+                onClick={hideSidePanel}
+                className="min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                aria-expanded={isSidePanelOpen}
+              >
+                Hide Panel
+              </button>
+            )}
             {canReturnToEditor ? (
               <Link
                 to={`/editor/${projectId}`}
@@ -616,6 +620,17 @@ export function DockRender3DPage() {
           </div>
         </header>
 
+        {!isSidePanelOpen && (
+          <button
+            type="button"
+            onClick={showSidePanel}
+            className="fixed right-4 top-24 z-50 min-h-11 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-lg hover:bg-slate-100"
+            aria-expanded={isSidePanelOpen}
+          >
+            Show Panel
+          </button>
+        )}
+
         <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
           <section className="relative min-h-[360px] flex-1 bg-sky-50 md:min-h-[460px] lg:min-h-0">
             <DockScene
@@ -625,16 +640,7 @@ export function DockRender3DPage() {
               projectModel={activeModel}
               viewMode={viewMode}
             />
-            {!isSidePanelOpen && (
-              <button
-                type="button"
-                onClick={() => setIsSidePanelOpen(true)}
-                className="absolute right-4 top-4 z-20 min-h-11 rounded-md border border-slate-300 bg-white/95 px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-100"
-                aria-expanded={isSidePanelOpen}
-              >
-                Show Panel
-              </button>
-            )}
+
             {isModelFromQuote && (
               <div className="absolute left-4 top-4 max-w-xl rounded-lg border border-amber-300 bg-amber-50/95 px-4 py-3 text-sm text-amber-950 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Sample Quote Preview</p>
