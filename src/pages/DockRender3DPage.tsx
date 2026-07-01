@@ -534,7 +534,125 @@ export function DockRender3DPage() {
         }`
       : loadMessage;
   const showTechnicalNotice = viewMode === 'internal' && (isLoadingProject || detailNotice);
-
+  const sidePanelContent = activeModel ? (
+    <aside className="max-h-[38vh] w-full shrink-0 overflow-y-auto border-t border-slate-200 bg-white p-4 lg:h-full lg:max-h-none lg:w-[18rem] lg:max-w-[32vw] lg:border-l lg:border-t-0 xl:w-80">
+      <h2 className="text-base font-semibold text-slate-900">{isModelFromQuote ? 'Quote Preview' : 'Project Render'}</h2>
+      <p className="mt-1 text-sm text-slate-500">
+        {isModelFromQuote
+          ? `Standalone product geometry generated from ${quotePreviewSourceLabel}.`
+          : 'Basic geometry generated from the saved 2D drawing.'}
+      </p>
+      <dl className="mt-5 grid gap-3 text-sm">
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Source</dt>
+          <dd className="mt-1 text-slate-800">{activeModel.projectName}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Elements</dt>
+          <dd className="mt-1 text-slate-800">{activeModel.elements.length}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Scale</dt>
+          <dd className="mt-1 text-slate-800">{activeModel.sourceUnitLabel}</dd>
+        </div>
+        {!activeModel.hasProjectScale && (
+          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
+            Project scale not found, using approximate fallback scale.
+          </div>
+        )}
+        {viewMode === 'internal' && activeModel.unsupportedTypes.length > 0 && (
+          <div>
+            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Skipped Types</dt>
+            <dd className="mt-1 text-slate-800">{activeModel.unsupportedTypes.join(', ')}</dd>
+          </div>
+        )}
+      </dl>
+      {isModelFromQuote && (
+        <QuoteImportPanel
+          importText={quoteImportText}
+          importError={quoteImportError}
+          importWarnings={quoteImportWarnings}
+          previewSourceLabel={quotePreviewSourceLabel}
+          onImportTextChange={setQuoteImportText}
+          onApplyImport={handleApplyQuoteImport}
+          onLoadSample={() => {
+            setQuoteImportText(sampleQuoteImportPayloadText);
+            setQuoteImportError(null);
+          }}
+          onUseManualControls={handleUseManualQuoteControls}
+        />
+      )}
+      {isModelFromQuote && (
+        <QuotePreviewControlPanel
+          controls={quotePreviewControls}
+          onChange={handleQuotePreviewControlsChange}
+        />
+      )}
+      {isModelFromQuote && quotePreviewDetails && (
+        <div className="mt-5 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Sample Quote Preview</p>
+          <p className="mt-1 text-amber-950">
+            Generated from ProductConfiguration ({quotePreviewSourceLabel}), not a saved Dock Planner layout.
+          </p>
+          <dl className="mt-4 grid gap-3">
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wide text-amber-800">Floating Dock Size</dt>
+              <dd className="mt-1 text-slate-900">
+                {formatFeet(quotePreviewDetails.floatingDock?.dimensions?.lengthFt)} x{' '}
+                {formatFeet(quotePreviewDetails.floatingDock?.dimensions?.widthFt)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wide text-amber-800">Deck Material</dt>
+              <dd className="mt-1 text-slate-900">{formatMaterial(quotePreviewDetails.floatingDock?.material?.deck)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wide text-amber-800">Tube Diameter</dt>
+              <dd className="mt-1 text-slate-900">
+                {formatFeet(quotePreviewDetails.floatingDock?.floatingDock?.tubeDiameterFt)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wide text-amber-800">Ramp Type</dt>
+              <dd className="mt-1 text-slate-900">{quotePreviewDetails.ramp?.displayName ?? 'Not specified'}</dd>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-amber-800">Ramp Length</dt>
+                <dd className="mt-1 text-slate-900">{formatFeet(quotePreviewDetails.ramp?.dimensions?.lengthFt)}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-amber-800">Ramp Width</dt>
+                <dd className="mt-1 text-slate-900">{formatFeet(quotePreviewDetails.ramp?.dimensions?.widthFt)}</dd>
+              </div>
+            </div>
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wide text-amber-800">Ramp Material</dt>
+              <dd className="mt-1 text-slate-900">
+                {formatMaterial(quotePreviewDetails.ramp?.material?.frame)}
+                {quotePreviewDetails.ramp?.material?.deck
+                  ? ` frame with ${formatMaterial(quotePreviewDetails.ramp.material.deck).toLowerCase()} deck`
+                  : ''}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={() => sceneRef.current?.exportPng()}
+        className="mt-5 min-h-11 w-full rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700"
+      >
+        Export PNG
+      </button>
+    </aside>
+  ) : (
+    <RenderControlPanel
+      settings={settings}
+      onSettingsChange={setSettings}
+      onExportPng={() => sceneRef.current?.exportPng()}
+    />
+  );
   return (
     <AppShell className="h-screen overflow-hidden">
       <div className="flex h-full min-h-0 flex-col">
@@ -618,7 +736,13 @@ export function DockRender3DPage() {
         </header>
 
 
-        <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <main
+          className={`grid min-h-0 flex-1 ${
+            isSidePanelOpen
+              ? 'grid-rows-[minmax(360px,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_minmax(18rem,20rem)] lg:grid-rows-1'
+              : 'grid-cols-1 grid-rows-1'
+          }`}
+        >
           <section className="relative min-h-[360px] flex-1 bg-sky-50 md:min-h-[460px] lg:min-h-0">
             <DockScene
               ref={sceneRef}
@@ -645,125 +769,7 @@ export function DockRender3DPage() {
               </div>
             )}
           </section>
-          {activeModel && isSidePanelOpen ? (
-            <aside className="max-h-[38vh] w-full shrink-0 overflow-y-auto border-t border-slate-200 bg-white p-4 lg:h-full lg:max-h-none lg:w-[18rem] lg:max-w-[32vw] lg:border-l lg:border-t-0 xl:w-80">
-              <h2 className="text-base font-semibold text-slate-900">{isModelFromQuote ? 'Quote Preview' : 'Project Render'}</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                {isModelFromQuote
-                  ? `Standalone product geometry generated from ${quotePreviewSourceLabel}.`
-                  : 'Basic geometry generated from the saved 2D drawing.'}
-              </p>
-              <dl className="mt-5 grid gap-3 text-sm">
-                <div>
-                  <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Source</dt>
-                  <dd className="mt-1 text-slate-800">{activeModel.projectName}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Elements</dt>
-                  <dd className="mt-1 text-slate-800">{activeModel.elements.length}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Scale</dt>
-                  <dd className="mt-1 text-slate-800">{activeModel.sourceUnitLabel}</dd>
-                </div>
-                {!activeModel.hasProjectScale && (
-                  <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
-                    Project scale not found, using approximate fallback scale.
-                  </div>
-                )}
-                {viewMode === 'internal' && activeModel.unsupportedTypes.length > 0 && (
-                  <div>
-                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Skipped Types</dt>
-                    <dd className="mt-1 text-slate-800">{activeModel.unsupportedTypes.join(', ')}</dd>
-                  </div>
-                )}
-              </dl>
-              {isModelFromQuote && (
-                <QuoteImportPanel
-                  importText={quoteImportText}
-                  importError={quoteImportError}
-                  importWarnings={quoteImportWarnings}
-                  previewSourceLabel={quotePreviewSourceLabel}
-                  onImportTextChange={setQuoteImportText}
-                  onApplyImport={handleApplyQuoteImport}
-                  onLoadSample={() => {
-                    setQuoteImportText(sampleQuoteImportPayloadText);
-                    setQuoteImportError(null);
-                  }}
-                  onUseManualControls={handleUseManualQuoteControls}
-                />
-              )}
-              {isModelFromQuote && (
-                <QuotePreviewControlPanel
-                  controls={quotePreviewControls}
-                  onChange={handleQuotePreviewControlsChange}
-                />
-              )}
-              {isModelFromQuote && quotePreviewDetails && (
-                <div className="mt-5 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Sample Quote Preview</p>
-                  <p className="mt-1 text-amber-950">
-                    Generated from ProductConfiguration ({quotePreviewSourceLabel}), not a saved Dock Planner layout.
-                  </p>
-                  <dl className="mt-4 grid gap-3">
-                    <div>
-                      <dt className="text-xs font-medium uppercase tracking-wide text-amber-800">Floating Dock Size</dt>
-                      <dd className="mt-1 text-slate-900">
-                        {formatFeet(quotePreviewDetails.floatingDock?.dimensions?.lengthFt)} x{' '}
-                        {formatFeet(quotePreviewDetails.floatingDock?.dimensions?.widthFt)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs font-medium uppercase tracking-wide text-amber-800">Deck Material</dt>
-                      <dd className="mt-1 text-slate-900">{formatMaterial(quotePreviewDetails.floatingDock?.material?.deck)}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs font-medium uppercase tracking-wide text-amber-800">Tube Diameter</dt>
-                      <dd className="mt-1 text-slate-900">
-                        {formatFeet(quotePreviewDetails.floatingDock?.floatingDock?.tubeDiameterFt)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs font-medium uppercase tracking-wide text-amber-800">Ramp Type</dt>
-                      <dd className="mt-1 text-slate-900">{quotePreviewDetails.ramp?.displayName ?? 'Not specified'}</dd>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <dt className="text-xs font-medium uppercase tracking-wide text-amber-800">Ramp Length</dt>
-                        <dd className="mt-1 text-slate-900">{formatFeet(quotePreviewDetails.ramp?.dimensions?.lengthFt)}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-xs font-medium uppercase tracking-wide text-amber-800">Ramp Width</dt>
-                        <dd className="mt-1 text-slate-900">{formatFeet(quotePreviewDetails.ramp?.dimensions?.widthFt)}</dd>
-                      </div>
-                    </div>
-                    <div>
-                      <dt className="text-xs font-medium uppercase tracking-wide text-amber-800">Ramp Material</dt>
-                      <dd className="mt-1 text-slate-900">
-                        {formatMaterial(quotePreviewDetails.ramp?.material?.frame)}
-                        {quotePreviewDetails.ramp?.material?.deck
-                          ? ` frame with ${formatMaterial(quotePreviewDetails.ramp.material.deck).toLowerCase()} deck`
-                          : ''}
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={() => sceneRef.current?.exportPng()}
-                className="mt-5 min-h-11 w-full rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700"
-              >
-                Export PNG
-              </button>
-            </aside>
-          ) : !activeModel && isSidePanelOpen ? (
-            <RenderControlPanel
-              settings={settings}
-              onSettingsChange={setSettings}
-              onExportPng={() => sceneRef.current?.exportPng()}
-            />
-          ) : null}
+          {isSidePanelOpen && sidePanelContent}
         </main>
       </div>
     </AppShell>
