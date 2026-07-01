@@ -1877,7 +1877,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
       ...object,
       metadata: {
         ...object.metadata,
-        boardDirection: value === 'none' ? undefined : value,
+        boardDirection: value,
       },
     }));
   };

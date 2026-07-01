@@ -1,4 +1,4 @@
-import type { RenderViewMode } from '@/components/render3d/types';
+import type { FloatingDockBoardDirection, RenderViewMode } from '@/components/render3d/types';
 
 export type FloatingDockDeckFinish = 'pressure-treated' | 'cedar' | 'composite-grey' | 'composite-brown';
 
@@ -8,6 +8,7 @@ export interface KehoeFloatingDockProps {
   opacity?: number;
   viewMode: RenderViewMode;
   deckFinish?: FloatingDockDeckFinish;
+  boardDirection?: FloatingDockBoardDirection;
   deckColorOverride?: string;
   tubeDiameterFt?: number;
 }
@@ -52,23 +53,33 @@ function DeckBoardLines({
   length,
   y,
   color,
+  boardDirection,
 }: {
   width: number;
   length: number;
   y: number;
   color: string;
+  boardDirection: FloatingDockBoardDirection;
 }) {
-  const lineCount = Math.max(2, Math.min(16, Math.round(width / BOARD_SPACING_FT)));
-  const spacing = width / lineCount;
+  if (boardDirection === 'none') {
+    return null;
+  }
+
+  const lineAxisLength = boardDirection === 'horizontal' ? length : width;
+  const lineCount = Math.max(2, Math.min(16, Math.round(lineAxisLength / BOARD_SPACING_FT)));
+  const spacing = lineAxisLength / lineCount;
 
   return (
     <>
       {Array.from({ length: Math.max(0, lineCount - 1) }, (_, index) => {
-        const x = -width / 2 + (index + 1) * spacing;
+        const offset = -lineAxisLength / 2 + (index + 1) * spacing;
+        const position: [number, number, number] = boardDirection === 'horizontal' ? [0, y, offset] : [offset, y, 0];
+        const geometryArgs: [number, number, number] =
+          boardDirection === 'horizontal' ? [width - 0.32, 0.01, 0.01] : [0.01, 0.01, length - 0.32];
 
         return (
-          <mesh key={index} position={[x, y, 0]}>
-            <boxGeometry args={[0.01, 0.01, length - 0.32]} />
+          <mesh key={index} position={position}>
+            <boxGeometry args={geometryArgs} />
             <meshStandardMaterial color={color} roughness={0.82} />
           </mesh>
         );
@@ -241,6 +252,7 @@ export function KehoeFloatingDock({
   opacity = 1,
   viewMode,
   deckFinish = 'pressure-treated',
+  boardDirection = 'vertical',
   deckColorOverride,
   tubeDiameterFt = DEFAULT_TUBE_DIAMETER_FT,
 }: KehoeFloatingDockProps) {
@@ -265,7 +277,13 @@ export function KehoeFloatingDock({
         <boxGeometry args={[footprintWidthFt, DECK_THICKNESS_FT, footprintLengthFt]} />
         <meshStandardMaterial color={materials.deck} roughness={0.78} transparent={opacity < 1} opacity={opacity} />
       </mesh>
-      <DeckBoardLines width={footprintWidthFt} length={footprintLengthFt} y={deckTopY + DECK_LINE_OFFSET_FT} color={materials.deckLine} />
+      <DeckBoardLines
+        width={footprintWidthFt}
+        length={footprintLengthFt}
+        y={deckTopY + DECK_LINE_OFFSET_FT}
+        color={materials.deckLine}
+        boardDirection={boardDirection}
+      />
 
       <mesh position={[0, fasciaY, -footprintLengthFt / 2 + FASCIA_THICKNESS_FT / 2]} castShadow receiveShadow>
         <boxGeometry args={[footprintWidthFt, FASCIA_DEPTH_FT, FASCIA_THICKNESS_FT]} />

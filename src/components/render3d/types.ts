@@ -15,6 +15,8 @@ export type CameraPreset = 'isometric' | 'top' | 'side' | 'front';
 
 export type RenderViewMode = 'customer' | 'internal';
 
+export type FloatingDockBoardDirection = 'none' | 'horizontal' | 'vertical';
+
 export type ProjectRenderElementType =
   | 'floating_dock'
   | 'stationary_dock'
@@ -46,6 +48,7 @@ export interface ProjectRenderElement {
   sourceRotation: number;
   anchorInterpretation: string;
   deckFinish?: DeckFinish;
+  boardDirection?: FloatingDockBoardDirection;
   tubeDiameterFt?: number;
   productSourceLabel?: string;
 }

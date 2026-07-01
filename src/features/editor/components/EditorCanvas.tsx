@@ -145,7 +145,7 @@ function formatFeetAndInches(totalFeet: number): string {
 
 function canShowBoardTexture(object: DockObject): boolean {
   return (
-    Boolean(object.metadata?.boardDirection) &&
+    (object.metadata?.boardDirection === 'horizontal' || object.metadata?.boardDirection === 'vertical') &&
     ['floating_dock', 'stationary_dock', 'ramp_with_rails', 'ramp_without_rails'].includes(object.type)
   );
 }

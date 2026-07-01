@@ -226,6 +226,7 @@ function KehoeFloatingDockElement({ element, viewMode }: { element: ProjectRende
         opacity={element.opacity}
         viewMode={viewMode}
         deckFinish={element.deckFinish}
+        boardDirection={element.boardDirection}
         tubeDiameterFt={element.tubeDiameterFt}
         deckColorOverride={viewMode === 'internal' ? element.color : undefined}
       />
@@ -785,6 +786,7 @@ function getElementRenderKey(element: ProjectRenderElement, rampElevation?: Ramp
     formatKeyNumber(element.rotation),
     formatKeyNumber(element.elevation),
     element.deckFinish ?? 'deck-default',
+    element.boardDirection ?? 'board-default',
     formatKeyNumber(element.tubeDiameterFt),
     rampElevation ? String(rampElevation.hasConnection) : 'no-ramp',
     rampElevation ? formatKeyNumber(rampElevation.deckTopHeight) : 'na',

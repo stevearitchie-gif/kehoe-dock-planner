@@ -77,7 +77,7 @@ export interface DockObject {
   metadata?: {
     elevation?: number;
     material?: string;
-    boardDirection?: 'horizontal' | 'vertical';
+    boardDirection?: 'none' | 'horizontal' | 'vertical';
     textureRef?: string;
     connectionPoints?: Point[];
     modelType3D?: string;

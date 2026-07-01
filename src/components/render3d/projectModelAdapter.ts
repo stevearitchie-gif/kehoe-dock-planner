@@ -1,5 +1,10 @@
 import type { DockObject, DockObjectType, DockProject } from '@/types/dock';
-import type { ProjectRenderElement, ProjectRenderElementType, ProjectRenderModel } from '@/components/render3d/types';
+import type {
+  FloatingDockBoardDirection,
+  ProjectRenderElement,
+  ProjectRenderElementType,
+  ProjectRenderModel,
+} from '@/components/render3d/types';
 
 const FEET_PER_METER = 3.28084;
 const FALLBACK_PIXELS_PER_FOOT = 20;
@@ -63,6 +68,19 @@ function getObjectCenter(object: DockObject) {
   };
 }
 
+function getFloatingDockBoardDirection(object: DockObject): FloatingDockBoardDirection | undefined {
+  if (object.type !== 'floating_dock') {
+    return undefined;
+  }
+
+  const boardDirection = object.metadata?.boardDirection;
+  if (boardDirection === 'none' || boardDirection === 'horizontal' || boardDirection === 'vertical') {
+    return boardDirection;
+  }
+
+  return undefined;
+}
+
 export function buildProjectRenderModel(project: DockProject): ProjectRenderModel | null {
   const supportedObjects = project.objects.filter((object) => isProjectRenderElementType(object.type));
   const unsupportedTypes = Array.from(
@@ -102,6 +120,7 @@ export function buildProjectRenderModel(project: DockProject): ProjectRenderMode
       sourceHeight: object.height,
       sourceRotation: object.rotation,
       anchorInterpretation: 'top-left group origin, center adjusted for rotation',
+      boardDirection: getFloatingDockBoardDirection(object),
     };
   });
 
