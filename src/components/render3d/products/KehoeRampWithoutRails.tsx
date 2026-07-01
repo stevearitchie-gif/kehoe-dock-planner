@@ -15,21 +15,38 @@ const DECK_WIDTH_RATIO = 44 / 48;
 const BASE_CLEARANCE_FT = 0.035;
 const RAMP_DECK_LINE_OFFSET_FT = 0.042;
 const RAMP_TREAD_SPACING_FT = 1.25;
+const DOCK_END_BODY_SETBACK_FT = 0.42;
 
-function getVisibleSpan(footprintLengthFt: number, slope: KehoeRampSlope) {
+function getRampEndpoints(footprintLengthFt: number, slope: KehoeRampSlope) {
+  const lowerEndZ = slope.hasConnection ? -slope.dockEndSign * (footprintLengthFt / 2) : -footprintLengthFt / 2;
+  const dockEndZ = slope.hasConnection ? slope.visualDockEndZFt ?? slope.dockEndSign * (footprintLengthFt / 2) : footprintLengthFt / 2;
+
+  return { lowerEndZ, dockEndZ };
+}
+
+function getRampBodySpan(footprintLengthFt: number, slope: KehoeRampSlope) {
+  const { lowerEndZ, dockEndZ } = getRampEndpoints(footprintLengthFt, slope);
+
   if (!slope.hasConnection) {
     return {
-      zStart: -footprintLengthFt / 2,
-      zEnd: footprintLengthFt / 2,
+      zStart: Math.min(lowerEndZ, dockEndZ),
+      zEnd: Math.max(lowerEndZ, dockEndZ),
+      lowerEndZ,
+      dockEndZ,
+      bodyDockEndZ: dockEndZ,
     };
   }
 
-  const lowerEndZ = -slope.dockEndSign * (footprintLengthFt / 2);
-  const dockEndZ = slope.visualDockEndZFt ?? slope.dockEndSign * (footprintLengthFt / 2);
+  const span = Math.abs(dockEndZ - lowerEndZ);
+  const bodySetback = Math.min(DOCK_END_BODY_SETBACK_FT, span * 0.18);
+  const bodyDockEndZ = dockEndZ - slope.dockEndSign * bodySetback;
 
   return {
-    zStart: Math.min(lowerEndZ, dockEndZ),
-    zEnd: Math.max(lowerEndZ, dockEndZ),
+    zStart: Math.min(lowerEndZ, bodyDockEndZ),
+    zEnd: Math.max(lowerEndZ, bodyDockEndZ),
+    lowerEndZ,
+    dockEndZ,
+    bodyDockEndZ,
   };
 }
 
@@ -242,6 +259,33 @@ function EndPlate({
   );
 }
 
+function DockConnectionPlate({
+  dockEndZ,
+  bodyDockEndZ,
+  width,
+  footprintLengthFt,
+  slope,
+  color,
+}: {
+  dockEndZ: number;
+  bodyDockEndZ: number;
+  width: number;
+  footprintLengthFt: number;
+  slope: KehoeRampSlope;
+  color: string;
+}) {
+  const depth = Math.abs(dockEndZ - bodyDockEndZ) + 0.3;
+  const z = (dockEndZ + bodyDockEndZ) / 2;
+  const y = getRampTopHeightAtZ(dockEndZ, footprintLengthFt, slope) + 0.035;
+
+  return (
+    <mesh position={[0, y, z]} castShadow receiveShadow>
+      <boxGeometry args={[width, 0.06, depth]} />
+      <meshStandardMaterial color={color} roughness={0.55} metalness={0.08} />
+    </mesh>
+  );
+}
+
 function HingeBarrels({
   z,
   width,
@@ -318,12 +362,10 @@ export function KehoeRampWithoutRails({
   }
 
   const materials = getMaterials(viewMode);
-  const { zStart, zEnd } = getVisibleSpan(footprintLengthFt, slope);
+  const { zStart, zEnd, lowerEndZ, dockEndZ, bodyDockEndZ } = getRampBodySpan(footprintLengthFt, slope);
   const topHeightAtZ = (z: number) => getRampTopHeightAtZ(z, footprintLengthFt, slope);
   const deckWidth = Math.min(footprintWidthFt * DECK_WIDTH_RATIO, Math.max(0.5, footprintWidthFt - 0.28));
   const sideFrameWidth = Math.max(0.12, (footprintWidthFt - deckWidth) / 2);
-  const lowerEndZ = slope.hasConnection ? -slope.dockEndSign * (footprintLengthFt / 2) : zStart;
-  const dockEndZ = slope.hasConnection ? slope.visualDockEndZFt ?? slope.dockEndSign * (footprintLengthFt / 2) : zEnd;
 
   return (
     <group>
@@ -359,7 +401,14 @@ export function KehoeRampWithoutRails({
       <LowerRollers z={lowerEndZ} width={footprintWidthFt} footprintLengthFt={footprintLengthFt} slope={slope} color={materials.aluminumDark} />
       {slope.hasConnection && (
         <>
-          <EndPlate z={dockEndZ} width={footprintWidthFt + 0.24} footprintLengthFt={footprintLengthFt} slope={slope} color={materials.plate} depth={0.24} />
+          <DockConnectionPlate
+            dockEndZ={dockEndZ}
+            bodyDockEndZ={bodyDockEndZ}
+            width={footprintWidthFt + 0.24}
+            footprintLengthFt={footprintLengthFt}
+            slope={slope}
+            color={materials.plate}
+          />
           <HingeBarrels z={dockEndZ} width={footprintWidthFt} footprintLengthFt={footprintLengthFt} slope={slope} color={materials.aluminumDark} />
         </>
       )}
