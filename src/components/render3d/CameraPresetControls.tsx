@@ -20,7 +20,7 @@ export function CameraPresetControls({ activePreset, onPresetChange }: CameraPre
           key={preset.value}
           type="button"
           onClick={() => onPresetChange(preset.value)}
-          className={`rounded-md border px-3 py-2 text-sm font-medium ${
+          className={`min-h-11 rounded-md border px-3 py-2 text-sm font-medium ${
             activePreset === preset.value
               ? 'border-brand-600 bg-brand-50 text-brand-700'
               : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'

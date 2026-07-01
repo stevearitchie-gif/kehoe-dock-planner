@@ -194,7 +194,7 @@ function QuotePreviewControlPanel({
             step="1"
             value={controls.dockLengthFt}
             onChange={(event) => onChange({ dockLengthFt: toPositiveNumber(event.target.value, controls.dockLengthFt) })}
-            className="rounded-md border border-slate-300 px-2 py-1.5 text-slate-900"
+            className="min-h-11 rounded-md border border-slate-300 px-3 py-2 text-slate-900"
           />
         </label>
         <label className="grid gap-1">
@@ -205,7 +205,7 @@ function QuotePreviewControlPanel({
             step="1"
             value={controls.dockWidthFt}
             onChange={(event) => onChange({ dockWidthFt: toPositiveNumber(event.target.value, controls.dockWidthFt) })}
-            className="rounded-md border border-slate-300 px-2 py-1.5 text-slate-900"
+            className="min-h-11 rounded-md border border-slate-300 px-3 py-2 text-slate-900"
           />
         </label>
         <label className="grid gap-1">
@@ -213,7 +213,7 @@ function QuotePreviewControlPanel({
           <select
             value={controls.deckMaterial}
             onChange={(event) => onChange({ deckMaterial: event.target.value as QuotePreviewDeckMaterial })}
-            className="rounded-md border border-slate-300 px-2 py-1.5 text-slate-900"
+            className="min-h-11 rounded-md border border-slate-300 px-3 py-2 text-slate-900"
           >
             <option value="pressure_treated_wood">Pressure treated wood</option>
             <option value="tru_north_pvc">TruNorth PVC</option>
@@ -228,7 +228,7 @@ function QuotePreviewControlPanel({
             step="0.25"
             value={controls.tubeDiameterFt}
             onChange={(event) => onChange({ tubeDiameterFt: toPositiveNumber(event.target.value, controls.tubeDiameterFt) })}
-            className="rounded-md border border-slate-300 px-2 py-1.5 text-slate-900"
+            className="min-h-11 rounded-md border border-slate-300 px-3 py-2 text-slate-900"
           />
         </label>
         <label className="flex items-center gap-2 text-sm font-medium text-slate-800">
@@ -236,7 +236,7 @@ function QuotePreviewControlPanel({
             type="checkbox"
             checked={controls.rampEnabled}
             onChange={(event) => onChange({ rampEnabled: event.target.checked })}
-            className="h-4 w-4 rounded border-slate-300"
+            className="h-6 w-6 rounded border-slate-300"
           />
           Ramp enabled
         </label>
@@ -250,7 +250,7 @@ function QuotePreviewControlPanel({
               value={controls.rampLengthFt}
               disabled={!controls.rampEnabled}
               onChange={(event) => onChange({ rampLengthFt: toPositiveNumber(event.target.value, controls.rampLengthFt) })}
-              className="rounded-md border border-slate-300 px-2 py-1.5 text-slate-900 disabled:bg-slate-100"
+              className="min-h-11 rounded-md border border-slate-300 px-3 py-2 text-slate-900 disabled:bg-slate-100"
             />
           </label>
           <label className="grid gap-1">
@@ -262,7 +262,7 @@ function QuotePreviewControlPanel({
               value={controls.rampWidthFt}
               disabled={!controls.rampEnabled}
               onChange={(event) => onChange({ rampWidthFt: toPositiveNumber(event.target.value, controls.rampWidthFt) })}
-              className="rounded-md border border-slate-300 px-2 py-1.5 text-slate-900 disabled:bg-slate-100"
+              className="min-h-11 rounded-md border border-slate-300 px-3 py-2 text-slate-900 disabled:bg-slate-100"
             />
           </label>
           <label className="grid gap-1">
@@ -271,7 +271,7 @@ function QuotePreviewControlPanel({
               value={controls.rampMaterial}
               disabled={!controls.rampEnabled}
               onChange={() => onChange({ rampMaterial: 'aluminum' })}
-              className="rounded-md border border-slate-300 px-2 py-1.5 text-slate-900 disabled:bg-slate-100"
+              className="min-h-11 rounded-md border border-slate-300 px-3 py-2 text-slate-900 disabled:bg-slate-100"
             >
               <option value="aluminum">Aluminum</option>
             </select>
@@ -329,7 +329,7 @@ function QuoteImportPanel({
         <button
           type="button"
           onClick={onApplyImport}
-          className="rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          className="min-h-11 rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700"
         >
           Apply Pasted Quote JSON
         </button>
@@ -337,14 +337,14 @@ function QuoteImportPanel({
           <button
             type="button"
             onClick={onLoadSample}
-            className="rounded-md border border-blue-200 bg-white px-3 py-2 text-sm font-medium text-blue-800 hover:bg-blue-100"
+            className="min-h-11 rounded-md border border-blue-200 bg-white px-3 py-2 text-sm font-medium text-blue-800 hover:bg-blue-100"
           >
             Load Sample JSON
           </button>
           <button
             type="button"
             onClick={onUseManualControls}
-            className="rounded-md border border-blue-200 bg-white px-3 py-2 text-sm font-medium text-blue-800 hover:bg-blue-100"
+            className="min-h-11 rounded-md border border-blue-200 bg-white px-3 py-2 text-sm font-medium text-blue-800 hover:bg-blue-100"
           >
             Use Manual Controls
           </button>
@@ -383,6 +383,7 @@ export function DockRender3DPage() {
   const [settings, setSettings] = useState<DockRenderSettings>(defaultRenderSettings);
   const [cameraPreset, setCameraPreset] = useState<CameraPreset>('isometric');
   const [viewMode, setViewMode] = useState<RenderViewMode>('customer');
+  const [isSidePanelOpen, setIsSidePanelOpen] = useState(true);
   const [project, setProject] = useState<DockProject | null>(null);
   const [isLoadingProject, setIsLoadingProject] = useState(false);
   const [loadMessage, setLoadMessage] = useState<string | null>(null);
@@ -536,8 +537,8 @@ export function DockRender3DPage() {
   return (
     <AppShell className="h-screen overflow-hidden">
       <div className="flex h-full min-h-0 flex-col">
-        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-3">
-          <div className="min-w-0">
+        <header className="flex shrink-0 flex-col gap-3 border-b border-slate-200 bg-white px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0 xl:max-w-[34rem]">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
               {isModelFromQuote ? `Quote Preview ${previewId ?? ''}` : `Project ${projectId ?? 'local'}`}
             </p>
@@ -546,12 +547,12 @@ export function DockRender3DPage() {
             </h1>
             <p className="mt-1 text-sm text-slate-500">{sourceNotice}</p>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             <div className="flex rounded-md border border-slate-300 bg-white p-1">
               <button
                 type="button"
                 onClick={() => setViewMode('customer')}
-                className={`rounded px-3 py-1.5 text-sm font-medium ${
+                className={`min-h-11 rounded px-3 py-2 text-sm font-medium ${
                   viewMode === 'customer' ? 'bg-brand-600 text-white' : 'text-slate-700 hover:bg-slate-100'
                 }`}
               >
@@ -560,7 +561,7 @@ export function DockRender3DPage() {
               <button
                 type="button"
                 onClick={() => setViewMode('internal')}
-                className={`rounded px-3 py-1.5 text-sm font-medium ${
+                className={`min-h-11 rounded px-3 py-2 text-sm font-medium ${
                   viewMode === 'internal' ? 'bg-brand-600 text-white' : 'text-slate-700 hover:bg-slate-100'
                 }`}
               >
@@ -568,17 +569,32 @@ export function DockRender3DPage() {
               </button>
             </div>
             <CameraPresetControls activePreset={cameraPreset} onPresetChange={setCameraPreset} />
+            <button
+              type="button"
+              onClick={() => sceneRef.current?.exportPng()}
+              className="min-h-11 rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700"
+            >
+              Export PNG
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsSidePanelOpen((isOpen) => !isOpen)}
+              className="min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              aria-expanded={isSidePanelOpen}
+            >
+              {isSidePanelOpen ? 'Hide Panel' : 'Show Panel'}
+            </button>
             {canReturnToEditor ? (
               <Link
                 to={`/editor/${projectId}`}
-                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                className="flex min-h-11 items-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
               >
                 Back to Editor
               </Link>
             ) : isModelFromQuote ? (
               <Link
                 to="/projects"
-                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                className="flex min-h-11 items-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
               >
                 Back
               </Link>
@@ -586,14 +602,14 @@ export function DockRender3DPage() {
               <button
                 type="button"
                 disabled
-                className="rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-400"
+                className="min-h-11 rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-400"
               >
                 Back to Editor
               </button>
             )}
             <Link
               to="/projects"
-              className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              className="flex min-h-11 items-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
             >
               Projects
             </Link>
@@ -601,7 +617,7 @@ export function DockRender3DPage() {
         </header>
 
         <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
-          <section className="relative min-h-[420px] flex-1 bg-sky-50">
+          <section className="relative min-h-[360px] flex-1 bg-sky-50 md:min-h-[460px] lg:min-h-0">
             <DockScene
               ref={sceneRef}
               settings={settings}
@@ -626,8 +642,8 @@ export function DockRender3DPage() {
               </div>
             )}
           </section>
-          {activeModel ? (
-            <aside className="max-h-[45vh] w-full shrink-0 overflow-y-auto border-t border-slate-200 bg-white p-4 lg:h-full lg:max-h-none lg:w-80 lg:border-l lg:border-t-0">
+          {activeModel && isSidePanelOpen ? (
+            <aside className="max-h-[38vh] w-full shrink-0 overflow-y-auto border-t border-slate-200 bg-white p-4 lg:h-full lg:max-h-none lg:w-[18rem] lg:max-w-[32vw] lg:border-l lg:border-t-0 xl:w-80">
               <h2 className="text-base font-semibold text-slate-900">{isModelFromQuote ? 'Quote Preview' : 'Project Render'}</h2>
               <p className="mt-1 text-sm text-slate-500">
                 {isModelFromQuote
@@ -733,18 +749,18 @@ export function DockRender3DPage() {
               <button
                 type="button"
                 onClick={() => sceneRef.current?.exportPng()}
-                className="mt-5 w-full rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700"
+                className="mt-5 min-h-11 w-full rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700"
               >
                 Export PNG
               </button>
             </aside>
-          ) : (
+          ) : !activeModel && isSidePanelOpen ? (
             <RenderControlPanel
               settings={settings}
               onSettingsChange={setSettings}
               onExportPng={() => sceneRef.current?.exportPng()}
             />
-          )}
+          ) : null}
         </main>
       </div>
     </AppShell>
