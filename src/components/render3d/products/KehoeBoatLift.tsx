@@ -11,7 +11,6 @@ export interface KehoeBoatLiftProps {
 const CABLE_SIZE_FT = 0.035;
 const CRADLE_HEIGHT_FT = 0.46;
 const CRADLE_BEAM_SIZE_FT = 0.14;
-const LOW_POST_MARKER_HEIGHT_FT = 0.38;
 const WINDER_RADIUS_FT = 0.085;
 const WINDER_LENGTH_FT = 0.46;
 
@@ -67,6 +66,8 @@ export function KehoeBoatLift({
   const driveX = Math.max(-postX + 0.46, postX - 0.56);
   const driveZ = -bunkOffsetZ - 0.2;
   const lowCableHeight = 0.62;
+  const postMarkerHeight = viewMode === 'internal' ? 0.72 : 0.58;
+  const postMarkerSize = viewMode === 'internal' ? 0.16 : 0.14;
   const postPositions = [
     [-postX, -postZ],
     [postX, -postZ],
@@ -76,13 +77,18 @@ export function KehoeBoatLift({
 
   return (
     <group>
-      {viewMode === 'internal' &&
-        postPositions.map(([x, z]) => (
-          <mesh key={`low-post-marker-${x}-${z}`} position={[x, LOW_POST_MARKER_HEIGHT_FT / 2, z]} castShadow receiveShadow>
-            <boxGeometry args={[0.14, LOW_POST_MARKER_HEIGHT_FT, 0.14]} />
-            <meshStandardMaterial color={materials.frameDark} roughness={0.42} metalness={0.14} transparent opacity={0.72} />
-          </mesh>
-        ))}
+      {postPositions.map(([x, z]) => (
+        <mesh key={`low-post-marker-${x}-${z}`} position={[x, postMarkerHeight / 2, z]} castShadow receiveShadow>
+          <boxGeometry args={[postMarkerSize, postMarkerHeight, postMarkerSize]} />
+          <meshStandardMaterial
+            color={viewMode === 'customer' ? materials.frame : materials.frameDark}
+            roughness={0.42}
+            metalness={0.14}
+            transparent={opacity < 1 || viewMode === 'internal'}
+            opacity={viewMode === 'internal' ? 0.78 : opacity}
+          />
+        </mesh>
+      ))}
 
       {[-bunkOffsetZ, bunkOffsetZ].flatMap((z) =>
         [-winderX, winderX].map((x) => (
