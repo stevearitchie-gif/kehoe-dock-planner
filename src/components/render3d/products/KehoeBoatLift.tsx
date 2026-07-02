@@ -11,6 +11,7 @@ export interface KehoeBoatLiftProps {
 const CABLE_SIZE_FT = 0.035;
 const CRADLE_HEIGHT_FT = 0.46;
 const CRADLE_BEAM_SIZE_FT = 0.14;
+const POST_CAP_HEIGHT_FT = 0.08;
 const WINDER_RADIUS_FT = 0.085;
 const WINDER_LENGTH_FT = 0.46;
 
@@ -66,8 +67,9 @@ export function KehoeBoatLift({
   const driveX = Math.max(-postX + 0.46, postX - 0.56);
   const driveZ = -bunkOffsetZ - 0.2;
   const lowCableHeight = 0.62;
-  const postMarkerHeight = viewMode === 'internal' ? 0.72 : 0.58;
-  const postMarkerSize = viewMode === 'internal' ? 0.16 : 0.14;
+  const postMarkerHeight = viewMode === 'internal' ? 1.45 : 1.28;
+  const postMarkerSize = viewMode === 'internal' ? 0.22 : 0.2;
+  const postCapSize = postMarkerSize + 0.08;
   const postPositions = [
     [-postX, -postZ],
     [postX, -postZ],
@@ -78,16 +80,28 @@ export function KehoeBoatLift({
   return (
     <group>
       {postPositions.map(([x, z]) => (
-        <mesh key={`low-post-marker-${x}-${z}`} position={[x, postMarkerHeight / 2, z]} castShadow receiveShadow>
-          <boxGeometry args={[postMarkerSize, postMarkerHeight, postMarkerSize]} />
-          <meshStandardMaterial
-            color={viewMode === 'customer' ? materials.frame : materials.frameDark}
-            roughness={0.42}
-            metalness={0.14}
-            transparent={opacity < 1 || viewMode === 'internal'}
-            opacity={viewMode === 'internal' ? 0.78 : opacity}
-          />
-        </mesh>
+        <group key={`post-marker-${x}-${z}`} position={[x, 0, z]}>
+          <mesh position={[0, postMarkerHeight / 2, 0]} castShadow receiveShadow>
+            <boxGeometry args={[postMarkerSize, postMarkerHeight, postMarkerSize]} />
+            <meshStandardMaterial
+              color={viewMode === 'customer' ? materials.frame : materials.frameDark}
+              roughness={0.42}
+              metalness={0.14}
+              transparent={opacity < 1 || viewMode === 'internal'}
+              opacity={viewMode === 'internal' ? 0.82 : opacity}
+            />
+          </mesh>
+          <mesh position={[0, postMarkerHeight + POST_CAP_HEIGHT_FT / 2, 0]} castShadow receiveShadow>
+            <boxGeometry args={[postCapSize, POST_CAP_HEIGHT_FT, postCapSize]} />
+            <meshStandardMaterial
+              color={viewMode === 'customer' ? materials.hardware : materials.frameDark}
+              roughness={0.4}
+              metalness={0.16}
+              transparent={opacity < 1 || viewMode === 'internal'}
+              opacity={viewMode === 'internal' ? 0.84 : opacity}
+            />
+          </mesh>
+        </group>
       ))}
 
       {[-bunkOffsetZ, bunkOffsetZ].flatMap((z) =>
