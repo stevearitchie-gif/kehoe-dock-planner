@@ -1,4 +1,5 @@
 import { Text } from '@react-three/drei';
+import { KehoeBoatLift } from '@/components/render3d/products/KehoeBoatLift';
 import { KehoeFloatingDock } from '@/components/render3d/products/KehoeFloatingDock';
 import { KehoeRampWithRails } from '@/components/render3d/products/KehoeRampWithRails';
 import { KehoeRampWithoutRails } from '@/components/render3d/products/KehoeRampWithoutRails';
@@ -507,7 +508,7 @@ function StepsElement({ element, viewMode }: { element: ProjectRenderElement; vi
   );
 }
 
-function BoatLiftElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
+function GenericBoatLiftElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
   const postHeight = 3.6;
   const beamY = element.elevation + postHeight;
   const frameColor = viewMode === 'customer' ? '#dbe4ea' : '#0e7490';
@@ -549,6 +550,22 @@ function BoatLiftElement({ element, viewMode }: { element: ProjectRenderElement;
         <boxGeometry args={[element.length * 0.7, 0.08, element.width * 0.24]} />
         <meshStandardMaterial color={viewMode === 'customer' ? '#b6c4cc' : '#94a3b8'} roughness={0.55} />
       </mesh>
+    </group>
+  );
+}
+
+function hasValidBoatLiftProductData(element: ProjectRenderElement) {
+  return Number.isFinite(element.length) && Number.isFinite(element.width) && element.length > 0 && element.width > 0;
+}
+
+function BoatLiftElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
+  if (!hasValidBoatLiftProductData(element)) {
+    return <GenericBoatLiftElement element={element} viewMode={viewMode} />;
+  }
+
+  return (
+    <group position={[element.x, element.elevation, element.z]} rotation={[0, element.rotation, 0]}>
+      <KehoeBoatLift footprintLengthFt={element.length} footprintWidthFt={element.width} opacity={element.opacity} viewMode={viewMode} />
     </group>
   );
 }
