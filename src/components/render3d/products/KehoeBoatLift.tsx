@@ -10,12 +10,12 @@ export interface KehoeBoatLiftProps {
 
 const DEFAULT_HEIGHT_FT = 4.2;
 const POST_SIZE_FT = 0.16;
-const BEAM_SIZE_FT = 0.16;
 const TOP_BEAM_HEIGHT_FT = 0.24;
 const TOP_BEAM_DEPTH_FT = 0.22;
 const CABLE_SIZE_FT = 0.035;
 const CRADLE_HEIGHT_FT = 0.46;
 const CRADLE_BEAM_SIZE_FT = 0.14;
+const POST_CAP_SIZE_FT = 0.28;
 const WINDER_RADIUS_FT = 0.085;
 const WINDER_LENGTH_FT = 0.46;
 
@@ -68,7 +68,7 @@ export function KehoeBoatLift({
   const postX = Math.max(0.2, footprintLengthFt / 2 - postInset);
   const postZ = Math.max(0.2, footprintWidthFt / 2 - postInset);
   const beamY = heightFt;
-  const midRailY = heightFt * 0.56;
+  const cableKeeperY = heightFt * 0.56 + 0.35;
   const cableTopY = heightFt - TOP_BEAM_HEIGHT_FT * 0.2;
   const cableBottomY = CRADLE_HEIGHT_FT + 0.18;
   const cableHeight = Math.max(0.3, cableTopY - cableBottomY);
@@ -76,7 +76,6 @@ export function KehoeBoatLift({
   const cradleWidth = Math.max(0.5, footprintWidthFt * 0.58);
   const bunkOffsetZ = Math.max(0.18, cradleWidth * 0.24);
   const sideBeamLength = postX * 2 + POST_SIZE_FT;
-  const endBeamLength = postZ * 2 + POST_SIZE_FT;
   const winderX = Math.min(postX - 0.2, cradleLength * 0.34);
   const driveX = Math.max(-postX + 0.46, postX - 0.56);
   const driveZ = -postZ - TOP_BEAM_DEPTH_FT * 0.08;
@@ -102,18 +101,18 @@ export function KehoeBoatLift({
           <meshStandardMaterial color={materials.frame} roughness={0.34} metalness={0.16} transparent={opacity < 1} opacity={opacity} />
         </mesh>
       ))}
-      {[-postX, postX].map((x) => (
-        <mesh key={`top-end-${x}`} position={[x, beamY, 0]} castShadow receiveShadow>
-          <boxGeometry args={[TOP_BEAM_DEPTH_FT, TOP_BEAM_HEIGHT_FT, endBeamLength]} />
-          <meshStandardMaterial color={materials.frame} roughness={0.34} metalness={0.16} transparent={opacity < 1} opacity={opacity} />
-        </mesh>
-      ))}
 
       {postPositions.map(([x, z]) => (
-        <mesh key={`bearing-block-${x}-${z}`} position={[x, beamY - TOP_BEAM_HEIGHT_FT * 0.42, z]} castShadow>
-          <boxGeometry args={[0.28, 0.18, 0.24]} />
-          <meshStandardMaterial color={materials.hardware} roughness={0.38} metalness={0.18} transparent={opacity < 1} opacity={opacity} />
-        </mesh>
+        <group key={`post-top-detail-${x}-${z}`} position={[x, beamY - TOP_BEAM_HEIGHT_FT * 0.42, z]}>
+          <mesh castShadow>
+            <boxGeometry args={[0.28, 0.18, 0.24]} />
+            <meshStandardMaterial color={materials.hardware} roughness={0.38} metalness={0.18} transparent={opacity < 1} opacity={opacity} />
+          </mesh>
+          <mesh position={[0, -0.18, 0]} castShadow>
+            <boxGeometry args={[POST_CAP_SIZE_FT, 0.08, POST_CAP_SIZE_FT]} />
+            <meshStandardMaterial color={materials.frameDark} roughness={0.42} metalness={0.14} transparent={opacity < 1} opacity={opacity} />
+          </mesh>
+        </group>
       ))}
 
       {[-postZ, postZ].flatMap((z) =>
@@ -124,13 +123,6 @@ export function KehoeBoatLift({
           </mesh>
         )),
       )}
-
-      {[-postZ, postZ].map((z) => (
-        <mesh key={`mid-side-${z}`} position={[0, midRailY, z]} castShadow>
-          <boxGeometry args={[postX * 2, BEAM_SIZE_FT * 0.78, BEAM_SIZE_FT * 0.78]} />
-          <meshStandardMaterial color={materials.frameDark} roughness={0.42} metalness={0.12} transparent={opacity < 1} opacity={opacity} />
-        </mesh>
-      ))}
 
       {[-bunkOffsetZ, bunkOffsetZ].map((z) => (
         <mesh key={`cradle-side-${z}`} position={[0, CRADLE_HEIGHT_FT, z]} castShadow receiveShadow>
@@ -167,7 +159,7 @@ export function KehoeBoatLift({
       )}
 
       {postPositions.map(([x, z]) => (
-        <mesh key={`cable-keeper-${x}-${z}`} position={[x * 0.98, midRailY + 0.35, z]} castShadow>
+        <mesh key={`cable-keeper-${x}-${z}`} position={[x * 0.98, cableKeeperY, z]} castShadow>
           <boxGeometry args={[0.055, 0.54, 0.055]} />
           <meshStandardMaterial color={materials.cable} roughness={0.44} metalness={0.18} />
         </mesh>
