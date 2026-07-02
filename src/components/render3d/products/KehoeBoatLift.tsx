@@ -15,7 +15,6 @@ const TOP_BEAM_DEPTH_FT = 0.22;
 const CABLE_SIZE_FT = 0.035;
 const CRADLE_HEIGHT_FT = 0.46;
 const CRADLE_BEAM_SIZE_FT = 0.14;
-const POST_CAP_SIZE_FT = 0.28;
 const WINDER_RADIUS_FT = 0.085;
 const WINDER_LENGTH_FT = 0.46;
 
@@ -68,7 +67,6 @@ export function KehoeBoatLift({
   const postX = Math.max(0.2, footprintLengthFt / 2 - postInset);
   const postZ = Math.max(0.2, footprintWidthFt / 2 - postInset);
   const beamY = heightFt;
-  const cableKeeperY = heightFt * 0.56 + 0.35;
   const cableTopY = heightFt - TOP_BEAM_HEIGHT_FT * 0.2;
   const cableBottomY = CRADLE_HEIGHT_FT + 0.18;
   const cableHeight = Math.max(0.3, cableTopY - cableBottomY);
@@ -103,16 +101,10 @@ export function KehoeBoatLift({
       ))}
 
       {postPositions.map(([x, z]) => (
-        <group key={`post-top-detail-${x}-${z}`} position={[x, beamY - TOP_BEAM_HEIGHT_FT * 0.42, z]}>
-          <mesh castShadow>
-            <boxGeometry args={[0.28, 0.18, 0.24]} />
-            <meshStandardMaterial color={materials.hardware} roughness={0.38} metalness={0.18} transparent={opacity < 1} opacity={opacity} />
-          </mesh>
-          <mesh position={[0, -0.18, 0]} castShadow>
-            <boxGeometry args={[POST_CAP_SIZE_FT, 0.08, POST_CAP_SIZE_FT]} />
-            <meshStandardMaterial color={materials.frameDark} roughness={0.42} metalness={0.14} transparent={opacity < 1} opacity={opacity} />
-          </mesh>
-        </group>
+        <mesh key={`bearing-block-${x}-${z}`} position={[x, beamY - TOP_BEAM_HEIGHT_FT * 0.42, z]} castShadow>
+          <boxGeometry args={[0.18, 0.14, 0.18]} />
+          <meshStandardMaterial color={materials.hardware} roughness={0.38} metalness={0.18} transparent={opacity < 1} opacity={opacity} />
+        </mesh>
       ))}
 
       {[-postZ, postZ].flatMap((z) =>
@@ -159,8 +151,8 @@ export function KehoeBoatLift({
       )}
 
       {postPositions.map(([x, z]) => (
-        <mesh key={`cable-keeper-${x}-${z}`} position={[x * 0.98, cableKeeperY, z]} castShadow>
-          <boxGeometry args={[0.055, 0.54, 0.055]} />
+        <mesh key={`cable-keeper-${x}-${z}`} position={[x * 0.96, cableBottomY + cableHeight * 0.62, z * 0.96]} castShadow>
+          <boxGeometry args={[0.045, 0.34, 0.045]} />
           <meshStandardMaterial color={materials.cable} roughness={0.44} metalness={0.18} />
         </mesh>
       ))}
