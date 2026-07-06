@@ -17,6 +17,11 @@ export type RenderViewMode = 'customer' | 'internal';
 
 export type FloatingDockBoardDirection = 'none' | 'horizontal' | 'vertical';
 export type BoatPortRoofType = 'flat' | 'pitched';
+export type BoathouseRoofType = 'flat' | 'gable';
+export type BoathouseSlipCount = 1 | 2;
+export type BoathouseDoorStyle = 'open' | 'single_door' | 'double_doors' | 'two_slip_doors' | 'none';
+export type BoathouseWallFinish = 'neutral' | 'wood' | 'metal';
+export type BoathouseRoofFinish = 'neutral' | 'metal' | 'shingle';
 
 export type ProjectRenderElementType =
   | 'floating_dock'
@@ -26,6 +31,7 @@ export type ProjectRenderElementType =
   | 'steps'
   | 'boat_lift'
   | 'boat_port'
+  | 'boathouse'
   | 'roof_overlay';
 
 export interface ProjectRenderElement {
@@ -56,6 +62,13 @@ export interface ProjectRenderElement {
   boatPortWallHeightFt?: number;
   boatPortRoofRiseFt?: number;
   boatPortRoofType?: BoatPortRoofType;
+  boathouseWallHeightFt?: number;
+  boathouseRoofRiseFt?: number;
+  boathouseRoofType?: BoathouseRoofType;
+  boathouseSlipCount?: BoathouseSlipCount;
+  boathouseDoorStyle?: BoathouseDoorStyle;
+  boathouseWallFinish?: BoathouseWallFinish;
+  boathouseRoofFinish?: BoathouseRoofFinish;
 }
 
 export interface ProjectRenderModel {

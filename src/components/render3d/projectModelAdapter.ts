@@ -1,6 +1,11 @@
 import type { DockObject, DockObjectType, DockProject } from '@/types/dock';
 import type {
   BoatPortRoofType,
+  BoathouseDoorStyle,
+  BoathouseRoofFinish,
+  BoathouseRoofType,
+  BoathouseSlipCount,
+  BoathouseWallFinish,
   FloatingDockBoardDirection,
   ProjectRenderElement,
   ProjectRenderElementType,
@@ -18,6 +23,7 @@ const supportedObjectTypes = new Set<DockObjectType>([
   'steps',
   'boat_lift',
   'boat_port',
+  'boathouse',
   'roof_overlay',
 ]);
 
@@ -92,6 +98,53 @@ function getBoatPortRoofType(object: DockObject): BoatPortRoofType | undefined {
   return roofType === 'flat' || roofType === 'pitched' ? roofType : undefined;
 }
 
+function getBoathouseRoofType(object: DockObject): BoathouseRoofType | undefined {
+  if (object.type !== 'boathouse') {
+    return undefined;
+  }
+
+  const roofType = object.metadata?.boathouseRoofType;
+  return roofType === 'flat' || roofType === 'gable' ? roofType : undefined;
+}
+
+function getBoathouseSlipCount(object: DockObject): BoathouseSlipCount | undefined {
+  if (object.type !== 'boathouse') {
+    return undefined;
+  }
+
+  const slipCount = object.metadata?.boathouseSlipCount;
+  return slipCount === 1 || slipCount === 2 ? slipCount : undefined;
+}
+
+function getBoathouseDoorStyle(object: DockObject): BoathouseDoorStyle | undefined {
+  if (object.type !== 'boathouse') {
+    return undefined;
+  }
+
+  const doorStyle = object.metadata?.boathouseDoorStyle;
+  return doorStyle === 'open' || doorStyle === 'single_door' || doorStyle === 'double_doors' || doorStyle === 'two_slip_doors' || doorStyle === 'none'
+    ? doorStyle
+    : undefined;
+}
+
+function getBoathouseWallFinish(object: DockObject): BoathouseWallFinish | undefined {
+  if (object.type !== 'boathouse') {
+    return undefined;
+  }
+
+  const wallFinish = object.metadata?.boathouseWallFinish;
+  return wallFinish === 'neutral' || wallFinish === 'wood' || wallFinish === 'metal' ? wallFinish : undefined;
+}
+
+function getBoathouseRoofFinish(object: DockObject): BoathouseRoofFinish | undefined {
+  if (object.type !== 'boathouse') {
+    return undefined;
+  }
+
+  const roofFinish = object.metadata?.boathouseRoofFinish;
+  return roofFinish === 'neutral' || roofFinish === 'metal' || roofFinish === 'shingle' ? roofFinish : undefined;
+}
+
 function getPositiveMetadataNumber(value: unknown): number | undefined {
   const parsedValue = Number(value);
   return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : undefined;
@@ -140,6 +193,13 @@ export function buildProjectRenderModel(project: DockProject): ProjectRenderMode
       boatPortWallHeightFt: getPositiveMetadataNumber(object.metadata?.boatPortWallHeightFt),
       boatPortRoofRiseFt: getPositiveMetadataNumber(object.metadata?.boatPortRoofRiseFt),
       boatPortRoofType: getBoatPortRoofType(object),
+      boathouseWallHeightFt: getPositiveMetadataNumber(object.metadata?.boathouseWallHeightFt),
+      boathouseRoofRiseFt: getPositiveMetadataNumber(object.metadata?.boathouseRoofRiseFt),
+      boathouseRoofType: getBoathouseRoofType(object),
+      boathouseSlipCount: getBoathouseSlipCount(object),
+      boathouseDoorStyle: getBoathouseDoorStyle(object),
+      boathouseWallFinish: getBoathouseWallFinish(object),
+      boathouseRoofFinish: getBoathouseRoofFinish(object),
     };
   });
 

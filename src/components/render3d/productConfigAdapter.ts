@@ -9,6 +9,8 @@ const DEFAULT_RAMP_LENGTH_FT = 24;
 const DEFAULT_RAMP_WIDTH_FT = 4;
 const DEFAULT_BOAT_PORT_LENGTH_FT = 12;
 const DEFAULT_BOAT_PORT_WIDTH_FT = 6;
+const DEFAULT_BOATHOUSE_LENGTH_FT = 32;
+const DEFAULT_BOATHOUSE_WIDTH_FT = 18;
 
 function isRenderableProductType(type: ProductConfiguration['productType']): type is RenderableProductConfigurationType {
   return (
@@ -17,7 +19,8 @@ function isRenderableProductType(type: ProductConfiguration['productType']): typ
     type === 'ramp_with_rails' ||
     type === 'ramp_without_rails' ||
     type === 'boat_lift' ||
-    type === 'boat_port'
+    type === 'boat_port' ||
+    type === 'boathouse'
   );
 }
 
@@ -67,6 +70,13 @@ function buildBaseElement(config: ProductConfiguration, type: ProjectRenderEleme
     boatPortWallHeightFt: config.boatPort?.wallHeightFt,
     boatPortRoofRiseFt: config.boatPort?.roofRiseFt,
     boatPortRoofType: config.boatPort?.roofType,
+    boathouseWallHeightFt: config.boathouse?.wallHeightFt,
+    boathouseRoofRiseFt: config.boathouse?.roofRiseFt,
+    boathouseRoofType: config.boathouse?.roofType,
+    boathouseSlipCount: config.boathouse?.slipCount,
+    boathouseDoorStyle: config.boathouse?.doorStyle,
+    boathouseWallFinish: config.boathouse?.wallFinish,
+    boathouseRoofFinish: config.boathouse?.roofFinish,
   };
 }
 
@@ -102,6 +112,15 @@ function toRenderElement(config: ProductConfiguration): ProjectRenderElement | n
       color: '#dbeafe',
       length: config.dimensions?.lengthFt ?? DEFAULT_BOAT_PORT_LENGTH_FT,
       width: config.dimensions?.widthFt ?? DEFAULT_BOAT_PORT_WIDTH_FT,
+    };
+  }
+
+  if (config.productType === 'boathouse') {
+    return {
+      ...base,
+      color: '#d6d3c8',
+      length: config.dimensions?.lengthFt ?? DEFAULT_BOATHOUSE_LENGTH_FT,
+      width: config.dimensions?.widthFt ?? DEFAULT_BOATHOUSE_WIDTH_FT,
     };
   }
 

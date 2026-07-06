@@ -1,4 +1,5 @@
 import { Text } from '@react-three/drei';
+import { KehoeBoathouse } from '@/components/render3d/products/KehoeBoathouse';
 import { KehoeBoatLift } from '@/components/render3d/products/KehoeBoatLift';
 import { KehoeBoatPort } from '@/components/render3d/products/KehoeBoatPort';
 import { KehoeFloatingDock } from '@/components/render3d/products/KehoeFloatingDock';
@@ -623,6 +624,62 @@ function BoatPortElement({ element, viewMode }: { element: ProjectRenderElement;
   );
 }
 
+function GenericBoathouseElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
+  const wallHeight = 9;
+  const roofRise = 3;
+  const wallColor = viewMode === 'customer' ? '#d6d3c8' : element.color;
+  const roofColor = viewMode === 'customer' ? '#c9d3d9' : '#facc15';
+
+  return (
+    <group position={[element.x, 0, element.z]} rotation={[0, element.rotation, 0]}>
+      <mesh position={[0, wallHeight / 2, -element.width / 2]} castShadow receiveShadow>
+        <boxGeometry args={[Math.max(0.8, element.length), wallHeight, 0.18]} />
+        <meshStandardMaterial color={wallColor} roughness={0.66} transparent opacity={element.opacity} />
+      </mesh>
+      <mesh position={[0, wallHeight / 2, element.width / 2]} castShadow receiveShadow>
+        <boxGeometry args={[Math.max(0.8, element.length), wallHeight, 0.18]} />
+        <meshStandardMaterial color={wallColor} roughness={0.66} transparent opacity={element.opacity} />
+      </mesh>
+      <mesh position={[element.length / 2, wallHeight / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.18, wallHeight, Math.max(0.8, element.width)]} />
+        <meshStandardMaterial color={wallColor} roughness={0.66} transparent opacity={element.opacity} />
+      </mesh>
+      <mesh position={[0, wallHeight + roofRise / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[Math.max(0.8, element.length + 0.6), roofRise, Math.max(0.8, element.width + 0.6)]} />
+        <meshStandardMaterial color={roofColor} roughness={0.5} transparent opacity={element.opacity} />
+      </mesh>
+    </group>
+  );
+}
+
+function hasValidBoathouseProductData(element: ProjectRenderElement) {
+  return Number.isFinite(element.length) && Number.isFinite(element.width) && element.length > 0 && element.width > 0;
+}
+
+function BoathouseElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
+  if (!hasValidBoathouseProductData(element)) {
+    return <GenericBoathouseElement element={element} viewMode={viewMode} />;
+  }
+
+  return (
+    <group position={[element.x, element.elevation, element.z]} rotation={[0, element.rotation, 0]}>
+      <KehoeBoathouse
+        footprintLengthFt={element.length}
+        footprintWidthFt={element.width}
+        wallHeightFt={element.boathouseWallHeightFt}
+        roofRiseFt={element.boathouseRoofRiseFt}
+        roofType={element.boathouseRoofType}
+        slipCount={element.boathouseSlipCount}
+        doorStyle={element.boathouseDoorStyle}
+        wallFinish={element.boathouseWallFinish}
+        roofFinish={element.boathouseRoofFinish}
+        opacity={element.opacity}
+        viewMode={viewMode}
+      />
+    </group>
+  );
+}
+
 function RoofOverlayElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
   const roofY = element.elevation + 3.8;
   const canopyColor = viewMode === 'customer' ? '#f3f8fb' : element.color;
@@ -870,6 +927,13 @@ function getElementRenderKey(element: ProjectRenderElement, rampElevation?: Ramp
     formatKeyNumber(element.boatPortWallHeightFt),
     formatKeyNumber(element.boatPortRoofRiseFt),
     element.boatPortRoofType ?? 'boat-port-roof-default',
+    formatKeyNumber(element.boathouseWallHeightFt),
+    formatKeyNumber(element.boathouseRoofRiseFt),
+    element.boathouseRoofType ?? 'boathouse-roof-default',
+    String(element.boathouseSlipCount ?? 'boathouse-slip-default'),
+    element.boathouseDoorStyle ?? 'boathouse-door-default',
+    element.boathouseWallFinish ?? 'boathouse-wall-default',
+    element.boathouseRoofFinish ?? 'boathouse-roof-finish-default',
     rampElevation ? String(rampElevation.hasConnection) : 'no-ramp',
     rampElevation ? formatKeyNumber(rampElevation.deckTopHeight) : 'na',
     rampElevation ? formatKeyNumber(rampElevation.lowerEndHeight) : 'na',
@@ -947,6 +1011,9 @@ function ProjectElement({
       break;
     case 'boat_port':
       renderedElement = <BoatPortElement element={element} viewMode={viewMode} />;
+      break;
+    case 'boathouse':
+      renderedElement = <BoathouseElement element={element} viewMode={viewMode} />;
       break;
     case 'roof_overlay':
       renderedElement = <RoofOverlayElement element={element} viewMode={viewMode} />;

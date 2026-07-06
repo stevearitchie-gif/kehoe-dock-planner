@@ -9,6 +9,7 @@ export type DockObjectType =
   | 'roof_overlay'
   | 'boat_lift'
   | 'boat_port'
+  | 'boathouse'
   | 'text_note'
   | 'dimension_line'
   | 'shape_rectangle'
@@ -85,6 +86,13 @@ export interface DockObject {
     boatPortWallHeightFt?: number;
     boatPortRoofRiseFt?: number;
     boatPortRoofType?: 'flat' | 'pitched';
+    boathouseWallHeightFt?: number;
+    boathouseRoofRiseFt?: number;
+    boathouseRoofType?: 'flat' | 'gable';
+    boathouseSlipCount?: 1 | 2;
+    boathouseDoorStyle?: 'open' | 'single_door' | 'double_doors' | 'two_slip_doors' | 'none';
+    boathouseWallFinish?: 'neutral' | 'wood' | 'metal';
+    boathouseRoofFinish?: 'neutral' | 'metal' | 'shingle';
     text?: string;
     dimensionValue?: number;
   };

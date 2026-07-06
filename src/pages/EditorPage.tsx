@@ -1151,6 +1151,7 @@ export function EditorPage() {
       'roof_overlay',
       'boat_lift',
       'boat_port',
+      'boathouse',
       'dimension_line',
       'shape_rectangle',
       'shape_rounded_rectangle',
@@ -1201,6 +1202,7 @@ export function EditorPage() {
           roof_overlay: 'Roof Overlay',
           boat_lift: 'Boat Lift',
           boat_port: 'Boat Port',
+          boathouse: 'Boathouse',
           dimension_line: 'Dimension Line',
           shape_rectangle: 'Rectangle',
           shape_rounded_rectangle: 'Rounded Rectangle',
@@ -1244,6 +1246,7 @@ export function EditorPage() {
           roof_overlay: { width: 140, height: 80 },
           boat_lift: { width: 80, height: 30 },
           boat_port: { width: 120, height: 54 },
+          boathouse: { width: 160, height: 90 },
           dimension_line: { width: 160, height: 24 },
           shape_rectangle: { width: 100, height: 60 },
           shape_rounded_rectangle: { width: 100, height: 60 },
@@ -1287,6 +1290,7 @@ export function EditorPage() {
           roof_overlay: '#64748b',
           boat_lift: '#cbd5e1',
           boat_port: '#bfdbfe',
+          boathouse: '#d6d3c8',
           dimension_line: '#0f172a',
           shape_rectangle: '#dbeafe',
           shape_rounded_rectangle: '#dbeafe',
@@ -1341,6 +1345,16 @@ export function EditorPage() {
                   boatPortRoofRiseFt: 1.4,
                   boatPortRoofType: 'pitched',
                 }
+              : placementTool === 'boathouse'
+                ? {
+                    boathouseWallHeightFt: 9,
+                    boathouseRoofRiseFt: 3,
+                    boathouseRoofType: 'gable',
+                    boathouseSlipCount: 1,
+                    boathouseDoorStyle: 'open',
+                    boathouseWallFinish: 'neutral',
+                    boathouseRoofFinish: 'metal',
+                  }
               : undefined,
         };
 
@@ -1926,6 +1940,47 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
       metadata: {
         ...object.metadata,
         boatPortRoofType: value,
+      },
+    }));
+  };
+
+  const handleSelectedBoathouseNumberChange = (
+    field: 'boathouseWallHeightFt' | 'boathouseRoofRiseFt',
+    value: string,
+  ) => {
+    const parsedValue = Number(value);
+    if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+      return;
+    }
+
+    updateSelectedObject((object) => ({
+      ...object,
+      metadata: {
+        ...object.metadata,
+        [field]: parsedValue,
+      },
+    }));
+  };
+
+  const handleSelectedBoathouseOptionChange = (
+    field: 'boathouseRoofType' | 'boathouseDoorStyle' | 'boathouseWallFinish' | 'boathouseRoofFinish',
+    value: string,
+  ) => {
+    updateSelectedObject((object) => ({
+      ...object,
+      metadata: {
+        ...object.metadata,
+        [field]: value,
+      },
+    }));
+  };
+
+  const handleSelectedBoathouseSlipCountChange = (value: 1 | 2) => {
+    updateSelectedObject((object) => ({
+      ...object,
+      metadata: {
+        ...object.metadata,
+        boathouseSlipCount: value,
       },
     }));
   };
@@ -3137,6 +3192,184 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                                   </button>
                                 );
                               })}
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedObject.type === 'boathouse' && (
+                          <div className="mt-4 rounded-md border border-slate-200 bg-white p-3">
+                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                              Boathouse Options
+                            </p>
+                            <div className="mt-3 grid grid-cols-2 gap-2">
+                              <label className="block">
+                                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                  Wall height (ft)
+                                </span>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  step="any"
+                                  value={selectedObject.metadata?.boathouseWallHeightFt ?? 9}
+                                  onChange={(event) => handleSelectedBoathouseNumberChange('boathouseWallHeightFt', event.target.value)}
+                                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                                />
+                              </label>
+                              <label className="block">
+                                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                  Roof rise (ft)
+                                </span>
+                                <input
+                                  type="number"
+                                  min={0.25}
+                                  step="any"
+                                  value={selectedObject.metadata?.boathouseRoofRiseFt ?? 3}
+                                  onChange={(event) => handleSelectedBoathouseNumberChange('boathouseRoofRiseFt', event.target.value)}
+                                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                                />
+                              </label>
+                            </div>
+
+                            <div className="mt-3">
+                              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Roof Type</p>
+                              <div className="mt-2 grid grid-cols-2 gap-2">
+                                {[
+                                  { label: 'Flat', value: 'flat' },
+                                  { label: 'Gable', value: 'gable' },
+                                ].map((option) => {
+                                  const activeValue = selectedObject.metadata?.boathouseRoofType ?? 'gable';
+                                  const isActive = activeValue === option.value;
+
+                                  return (
+                                    <button
+                                      key={option.value}
+                                      type="button"
+                                      onClick={() => handleSelectedBoathouseOptionChange('boathouseRoofType', option.value)}
+                                      className={`rounded-md border px-2 py-2 text-xs font-medium ${
+                                        isActive
+                                          ? 'border-brand-600 bg-brand-50 text-brand-700'
+                                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                                      }`}
+                                    >
+                                      {option.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="mt-3">
+                              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Slip Count</p>
+                              <div className="mt-2 grid grid-cols-2 gap-2">
+                                {[1, 2].map((value) => {
+                                  const isActive = (selectedObject.metadata?.boathouseSlipCount ?? 1) === value;
+
+                                  return (
+                                    <button
+                                      key={value}
+                                      type="button"
+                                      onClick={() => handleSelectedBoathouseSlipCountChange(value as 1 | 2)}
+                                      className={`rounded-md border px-2 py-2 text-xs font-medium ${
+                                        isActive
+                                          ? 'border-brand-600 bg-brand-50 text-brand-700'
+                                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                                      }`}
+                                    >
+                                      {value} Slip{value === 1 ? '' : 's'}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="mt-3">
+                              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Door Style</p>
+                              <div className="mt-2 grid grid-cols-2 gap-2">
+                                {[
+                                  { label: 'Open', value: 'open' },
+                                  { label: 'Single Door', value: 'single_door' },
+                                  { label: 'Double Doors', value: 'double_doors' },
+                                  { label: 'Two Slip Doors', value: 'two_slip_doors' },
+                                  { label: 'None', value: 'none' },
+                                ].map((option) => {
+                                  const activeValue = selectedObject.metadata?.boathouseDoorStyle ?? 'open';
+                                  const isActive = activeValue === option.value;
+
+                                  return (
+                                    <button
+                                      key={option.value}
+                                      type="button"
+                                      onClick={() => handleSelectedBoathouseOptionChange('boathouseDoorStyle', option.value)}
+                                      className={`rounded-md border px-2 py-2 text-xs font-medium ${
+                                        isActive
+                                          ? 'border-brand-600 bg-brand-50 text-brand-700'
+                                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                                      }`}
+                                    >
+                                      {option.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="mt-3 grid grid-cols-2 gap-3">
+                              <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Wall Finish</p>
+                                <div className="mt-2 grid gap-2">
+                                  {[
+                                    { label: 'Neutral', value: 'neutral' },
+                                    { label: 'Wood', value: 'wood' },
+                                    { label: 'Metal', value: 'metal' },
+                                  ].map((option) => {
+                                    const activeValue = selectedObject.metadata?.boathouseWallFinish ?? 'neutral';
+                                    const isActive = activeValue === option.value;
+
+                                    return (
+                                      <button
+                                        key={option.value}
+                                        type="button"
+                                        onClick={() => handleSelectedBoathouseOptionChange('boathouseWallFinish', option.value)}
+                                        className={`rounded-md border px-2 py-2 text-xs font-medium ${
+                                          isActive
+                                            ? 'border-brand-600 bg-brand-50 text-brand-700'
+                                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                                        }`}
+                                      >
+                                        {option.label}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                              <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Roof Finish</p>
+                                <div className="mt-2 grid gap-2">
+                                  {[
+                                    { label: 'Neutral', value: 'neutral' },
+                                    { label: 'Metal', value: 'metal' },
+                                    { label: 'Shingle', value: 'shingle' },
+                                  ].map((option) => {
+                                    const activeValue = selectedObject.metadata?.boathouseRoofFinish ?? 'metal';
+                                    const isActive = activeValue === option.value;
+
+                                    return (
+                                      <button
+                                        key={option.value}
+                                        type="button"
+                                        onClick={() => handleSelectedBoathouseOptionChange('boathouseRoofFinish', option.value)}
+                                        className={`rounded-md border px-2 py-2 text-xs font-medium ${
+                                          isActive
+                                            ? 'border-brand-600 bg-brand-50 text-brand-700'
+                                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                                        }`}
+                                      >
+                                        {option.label}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
                             </div>
                           </div>
                         )}

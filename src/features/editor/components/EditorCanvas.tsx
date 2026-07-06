@@ -601,6 +601,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       'roof_overlay',
       'boat_lift',
       'boat_port',
+      'boathouse',
       'dimension_line',
       'shape_rectangle',
       'shape_rounded_rectangle',
@@ -1617,6 +1618,55 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                             listening={false}
                           />
                         </>
+                      )}
+                    </>
+                  )}
+
+                  {object.type === 'boathouse' && (
+                    <>
+                      <Line
+                        points={[8, 8, object.width - 8, 8, object.width - 8, object.height - 8, 8, object.height - 8, 8, 8]}
+                        stroke="#57534e"
+                        strokeWidth={1.5}
+                        listening={false}
+                      />
+                      {object.metadata?.boathouseRoofType === 'flat' ? (
+                        <Line
+                          points={[12, object.height / 2, object.width - 12, object.height / 2]}
+                          stroke="#78716c"
+                          strokeWidth={2}
+                          listening={false}
+                        />
+                      ) : (
+                        <Line
+                          points={[12, object.height - 10, object.width / 2, 10, object.width - 12, object.height - 10]}
+                          stroke="#78716c"
+                          strokeWidth={2}
+                          lineJoin="round"
+                          listening={false}
+                        />
+                      )}
+                      {Array.from({ length: Math.max(1, Math.min(2, object.metadata?.boathouseSlipCount ?? 1)) - 1 }, (_, slipIndex) => {
+                        const x = (object.width * (slipIndex + 1)) / Math.max(1, Math.min(2, object.metadata?.boathouseSlipCount ?? 1));
+
+                        return (
+                          <Line
+                            key={`boathouse-slip-${slipIndex}`}
+                            points={[x, 10, x, object.height - 10]}
+                            stroke="#a16207"
+                            strokeWidth={1.5}
+                            dash={[5, 4]}
+                            listening={false}
+                          />
+                        );
+                      })}
+                      {object.metadata?.boathouseDoorStyle !== 'none' && (
+                        <Line
+                          points={[10, object.height - 8, object.width - 10, object.height - 8]}
+                          stroke={object.metadata?.boathouseDoorStyle === 'open' ? '#16a34a' : '#92400e'}
+                          strokeWidth={2.5}
+                          listening={false}
+                        />
                       )}
                     </>
                   )}

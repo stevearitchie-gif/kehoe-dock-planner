@@ -7,6 +7,7 @@ export type ProductConfigurationType =
   | 'ramp_without_rails'
   | 'boat_lift'
   | 'boat_port'
+  | 'boathouse'
   | 'custom';
 
 export interface ProductConfiguration {
@@ -54,6 +55,15 @@ export interface ProductConfiguration {
     wallHeightFt?: number;
     roofRiseFt?: number;
     roofType?: 'flat' | 'pitched';
+  };
+  boathouse?: {
+    wallHeightFt?: number;
+    roofRiseFt?: number;
+    roofType?: 'flat' | 'gable';
+    slipCount?: 1 | 2;
+    doorStyle?: 'open' | 'single_door' | 'double_doors' | 'two_slip_doors' | 'none';
+    wallFinish?: 'neutral' | 'wood' | 'metal';
+    roofFinish?: 'neutral' | 'metal' | 'shingle';
   };
   pricing?: {
     classification?: string;
