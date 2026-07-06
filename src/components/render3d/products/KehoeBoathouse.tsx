@@ -29,6 +29,8 @@ const ROOF_OVERHANG_FT = 0.32;
 const GABLE_ROOF_THICKNESS_FT = 0.18;
 const MIN_FLAT_ROOF_DEPTH_FT = 0.3;
 const MAX_FLAT_ROOF_DEPTH_FT = 0.8;
+const FRONT_WALL_PANEL_HEIGHT_RATIO = 0.82;
+const FRONT_HEADER_HEIGHT_FT = 0.24;
 
 function getPositiveValue(value: number | undefined, fallback: number) {
   return Number.isFinite(value) && Number(value) > 0 ? Number(value) : fallback;
@@ -107,6 +109,42 @@ function GableRoof({
   );
 }
 
+function GableEndWall({
+  x,
+  width,
+  wallHeight,
+  roofRise,
+  materials,
+  opacity,
+}: {
+  x: number;
+  width: number;
+  wallHeight: number;
+  roofRise: number;
+  materials: ReturnType<typeof getMaterials>;
+  opacity: number;
+}) {
+  const stripCount = 6;
+  const stripHeight = roofRise / stripCount;
+
+  return (
+    <>
+      {Array.from({ length: stripCount }, (_, index) => {
+        const progress = (index + 0.5) / stripCount;
+        const stripWidth = Math.max(0.2, width * (1 - progress));
+        const y = wallHeight + stripHeight * index + stripHeight / 2;
+
+        return (
+          <mesh key={`gable-end-${x}-${index}`} position={[x, y, 0]} castShadow receiveShadow>
+            <boxGeometry args={[WALL_THICKNESS_FT, stripHeight, stripWidth]} />
+            <meshStandardMaterial color={materials.wall} roughness={0.66} metalness={0.02} transparent={opacity < 1} opacity={opacity} />
+          </mesh>
+        );
+      })}
+    </>
+  );
+}
+
 export function KehoeBoathouse({
   footprintLengthFt,
   footprintWidthFt,
@@ -143,8 +181,35 @@ export function KehoeBoathouse({
   const frontX = -halfLength;
   const backX = halfLength;
   const flatRoofDepth = Math.max(MIN_FLAT_ROOF_DEPTH_FT, Math.min(MAX_FLAT_ROOF_DEPTH_FT, roofRise));
-  const doorPanelCount =
-    normalizedDoorStyle === 'single_door' ? 1 : normalizedDoorStyle === 'two_slip_doors' ? normalizedSlipCount : 2;
+  const frontWallHeight = wallHeight * FRONT_WALL_PANEL_HEIGHT_RATIO;
+  const frontWallDepth = WALL_THICKNESS_FT;
+  const centeredOpeningWidth =
+    normalizedDoorStyle === 'single_door' ? width * 0.42 : normalizedDoorStyle === 'double_doors' ? width * 0.64 : width * 0.58;
+  const sidePanelWidth = Math.max(0.35, (width - centeredOpeningWidth) / 2);
+  const twoSlipSidePanelWidth = Math.max(0.28, width * 0.1);
+  const twoSlipCenterPierWidth = Math.max(0.18, width * 0.045);
+  const twoSlipBayWidth = Math.max(0.4, (width - twoSlipSidePanelWidth * 2 - twoSlipCenterPierWidth) / 2);
+
+  const renderFrontWallPanel = (key: string, centerZ: number, panelWidth: number, panelHeight = frontWallHeight) => (
+    <mesh key={key} position={[frontX, panelHeight / 2, centerZ]} castShadow receiveShadow>
+      <boxGeometry args={[frontWallDepth, panelHeight, panelWidth]} />
+      <meshStandardMaterial color={materials.wall} roughness={0.66} metalness={0.02} transparent={opacity < 1} opacity={opacity} />
+    </mesh>
+  );
+
+  const renderDoorPanel = (key: string, centerZ: number, panelWidth: number, panelHeight = frontWallHeight * 0.92) => (
+    <mesh key={key} position={[frontX - 0.018, panelHeight / 2, centerZ]} castShadow receiveShadow>
+      <boxGeometry args={[0.08, panelHeight, panelWidth]} />
+      <meshStandardMaterial color={materials.door} roughness={0.58} metalness={0.04} transparent={opacity < 1} opacity={opacity} />
+    </mesh>
+  );
+
+  const renderDoorSeam = (key: string, centerZ: number, height = frontWallHeight * 0.9) => (
+    <mesh key={key} position={[frontX - 0.062, height / 2, centerZ]} castShadow>
+      <boxGeometry args={[0.04, height, 0.045]} />
+      <meshStandardMaterial color={materials.frame} roughness={0.48} metalness={0.08} />
+    </mesh>
+  );
 
   return (
     <group>
@@ -179,31 +244,40 @@ export function KehoeBoathouse({
         <meshStandardMaterial color={materials.wall} roughness={0.66} metalness={0.02} transparent={opacity < 1} opacity={opacity} />
       </mesh>
 
+      {normalizedRoofType === 'gable' && (
+        <>
+          <GableEndWall x={frontX - 0.004} width={width} wallHeight={wallHeight} roofRise={roofRise} materials={materials} opacity={opacity} />
+          <GableEndWall x={backX + 0.004} width={width} wallHeight={wallHeight} roofRise={roofRise} materials={materials} opacity={opacity} />
+        </>
+      )}
+
       <mesh position={[frontX, frameY, 0]} castShadow receiveShadow>
-        <boxGeometry args={[WALL_THICKNESS_FT, 0.24, width]} />
+        <boxGeometry args={[WALL_THICKNESS_FT, FRONT_HEADER_HEIGHT_FT, width]} />
         <meshStandardMaterial color={materials.frame} roughness={0.42} metalness={0.1} transparent={opacity < 1} opacity={opacity} />
       </mesh>
 
-      {normalizedDoorStyle === 'none' && (
-        <mesh position={[frontX, wallHeight / 2, 0]} castShadow receiveShadow>
-          <boxGeometry args={[WALL_THICKNESS_FT, wallHeight, width]} />
-          <meshStandardMaterial color={materials.wall} roughness={0.66} metalness={0.02} transparent={opacity < 1} opacity={opacity} />
-        </mesh>
-      )}
-
-      {normalizedDoorStyle !== 'open' && normalizedDoorStyle !== 'none' && (
+      {normalizedDoorStyle === 'none' ? (
+        renderFrontWallPanel('front-wall-closed', 0, width, wallHeight)
+      ) : normalizedDoorStyle === 'two_slip_doors' ? (
         <>
-          {Array.from({ length: doorPanelCount }, (_, index) => {
-            const panelWidth = (width * 0.72) / doorPanelCount;
-            const centerZ = doorPanelCount === 1 ? 0 : -width * 0.18 + index * width * 0.36;
-
-            return (
-              <mesh key={`front-door-${index}`} position={[frontX - 0.015, wallHeight * 0.35, centerZ]} castShadow receiveShadow>
-                <boxGeometry args={[0.08, wallHeight * 0.7, panelWidth]} />
-                <meshStandardMaterial color={materials.door} roughness={0.58} metalness={0.04} transparent={opacity < 1} opacity={opacity} />
-              </mesh>
-            );
-          })}
+          {renderFrontWallPanel('front-wall-left-edge', -halfWidth + twoSlipSidePanelWidth / 2, twoSlipSidePanelWidth)}
+          {renderFrontWallPanel('front-wall-right-edge', halfWidth - twoSlipSidePanelWidth / 2, twoSlipSidePanelWidth)}
+          {renderFrontWallPanel('front-wall-center-pier', 0, twoSlipCenterPierWidth)}
+          {renderDoorPanel('front-door-slip-left', -(twoSlipCenterPierWidth / 2 + twoSlipBayWidth / 2), twoSlipBayWidth * 0.86)}
+          {renderDoorPanel('front-door-slip-right', twoSlipCenterPierWidth / 2 + twoSlipBayWidth / 2, twoSlipBayWidth * 0.86)}
+        </>
+      ) : (
+        <>
+          {renderFrontWallPanel('front-wall-left', -halfWidth + sidePanelWidth / 2, sidePanelWidth)}
+          {renderFrontWallPanel('front-wall-right', halfWidth - sidePanelWidth / 2, sidePanelWidth)}
+          {normalizedDoorStyle === 'single_door' && renderDoorPanel('front-door-single', 0, centeredOpeningWidth * 0.72)}
+          {normalizedDoorStyle === 'double_doors' && (
+            <>
+              {renderDoorPanel('front-door-double-left', -centeredOpeningWidth / 4, centeredOpeningWidth / 2)}
+              {renderDoorPanel('front-door-double-right', centeredOpeningWidth / 4, centeredOpeningWidth / 2)}
+              {renderDoorSeam('front-door-double-seam', 0)}
+            </>
+          )}
         </>
       )}
 
