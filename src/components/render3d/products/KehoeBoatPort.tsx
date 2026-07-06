@@ -15,6 +15,7 @@ const DEFAULT_ROOF_RISE_FT = 1.4;
 const POST_SIZE_FT = 0.18;
 const ROOF_OVERHANG_FT = 0.22;
 const LOW_BASE_HEIGHT_FT = 0.18;
+const PITCHED_ROOF_THICKNESS_FT = 0.14;
 const MIN_FLAT_ROOF_DEPTH_FT = 0.28;
 const MAX_FLAT_ROOF_DEPTH_FT = 0.65;
 
@@ -47,55 +48,48 @@ function PitchedRoof({
   width,
   wallHeight,
   roofRise,
-  color,
+  materials,
   opacity,
 }: {
   length: number;
   width: number;
   wallHeight: number;
   roofRise: number;
-  color: string;
+  materials: ReturnType<typeof getMaterials>;
   opacity: number;
 }) {
-  const halfLength = length / 2 + ROOF_OVERHANG_FT;
+  const roofLength = length + ROOF_OVERHANG_FT * 2;
   const halfWidth = width / 2 + ROOF_OVERHANG_FT;
-  const eaveY = wallHeight;
-  const ridgeY = wallHeight + roofRise;
-  const vertices = new Float32Array([
-    -halfLength,
-    eaveY,
-    -halfWidth,
-    halfLength,
-    eaveY,
-    -halfWidth,
-    -halfLength,
-    ridgeY,
-    0,
-    halfLength,
-    ridgeY,
-    0,
-    -halfLength,
-    eaveY,
-    halfWidth,
-    halfLength,
-    eaveY,
-    halfWidth,
-  ]);
-  const indices = new Uint16Array([
-    0, 1, 3, 0, 3, 2,
-    2, 3, 5, 2, 5, 4,
-    0, 2, 4, 0, 4, 1,
-    1, 4, 5, 1, 5, 3,
-  ]);
+  const roofPlaneWidth = Math.hypot(halfWidth, roofRise);
+  const slopeAngle = Math.atan2(roofRise, halfWidth);
+  const roofCenterY = wallHeight + roofRise / 2;
+  const roofCenterZ = halfWidth / 2;
 
   return (
-    <mesh castShadow receiveShadow>
-      <bufferGeometry onUpdate={(geometry) => geometry.computeVertexNormals()}>
-        <bufferAttribute attach="attributes-position" args={[vertices, 3]} />
-        <bufferAttribute attach="index" args={[indices, 1]} />
-      </bufferGeometry>
-      <meshStandardMaterial color={color} roughness={0.42} metalness={0.04} transparent={opacity < 1} opacity={opacity} />
-    </mesh>
+    <>
+      {[-1, 1].map((zSign) => (
+        <mesh
+          key={`roof-plane-${zSign}`}
+          position={[0, roofCenterY, zSign * roofCenterZ]}
+          rotation={[zSign * slopeAngle, 0, 0]}
+          castShadow
+          receiveShadow
+        >
+          <boxGeometry args={[roofLength, PITCHED_ROOF_THICKNESS_FT, roofPlaneWidth]} />
+          <meshStandardMaterial color={materials.roof} roughness={0.44} metalness={0.04} transparent={opacity < 1} opacity={opacity} />
+        </mesh>
+      ))}
+      <mesh position={[0, wallHeight + roofRise + 0.02, 0]} castShadow>
+        <boxGeometry args={[roofLength, 0.08, 0.12]} />
+        <meshStandardMaterial color={materials.roofEdge} roughness={0.42} metalness={0.08} transparent={opacity < 1} opacity={opacity} />
+      </mesh>
+      {[-1, 1].map((zSign) => (
+        <mesh key={`eave-fascia-${zSign}`} position={[0, wallHeight - 0.02, zSign * halfWidth]} castShadow>
+          <boxGeometry args={[roofLength, 0.12, 0.1]} />
+          <meshStandardMaterial color={materials.roofEdge} roughness={0.44} metalness={0.06} transparent={opacity < 1} opacity={opacity} />
+        </mesh>
+      ))}
+    </>
   );
 }
 
@@ -132,10 +126,12 @@ export function KehoeBoatPort({
 
   return (
     <group>
-      <mesh position={[0, LOW_BASE_HEIGHT_FT / 2, 0]} receiveShadow>
-        <boxGeometry args={[length, LOW_BASE_HEIGHT_FT, width]} />
-        <meshStandardMaterial color={materials.base} roughness={0.68} transparent opacity={Math.min(opacity, 0.74)} />
-      </mesh>
+      {viewMode === 'internal' && (
+        <mesh position={[0, LOW_BASE_HEIGHT_FT / 2, 0]} receiveShadow>
+          <boxGeometry args={[length, LOW_BASE_HEIGHT_FT, width]} />
+          <meshStandardMaterial color={materials.base} roughness={0.68} transparent opacity={0.36} />
+        </mesh>
+      )}
 
       {postPositions.map(([x, z]) => (
         <mesh key={`post-${x}-${z}`} position={[x, wallHeight / 2, z]} castShadow receiveShadow>
@@ -163,14 +159,7 @@ export function KehoeBoatPort({
           <meshStandardMaterial color={materials.roof} roughness={0.44} metalness={0.04} transparent={opacity < 1} opacity={opacity} />
         </mesh>
       ) : (
-        <PitchedRoof length={length} width={width} wallHeight={wallHeight} roofRise={roofRise} color={materials.roof} opacity={opacity} />
-      )}
-
-      {normalizedRoofType === 'pitched' && (
-        <mesh position={[0, wallHeight + roofRise + 0.02, 0]} castShadow>
-          <boxGeometry args={[length + ROOF_OVERHANG_FT * 2, 0.08, 0.12]} />
-          <meshStandardMaterial color={materials.roofEdge} roughness={0.42} metalness={0.08} transparent={opacity < 1} opacity={opacity} />
-        </mesh>
+        <PitchedRoof length={length} width={width} wallHeight={wallHeight} roofRise={roofRise} materials={materials} opacity={opacity} />
       )}
     </group>
   );
