@@ -8,6 +8,7 @@ export type DockObjectType =
   | 'steps'
   | 'roof_overlay'
   | 'boat_lift'
+  | 'boat_port'
   | 'text_note'
   | 'dimension_line'
   | 'shape_rectangle'
@@ -120,6 +121,7 @@ export interface DockProject {
     showGrid?: boolean;
     showDimensions?: boolean;
     showNotes?: boolean;
+    showScaleReference?: boolean;
     titleBlockPosition?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'hidden';
     titleBlockOffsetX?: number;
     titleBlockOffsetY?: number;

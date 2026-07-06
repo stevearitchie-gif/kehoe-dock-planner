@@ -16,6 +16,7 @@ const supportedObjectTypes = new Set<DockObjectType>([
   'ramp_without_rails',
   'steps',
   'boat_lift',
+  'boat_port',
   'roof_overlay',
 ]);
 

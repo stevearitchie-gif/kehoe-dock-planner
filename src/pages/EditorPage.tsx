@@ -1074,6 +1074,17 @@ export function EditorPage() {
     }));
   };
 
+  const handleScaleReferenceVisibilityChange = (showScaleReference: boolean) => {
+    setProject((prev) => ({
+      ...prev,
+      updatedAt: new Date().toISOString(),
+      exportSettings: {
+        ...prev.exportSettings,
+        showScaleReference,
+      },
+    }));
+  };
+
   const handleZoomOut = () => {
     setZoom((prev) => clampZoom(Number((prev - ZOOM_STEP).toFixed(2))));
   };
@@ -1139,6 +1150,7 @@ export function EditorPage() {
       'steps',
       'roof_overlay',
       'boat_lift',
+      'boat_port',
       'dimension_line',
       'shape_rectangle',
       'shape_rounded_rectangle',
@@ -1188,6 +1200,7 @@ export function EditorPage() {
           steps: 'Steps',
           roof_overlay: 'Roof Overlay',
           boat_lift: 'Boat Lift',
+          boat_port: 'Boat Port',
           dimension_line: 'Dimension Line',
           shape_rectangle: 'Rectangle',
           shape_rounded_rectangle: 'Rounded Rectangle',
@@ -1230,6 +1243,7 @@ export function EditorPage() {
           steps: { width: 60, height: 40 },
           roof_overlay: { width: 140, height: 80 },
           boat_lift: { width: 80, height: 30 },
+          boat_port: { width: 120, height: 54 },
           dimension_line: { width: 160, height: 24 },
           shape_rectangle: { width: 100, height: 60 },
           shape_rounded_rectangle: { width: 100, height: 60 },
@@ -1272,6 +1286,7 @@ export function EditorPage() {
           steps: '#9a6b3f',
           roof_overlay: '#64748b',
           boat_lift: '#cbd5e1',
+          boat_port: '#bfdbfe',
           dimension_line: '#0f172a',
           shape_rectangle: '#dbeafe',
           shape_rounded_rectangle: '#dbeafe',
@@ -2481,6 +2496,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
               onShorelineLabelOffsetChange={handleShorelineLabelOffsetChange}
               onObjectDimensionOffsetChange={handleObjectDimensionOffsetChange}
               currentScale={currentScale}
+              showScaleReference={project.exportSettings?.showScaleReference ?? true}
               isSnapToGridEnabled={isSnapToGridEnabled}
               zoom={zoom}
               onZoomChange={setZoom}
@@ -3468,6 +3484,15 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                       <option value="ft">ft</option>
                       <option value="m">m</option>
                     </select>
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={project.exportSettings?.showScaleReference ?? true}
+                      onChange={(event) => handleScaleReferenceVisibilityChange(event.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                    />
+                    <span>Show scale reference on drawing</span>
                   </label>
                   <button
                     type="button"

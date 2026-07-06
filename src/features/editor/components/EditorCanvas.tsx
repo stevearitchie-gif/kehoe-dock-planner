@@ -30,6 +30,7 @@ interface EditorCanvasProps {
   onShorelineLabelOffsetChange?: (offset: Point) => void;
   onObjectDimensionOffsetChange: (objectId: string, dimension: 'width' | 'height', offset: Point) => void;
   currentScale: ProjectScale;
+  showScaleReference?: boolean;
   isSnapToGridEnabled: boolean;
   zoom: number;
   onZoomChange: (nextZoom: number) => void;
@@ -438,6 +439,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     onShorelineLabelOffsetChange,
     onObjectDimensionOffsetChange,
     currentScale,
+    showScaleReference = true,
     isSnapToGridEnabled,
     zoom,
     onZoomChange,
@@ -598,6 +600,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       'steps',
       'roof_overlay',
       'boat_lift',
+      'boat_port',
       'dimension_line',
       'shape_rectangle',
       'shape_rounded_rectangle',
@@ -1072,8 +1075,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
               <Circle key={`shoreline-${point.x}-${point.y}`} x={point.x} y={point.y} radius={5} fill="#0f766e" />
             ))}
 
-          {scaleLinePoints && <Line points={scaleLinePoints} stroke="#2563eb" strokeWidth={3} lineCap="round" />}
-          {scaleMeasurementGuide && (
+          {showScaleReference && scaleLinePoints && (
+            <Line points={scaleLinePoints} stroke="#2563eb" strokeWidth={3} lineCap="round" />
+          )}
+          {showScaleReference && scaleMeasurementGuide && (
             <>
               <Line points={scaleMeasurementGuide.linePoints} stroke="#1d4ed8" strokeWidth={2} lineCap="round" />
               <Line points={scaleMeasurementGuide.startArrowLeft} stroke="#1d4ed8" strokeWidth={2} lineCap="round" />
@@ -1094,9 +1099,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
               />
             </>
           )}
-          {scalePoints.map((point) => (
-            <Circle key={`${point.x}-${point.y}`} x={point.x} y={point.y} radius={5} fill="#1d4ed8" />
-          ))}
+          {showScaleReference &&
+            scalePoints.map((point) => (
+              <Circle key={`${point.x}-${point.y}`} x={point.x} y={point.y} radius={5} fill="#1d4ed8" />
+            ))}
 
           {connectorSnapPoint && (
             <>
@@ -1559,6 +1565,35 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                         stroke="#155e75"
                         strokeWidth={1.5}
                         dash={[4, 3]}
+                      />
+                    </>
+                  )}
+
+                  {object.type === 'boat_port' && (
+                    <>
+                      <Line
+                        points={[10, 8, 10, object.height - 8]}
+                        stroke="#2563eb"
+                        strokeWidth={2}
+                        lineCap="round"
+                      />
+                      <Line
+                        points={[object.width - 10, 8, object.width - 10, object.height - 8]}
+                        stroke="#2563eb"
+                        strokeWidth={2}
+                        lineCap="round"
+                      />
+                      <Line
+                        points={[object.width * 0.38, 8, object.width * 0.5, object.height / 2, object.width * 0.38, object.height - 8]}
+                        stroke="#60a5fa"
+                        strokeWidth={1.5}
+                        lineJoin="round"
+                      />
+                      <Line
+                        points={[object.width * 0.62, 8, object.width * 0.5, object.height / 2, object.width * 0.62, object.height - 8]}
+                        stroke="#60a5fa"
+                        strokeWidth={1.5}
+                        lineJoin="round"
                       />
                     </>
                   )}

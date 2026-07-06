@@ -2,67 +2,77 @@
 
 ## Product Overview
 
-Boat ports should be represented first as simple canopy/frame structures associated with a dock, lift, or standalone footprint. The first version should communicate covered-boat-port intent without detailed engineering.
+Boat ports should be represented first as lightweight modular drive-on port visuals associated with a dock, lift, or standalone footprint. The first version should communicate floating boat/PWC port intent without detailed engineering.
 
 ## Current Implementation Status
 
-- No first-class Dock Planner object type currently exists for `boat_port`.
-- No ProductConfiguration product type currently exists for `boat_port`.
-- No 3D component currently exists.
-- `roof_overlay` exists as a generic raised translucent canopy/outline and can inform the first boat-port visual approach.
+- `boat_port` is supported as a first-class Dock Planner object type.
+- `boat_port` is supported as a `ProjectRenderElementType`.
+- `boat_port` is supported as a ProductConfiguration product type for future quote-driven previews.
+- Rendered through the dedicated `KehoeBoatPort` product component in `src/components/render3d/products/KehoeBoatPort.tsx`.
+- `ProjectDockModel` keeps a simple generic boat port fallback if dimensions are invalid.
 
 ## Target Scope For Next Implementation
 
-- Add a product type only after 2D editor and quote mapping decisions are confirmed.
-- Start with a parametric canopy frame: posts, roof plane, perimeter rails, and optional open sides.
-- Support attachment to a dock/lift footprint or standalone placement.
+- Lightweight floating drive-on port body.
+- Raised side guide rails with an open entry end.
+- Subtle segmented float/block surface detail.
+- Center keel groove/channel hint.
+- Small entry roller/hardware hints.
+- Clean customer-facing plastic/floating dock material.
 
 ## Supported Dimensions And Options
 
-- Length, width, clear height, roof height, roof pitch/flat roof, frame material, canopy colour.
-- Attachment mode: standalone, dock-attached, lift-attached.
-- Optional side curtains or roof-only visual in future.
+- Current: length and width from Dock Planner object dimensions or ProductConfiguration dimensions.
+- Current: position and rotation from the existing 2D-to-3D project render mapping.
+- Current: safe ProductConfiguration defaults of 12 ft length by 6 ft width if dimensions are missing.
+- Future: product model, port family, attachment mode, float module count, roller options, colour, and connection hardware.
 
 ## Visual Rules
 
 - Preserve source footprint in Top View.
-- Roof/canopy should sit clearly above dock/lift geometry.
-- Customer View should show a simple frame and roof, not a solid opaque block.
-- Internal View should label unsupported/approximate status until dimensions are confirmed.
+- Customer View should read as a modular floating drive-on port, not a canopy, solid block, or trailer.
+- Raised side guides should leave the entry end visually open.
+- Segment seams and center groove should stay subtle and avoid dark striping.
+- Internal View can show debug footprint labels through the existing project render diagnostics.
 
 ## Material Rules
 
-- Frame: galvanized steel or aluminum.
-- Roof/canopy: translucent or lightly opaque grey/white material.
-- Keep opacity low enough to see related dock/lift geometry.
+- Body: light blue-grey molded plastic / floating port material.
+- Side guides: slightly darker blue-grey plastic.
+- Hardware/rollers: muted metal.
+- Avoid manufacturer-specific colours, logos, textures, or copied product styling until permissions and exact references are confirmed.
 
 ## Simplifications
 
-- Use simple posts and rectangular roof plane.
-- Avoid roof truss detail, fasteners, fabric seams, and exact foundations initially.
-- Do not infer boat port dimensions from quote wording without structured fields.
+- Use simple box geometry for the port body, side guides, grooves, and seams.
+- Use small cylinder hints for entry rollers only.
+- Do not model exact float module geometry, underside buoyancy, fasteners, molded texture, hinge hardware, winches, or product-specific profiles.
+- Do not infer exact product model or capacity from footprint yet.
 
 ## Assumptions
 
-- Boat ports may belong to quote workflows before they exist in the 2D Dock Planner.
-- A standalone quote preview component may arrive before full layout editing support.
+- First pass represents a generic Kehoe dealer sales visualization, not a manufacturer-exact model.
+- Existing saved projects will only contain `boat_port` after the new type is used or imported.
+- Quote workflows can use ProductConfiguration `boat_port` later, but live quote import mapping has not been changed in this pass.
 
 ## Future Enhancements
 
-- ProductConfiguration `boat_port` type.
-- 2D editor tool/object type.
-- Roof pitch and canopy material options.
-- Integration with boat lift placeholder.
-- Accessory mounting points and customer PDF export.
+- Quote import mapping for boat port line items.
+- ProductConfiguration-specific options such as roller count, port family, colour, and attachment side.
+- Better tapered or molded module shape if Kehoe-approved reference dimensions are provided.
+- Connection hardware to floating docks.
+- Customer PDF export support for boat port product previews.
 
 ## Reference Material Still Needed
 
 - Standard Kehoe boat port dimensions and variants.
-- Photos of installed boat ports.
-- Frame material and finish.
-- Roof/canopy colours and profiles.
+- Photos of installed ports.
+- Product family/model references.
+- Float module count and segmentation.
+- Roller/hardware options.
 - Attachment rules to docks or lifts.
 
 ## Recommended First Component Scope
 
-Create a `BoatPortPlaceholder` only after product type and quote fields are confirmed. Begin with rectangular posts plus a raised translucent roof over a configurable footprint.
+Add quote import support only after the Quote Builder has structured boat port fields. The current app-side render path can already consume `boat_port` ProductConfiguration records, but pasted quote JSON mapping intentionally remains unchanged.

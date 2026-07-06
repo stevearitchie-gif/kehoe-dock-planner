@@ -24,6 +24,7 @@ export type ProjectRenderElementType =
   | 'ramp_without_rails'
   | 'steps'
   | 'boat_lift'
+  | 'boat_port'
   | 'roof_overlay';
 
 export interface ProjectRenderElement {

@@ -7,6 +7,8 @@ const DEFAULT_DOCK_LENGTH_FT = 20;
 const DEFAULT_DOCK_WIDTH_FT = 8;
 const DEFAULT_RAMP_LENGTH_FT = 24;
 const DEFAULT_RAMP_WIDTH_FT = 4;
+const DEFAULT_BOAT_PORT_LENGTH_FT = 12;
+const DEFAULT_BOAT_PORT_WIDTH_FT = 6;
 
 function isRenderableProductType(type: ProductConfiguration['productType']): type is RenderableProductConfigurationType {
   return (
@@ -14,7 +16,8 @@ function isRenderableProductType(type: ProductConfiguration['productType']): typ
     type === 'stationary_dock' ||
     type === 'ramp_with_rails' ||
     type === 'ramp_without_rails' ||
-    type === 'boat_lift'
+    type === 'boat_lift' ||
+    type === 'boat_port'
   );
 }
 
@@ -87,6 +90,15 @@ function toRenderElement(config: ProductConfiguration): ProjectRenderElement | n
       color: '#0e7490',
       length: config.dimensions?.lengthFt ?? 10,
       width: config.dimensions?.widthFt ?? 8,
+    };
+  }
+
+  if (config.productType === 'boat_port') {
+    return {
+      ...base,
+      color: '#dbeafe',
+      length: config.dimensions?.lengthFt ?? DEFAULT_BOAT_PORT_LENGTH_FT,
+      width: config.dimensions?.widthFt ?? DEFAULT_BOAT_PORT_WIDTH_FT,
     };
   }
 

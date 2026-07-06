@@ -1,5 +1,6 @@
 import { Text } from '@react-three/drei';
 import { KehoeBoatLift } from '@/components/render3d/products/KehoeBoatLift';
+import { KehoeBoatPort } from '@/components/render3d/products/KehoeBoatPort';
 import { KehoeFloatingDock } from '@/components/render3d/products/KehoeFloatingDock';
 import { KehoeRampWithRails } from '@/components/render3d/products/KehoeRampWithRails';
 import { KehoeRampWithoutRails } from '@/components/render3d/products/KehoeRampWithoutRails';
@@ -570,6 +571,42 @@ function BoatLiftElement({ element, viewMode }: { element: ProjectRenderElement;
   );
 }
 
+function GenericBoatPortElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
+  const portColor = viewMode === 'customer' ? '#d7e7f4' : element.color;
+  const guideColor = viewMode === 'customer' ? '#b8d5ea' : '#2563eb';
+
+  return (
+    <group position={[element.x, 0, element.z]} rotation={[0, element.rotation, 0]}>
+      <mesh position={[0, element.elevation + 0.16, 0]} castShadow receiveShadow>
+        <boxGeometry args={[Math.max(0.8, element.length), 0.32, Math.max(0.8, element.width)]} />
+        <meshStandardMaterial color={portColor} roughness={0.64} transparent opacity={element.opacity} />
+      </mesh>
+      {[-1, 1].map((zSign) => (
+        <mesh key={zSign} position={[0, element.elevation + 0.42, zSign * (element.width / 2 - 0.16)]} castShadow>
+          <boxGeometry args={[Math.max(0.6, element.length * 0.82), 0.16, 0.22]} />
+          <meshStandardMaterial color={guideColor} roughness={0.58} transparent opacity={element.opacity} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function hasValidBoatPortProductData(element: ProjectRenderElement) {
+  return Number.isFinite(element.length) && Number.isFinite(element.width) && element.length > 0 && element.width > 0;
+}
+
+function BoatPortElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
+  if (!hasValidBoatPortProductData(element)) {
+    return <GenericBoatPortElement element={element} viewMode={viewMode} />;
+  }
+
+  return (
+    <group position={[element.x, element.elevation, element.z]} rotation={[0, element.rotation, 0]}>
+      <KehoeBoatPort footprintLengthFt={element.length} footprintWidthFt={element.width} opacity={element.opacity} viewMode={viewMode} />
+    </group>
+  );
+}
+
 function RoofOverlayElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
   const roofY = element.elevation + 3.8;
   const canopyColor = viewMode === 'customer' ? '#f3f8fb' : element.color;
@@ -888,6 +925,9 @@ function ProjectElement({
       break;
     case 'boat_lift':
       renderedElement = <BoatLiftElement element={element} viewMode={viewMode} />;
+      break;
+    case 'boat_port':
+      renderedElement = <BoatPortElement element={element} viewMode={viewMode} />;
       break;
     case 'roof_overlay':
       renderedElement = <RoofOverlayElement element={element} viewMode={viewMode} />;

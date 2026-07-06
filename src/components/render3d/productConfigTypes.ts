@@ -6,6 +6,7 @@ export type ProductConfigurationType =
   | 'ramp_with_rails'
   | 'ramp_without_rails'
   | 'boat_lift'
+  | 'boat_port'
   | 'custom';
 
 export interface ProductConfiguration {
