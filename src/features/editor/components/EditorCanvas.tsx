@@ -1571,30 +1571,53 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 
                   {object.type === 'boat_port' && (
                     <>
+                      {[
+                        [8, 8],
+                        [object.width - 8, 8],
+                        [8, object.height - 8],
+                        [object.width - 8, object.height - 8],
+                      ].map(([x, y]) => (
+                        <Rect
+                          key={`boat-port-post-${x}-${y}`}
+                          x={x - 2}
+                          y={y - 2}
+                          width={4}
+                          height={4}
+                          fill="#2563eb"
+                          listening={false}
+                        />
+                      ))}
                       <Line
-                        points={[10, 8, 10, object.height - 8]}
+                        points={[8, 8, object.width - 8, 8, object.width - 8, object.height - 8, 8, object.height - 8, 8, 8]}
                         stroke="#2563eb"
-                        strokeWidth={2}
-                        lineCap="round"
-                      />
-                      <Line
-                        points={[object.width - 10, 8, object.width - 10, object.height - 8]}
-                        stroke="#2563eb"
-                        strokeWidth={2}
-                        lineCap="round"
-                      />
-                      <Line
-                        points={[object.width * 0.38, 8, object.width * 0.5, object.height / 2, object.width * 0.38, object.height - 8]}
-                        stroke="#60a5fa"
                         strokeWidth={1.5}
-                        lineJoin="round"
+                        dash={[5, 4]}
+                        listening={false}
                       />
-                      <Line
-                        points={[object.width * 0.62, 8, object.width * 0.5, object.height / 2, object.width * 0.62, object.height - 8]}
-                        stroke="#60a5fa"
-                        strokeWidth={1.5}
-                        lineJoin="round"
-                      />
+                      {object.metadata?.boatPortRoofType === 'flat' ? (
+                        <Line
+                          points={[14, object.height / 2, object.width - 14, object.height / 2]}
+                          stroke="#60a5fa"
+                          strokeWidth={2}
+                          listening={false}
+                        />
+                      ) : (
+                        <>
+                          <Line
+                            points={[14, object.height - 10, object.width / 2, 10, object.width - 14, object.height - 10]}
+                            stroke="#60a5fa"
+                            strokeWidth={2}
+                            lineJoin="round"
+                            listening={false}
+                          />
+                          <Line
+                            points={[object.width / 2, 10, object.width / 2, object.height - 10]}
+                            stroke="#93c5fd"
+                            strokeWidth={1}
+                            listening={false}
+                          />
+                        </>
+                      )}
                     </>
                   )}
 

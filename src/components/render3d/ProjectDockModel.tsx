@@ -572,21 +572,29 @@ function BoatLiftElement({ element, viewMode }: { element: ProjectRenderElement;
 }
 
 function GenericBoatPortElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
-  const portColor = viewMode === 'customer' ? '#d7e7f4' : element.color;
-  const guideColor = viewMode === 'customer' ? '#b8d5ea' : '#2563eb';
+  const postColor = viewMode === 'customer' ? '#d8e1e6' : '#2563eb';
+  const roofColor = viewMode === 'customer' ? '#eef4f7' : element.color;
+  const wallHeight = 7;
+  const roofRise = 1.4;
+  const postPositions = [
+    [-element.length / 2, -element.width / 2],
+    [element.length / 2, -element.width / 2],
+    [-element.length / 2, element.width / 2],
+    [element.length / 2, element.width / 2],
+  ];
 
   return (
     <group position={[element.x, 0, element.z]} rotation={[0, element.rotation, 0]}>
-      <mesh position={[0, element.elevation + 0.16, 0]} castShadow receiveShadow>
-        <boxGeometry args={[Math.max(0.8, element.length), 0.32, Math.max(0.8, element.width)]} />
-        <meshStandardMaterial color={portColor} roughness={0.64} transparent opacity={element.opacity} />
-      </mesh>
-      {[-1, 1].map((zSign) => (
-        <mesh key={zSign} position={[0, element.elevation + 0.42, zSign * (element.width / 2 - 0.16)]} castShadow>
-          <boxGeometry args={[Math.max(0.6, element.length * 0.82), 0.16, 0.22]} />
-          <meshStandardMaterial color={guideColor} roughness={0.58} transparent opacity={element.opacity} />
+      {postPositions.map(([x, z]) => (
+        <mesh key={`${x}-${z}`} position={[x, wallHeight / 2, z]} castShadow receiveShadow>
+          <boxGeometry args={[0.18, wallHeight, 0.18]} />
+          <meshStandardMaterial color={postColor} roughness={0.36} metalness={0.12} transparent opacity={element.opacity} />
         </mesh>
       ))}
+      <mesh position={[0, wallHeight + roofRise / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[Math.max(0.8, element.length + 0.4), roofRise, Math.max(0.8, element.width + 0.4)]} />
+        <meshStandardMaterial color={roofColor} roughness={0.44} metalness={0.04} transparent opacity={element.opacity} />
+      </mesh>
     </group>
   );
 }
@@ -602,7 +610,15 @@ function BoatPortElement({ element, viewMode }: { element: ProjectRenderElement;
 
   return (
     <group position={[element.x, element.elevation, element.z]} rotation={[0, element.rotation, 0]}>
-      <KehoeBoatPort footprintLengthFt={element.length} footprintWidthFt={element.width} opacity={element.opacity} viewMode={viewMode} />
+      <KehoeBoatPort
+        footprintLengthFt={element.length}
+        footprintWidthFt={element.width}
+        wallHeightFt={element.boatPortWallHeightFt}
+        roofRiseFt={element.boatPortRoofRiseFt}
+        roofType={element.boatPortRoofType}
+        opacity={element.opacity}
+        viewMode={viewMode}
+      />
     </group>
   );
 }
@@ -851,6 +867,9 @@ function getElementRenderKey(element: ProjectRenderElement, rampElevation?: Ramp
     element.deckFinish ?? 'deck-default',
     element.boardDirection ?? 'board-default',
     formatKeyNumber(element.tubeDiameterFt),
+    formatKeyNumber(element.boatPortWallHeightFt),
+    formatKeyNumber(element.boatPortRoofRiseFt),
+    element.boatPortRoofType ?? 'boat-port-roof-default',
     rampElevation ? String(rampElevation.hasConnection) : 'no-ramp',
     rampElevation ? formatKeyNumber(rampElevation.deckTopHeight) : 'na',
     rampElevation ? formatKeyNumber(rampElevation.lowerEndHeight) : 'na',

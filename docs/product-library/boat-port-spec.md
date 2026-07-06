@@ -2,52 +2,55 @@
 
 ## Product Overview
 
-Boat ports should be represented first as lightweight modular drive-on port visuals associated with a dock, lift, or standalone footprint. The first version should communicate floating boat/PWC port intent without detailed engineering.
+Boat ports should be represented first as lightweight covered boat port / boat shelter visuals associated with a dock, lift, or standalone footprint. The first version should communicate footprint, support height, and roof form without detailed engineering.
 
 ## Current Implementation Status
 
 - `boat_port` is supported as a first-class Dock Planner object type.
 - `boat_port` is supported as a `ProjectRenderElementType`.
 - `boat_port` is supported as a ProductConfiguration product type for future quote-driven previews.
-- Rendered through the dedicated `KehoeBoatPort` product component in `src/components/render3d/products/KehoeBoatPort.tsx`.
+- Rendered through the dedicated `KehoeBoatPort` covered-structure component in `src/components/render3d/products/KehoeBoatPort.tsx`.
 - `ProjectDockModel` keeps a simple generic boat port fallback if dimensions are invalid.
 
 ## Target Scope For Next Implementation
 
-- Lightweight floating drive-on port body.
-- Raised side guide rails with an open entry end.
-- Subtle segmented float/block surface detail.
-- Center keel groove/channel hint.
-- Small entry roller/hardware hints.
-- Clean customer-facing plastic/floating dock material.
+- Rectangular footprint.
+- Four vertical support posts.
+- Top perimeter frame at wall height.
+- Flat or pitched roof form.
+- Clean customer-facing metal/support and light roof material.
 
 ## Supported Dimensions And Options
 
 - Current: length and width from Dock Planner object dimensions or ProductConfiguration dimensions.
+- Current: wall height from `metadata.boatPortWallHeightFt` or ProductConfiguration `boatPort.wallHeightFt`.
+- Current: roof rise from `metadata.boatPortRoofRiseFt` or ProductConfiguration `boatPort.roofRiseFt`.
+- Current: roof type from `metadata.boatPortRoofType` or ProductConfiguration `boatPort.roofType`.
 - Current: position and rotation from the existing 2D-to-3D project render mapping.
-- Current: safe ProductConfiguration defaults of 12 ft length by 6 ft width if dimensions are missing.
-- Future: product model, port family, attachment mode, float module count, roller options, colour, and connection hardware.
+- Current defaults: 7 ft wall height, 1.4 ft roof rise, pitched roof.
+- Future: product model, port family, attachment mode, roof material, roof colour, and connection hardware.
 
 ## Visual Rules
 
 - Preserve source footprint in Top View.
-- Customer View should read as a modular floating drive-on port, not a canopy, solid block, or trailer.
-- Raised side guides should leave the entry end visually open.
-- Segment seams and center groove should stay subtle and avoid dark striping.
+- Customer View should read as a covered boat port / boat shelter, not a flat drive-on port.
+- Wall/support height and roof rise should be visually obvious from angled views.
+- Flat roof and pitched roof should be visually distinct.
+- Keep the structure simple and open, not a fully enclosed building.
 - Internal View can show debug footprint labels through the existing project render diagnostics.
 
 ## Material Rules
 
-- Body: light blue-grey molded plastic / floating port material.
-- Side guides: slightly darker blue-grey plastic.
-- Hardware/rollers: muted metal.
+- Posts/frame: light aluminum or galvanized metal.
+- Roof: light grey/white canopy or metal roof.
+- Base/footprint: subtle light blue-grey marker only.
 - Avoid manufacturer-specific colours, logos, textures, or copied product styling until permissions and exact references are confirmed.
 
 ## Simplifications
 
-- Use simple box geometry for the port body, side guides, grooves, and seams.
-- Use small cylinder hints for entry rollers only.
-- Do not model exact float module geometry, underside buoyancy, fasteners, molded texture, hinge hardware, winches, or product-specific profiles.
+- Use simple box geometry for posts, frame rails, and flat roof.
+- Use a simplified triangular prism for pitched roof.
+- Do not model trusses, fasteners, exact roof panels, foundations, curtains, doors, gutters, or product-specific profiles.
 - Do not infer exact product model or capacity from footprint yet.
 
 ## Assumptions
@@ -59,18 +62,18 @@ Boat ports should be represented first as lightweight modular drive-on port visu
 ## Future Enhancements
 
 - Quote import mapping for boat port line items.
-- ProductConfiguration-specific options such as roller count, port family, colour, and attachment side.
-- Better tapered or molded module shape if Kehoe-approved reference dimensions are provided.
+- ProductConfiguration-specific options such as roof material, roof colour, port family, and attachment side.
+- Better roof style variations if Kehoe-approved reference dimensions are provided.
 - Connection hardware to floating docks.
 - Customer PDF export support for boat port product previews.
 
 ## Reference Material Still Needed
 
 - Standard Kehoe boat port dimensions and variants.
-- Photos of installed ports.
+- Photos of installed covered boat ports.
 - Product family/model references.
-- Float module count and segmentation.
-- Roller/hardware options.
+- Wall/support height defaults by model.
+- Roof pitch, flat roof depth, and roof material options.
 - Attachment rules to docks or lifts.
 
 ## Recommended First Component Scope

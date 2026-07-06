@@ -1,39 +1,113 @@
-import type { RenderViewMode } from '@/components/render3d/types';
+import type { BoatPortRoofType, RenderViewMode } from '@/components/render3d/types';
 
 export interface KehoeBoatPortProps {
   footprintLengthFt: number;
   footprintWidthFt: number;
+  wallHeightFt?: number;
+  roofRiseFt?: number;
+  roofType?: BoatPortRoofType;
   opacity?: number;
   viewMode: RenderViewMode;
 }
 
-const PORT_HEIGHT_FT = 0.34;
-const SIDE_GUIDE_HEIGHT_FT = 0.22;
-const SIDE_GUIDE_WIDTH_FT = 0.26;
-const SEGMENT_LINE_HEIGHT_FT = 0.018;
-const CENTER_GROOVE_WIDTH_FT = 0.34;
+const DEFAULT_WALL_HEIGHT_FT = 7;
+const DEFAULT_ROOF_RISE_FT = 1.4;
+const POST_SIZE_FT = 0.18;
+const ROOF_OVERHANG_FT = 0.22;
+const LOW_BASE_HEIGHT_FT = 0.18;
+const MIN_FLAT_ROOF_DEPTH_FT = 0.28;
+const MAX_FLAT_ROOF_DEPTH_FT = 0.65;
 
 function getMaterials(viewMode: RenderViewMode) {
   if (viewMode === 'customer') {
     return {
-      body: '#d7e7f4',
-      side: '#b8d5ea',
-      seam: '#9fc1d8',
-      groove: '#8fb5cc',
-      hardware: '#8aa6b6',
+      post: '#d8e1e6',
+      frame: '#b9c7cf',
+      roof: '#eef4f7',
+      roofEdge: '#cbd7dd',
+      base: '#d7e7f4',
     };
   }
 
   return {
-    body: '#bfdbfe',
-    side: '#60a5fa',
-    seam: '#2563eb',
-    groove: '#1d4ed8',
-    hardware: '#0f766e',
+    post: '#60a5fa',
+    frame: '#2563eb',
+    roof: '#bfdbfe',
+    roofEdge: '#1d4ed8',
+    base: '#dbeafe',
   };
 }
 
-export function KehoeBoatPort({ footprintLengthFt, footprintWidthFt, opacity = 1, viewMode }: KehoeBoatPortProps) {
+function getPositiveValue(value: number | undefined, fallback: number) {
+  return Number.isFinite(value) && Number(value) > 0 ? Number(value) : fallback;
+}
+
+function PitchedRoof({
+  length,
+  width,
+  wallHeight,
+  roofRise,
+  color,
+  opacity,
+}: {
+  length: number;
+  width: number;
+  wallHeight: number;
+  roofRise: number;
+  color: string;
+  opacity: number;
+}) {
+  const halfLength = length / 2 + ROOF_OVERHANG_FT;
+  const halfWidth = width / 2 + ROOF_OVERHANG_FT;
+  const eaveY = wallHeight;
+  const ridgeY = wallHeight + roofRise;
+  const vertices = new Float32Array([
+    -halfLength,
+    eaveY,
+    -halfWidth,
+    halfLength,
+    eaveY,
+    -halfWidth,
+    -halfLength,
+    ridgeY,
+    0,
+    halfLength,
+    ridgeY,
+    0,
+    -halfLength,
+    eaveY,
+    halfWidth,
+    halfLength,
+    eaveY,
+    halfWidth,
+  ]);
+  const indices = new Uint16Array([
+    0, 1, 3, 0, 3, 2,
+    2, 3, 5, 2, 5, 4,
+    0, 2, 4, 0, 4, 1,
+    1, 4, 5, 1, 5, 3,
+  ]);
+
+  return (
+    <mesh castShadow receiveShadow>
+      <bufferGeometry onUpdate={(geometry) => geometry.computeVertexNormals()}>
+        <bufferAttribute attach="attributes-position" args={[vertices, 3]} />
+        <bufferAttribute attach="index" args={[indices, 1]} />
+      </bufferGeometry>
+      <meshStandardMaterial color={color} roughness={0.42} metalness={0.04} transparent={opacity < 1} opacity={opacity} />
+    </mesh>
+  );
+}
+
+export function KehoeBoatPort({
+  footprintLengthFt,
+  footprintWidthFt,
+  wallHeightFt,
+  roofRiseFt,
+  roofType = 'pitched',
+  opacity = 1,
+  viewMode,
+}: KehoeBoatPortProps) {
   if (!Number.isFinite(footprintLengthFt) || !Number.isFinite(footprintWidthFt) || footprintLengthFt <= 0 || footprintWidthFt <= 0) {
     return null;
   }
@@ -41,58 +115,61 @@ export function KehoeBoatPort({ footprintLengthFt, footprintWidthFt, opacity = 1
   const materials = getMaterials(viewMode);
   const length = Math.max(2, footprintLengthFt);
   const width = Math.max(1.5, footprintWidthFt);
-  const bodyWidth = Math.max(0.8, width - SIDE_GUIDE_WIDTH_FT * 2);
-  const entryEndX = -length / 2;
-  const sideGuideLength = Math.max(0.8, length * 0.82);
-  const sideGuideCenterX = entryEndX + sideGuideLength / 2;
-  const guideZ = width / 2 - SIDE_GUIDE_WIDTH_FT / 2;
-  const segmentCount = Math.max(3, Math.min(10, Math.round(length / 2)));
-  const segmentSpacing = length / segmentCount;
-  const grooveLength = Math.max(0.8, length * 0.74);
-  const grooveCenterX = entryEndX + grooveLength / 2;
-  const entryRollerX = entryEndX + 0.32;
+  const wallHeight = getPositiveValue(wallHeightFt, DEFAULT_WALL_HEIGHT_FT);
+  const roofRise = getPositiveValue(roofRiseFt, DEFAULT_ROOF_RISE_FT);
+  const normalizedRoofType: BoatPortRoofType = roofType === 'flat' ? 'flat' : 'pitched';
+  const postX = length / 2 - POST_SIZE_FT / 2;
+  const postZ = width / 2 - POST_SIZE_FT / 2;
+  const postPositions = [
+    [-postX, -postZ],
+    [postX, -postZ],
+    [-postX, postZ],
+    [postX, postZ],
+  ];
+  const frameY = wallHeight;
+  const flatRoofDepth = Math.max(MIN_FLAT_ROOF_DEPTH_FT, Math.min(MAX_FLAT_ROOF_DEPTH_FT, roofRise));
+  const flatRoofCenterY = wallHeight + flatRoofDepth / 2;
 
   return (
     <group>
-      <mesh position={[0, PORT_HEIGHT_FT / 2, 0]} castShadow receiveShadow>
-        <boxGeometry args={[length, PORT_HEIGHT_FT, bodyWidth]} />
-        <meshStandardMaterial color={materials.body} roughness={0.62} metalness={0.02} transparent={opacity < 1} opacity={opacity} />
+      <mesh position={[0, LOW_BASE_HEIGHT_FT / 2, 0]} receiveShadow>
+        <boxGeometry args={[length, LOW_BASE_HEIGHT_FT, width]} />
+        <meshStandardMaterial color={materials.base} roughness={0.68} transparent opacity={Math.min(opacity, 0.74)} />
       </mesh>
 
-      {[-1, 1].map((zSign) => (
-        <mesh key={`side-guide-${zSign}`} position={[sideGuideCenterX, PORT_HEIGHT_FT + SIDE_GUIDE_HEIGHT_FT / 2, zSign * guideZ]} castShadow receiveShadow>
-          <boxGeometry args={[sideGuideLength, SIDE_GUIDE_HEIGHT_FT, SIDE_GUIDE_WIDTH_FT]} />
-          <meshStandardMaterial color={materials.side} roughness={0.58} metalness={0.02} transparent={opacity < 1} opacity={opacity} />
+      {postPositions.map(([x, z]) => (
+        <mesh key={`post-${x}-${z}`} position={[x, wallHeight / 2, z]} castShadow receiveShadow>
+          <boxGeometry args={[POST_SIZE_FT, wallHeight, POST_SIZE_FT]} />
+          <meshStandardMaterial color={materials.post} roughness={0.36} metalness={0.12} transparent={opacity < 1} opacity={opacity} />
         </mesh>
       ))}
 
-      <mesh position={[grooveCenterX, PORT_HEIGHT_FT + 0.018, 0]} receiveShadow>
-        <boxGeometry args={[grooveLength, SEGMENT_LINE_HEIGHT_FT, CENTER_GROOVE_WIDTH_FT]} />
-        <meshStandardMaterial color={materials.groove} roughness={0.7} transparent={opacity < 1} opacity={opacity} />
-      </mesh>
-
-      {Array.from({ length: segmentCount - 1 }, (_, index) => {
-        const x = entryEndX + segmentSpacing * (index + 1);
-
-        return (
-          <mesh key={`segment-line-${index}`} position={[x, PORT_HEIGHT_FT + 0.03, 0]} receiveShadow>
-            <boxGeometry args={[0.035, SEGMENT_LINE_HEIGHT_FT, bodyWidth - 0.18]} />
-            <meshStandardMaterial color={materials.seam} roughness={0.76} transparent={opacity < 1} opacity={opacity} />
-          </mesh>
-        );
-      })}
-
       {[-1, 1].map((zSign) => (
-        <mesh key={`entry-roller-${zSign}`} position={[entryRollerX, PORT_HEIGHT_FT + 0.09, zSign * bodyWidth * 0.24]} rotation={[0, 0, Math.PI / 2]} castShadow>
-          <cylinderGeometry args={[0.08, 0.08, Math.max(0.32, bodyWidth * 0.22), 16]} />
-          <meshStandardMaterial color={materials.hardware} roughness={0.44} metalness={0.1} transparent={opacity < 1} opacity={opacity} />
+        <mesh key={`side-frame-${zSign}`} position={[0, frameY, zSign * postZ]} castShadow receiveShadow>
+          <boxGeometry args={[length, 0.12, 0.12]} />
+          <meshStandardMaterial color={materials.frame} roughness={0.4} metalness={0.1} transparent={opacity < 1} opacity={opacity} />
+        </mesh>
+      ))}
+      {[-1, 1].map((xSign) => (
+        <mesh key={`end-frame-${xSign}`} position={[xSign * postX, frameY, 0]} castShadow receiveShadow>
+          <boxGeometry args={[0.12, 0.12, width]} />
+          <meshStandardMaterial color={materials.frame} roughness={0.4} metalness={0.1} transparent={opacity < 1} opacity={opacity} />
         </mesh>
       ))}
 
-      {viewMode === 'internal' && (
-        <mesh position={[length / 2 - 0.18, PORT_HEIGHT_FT + 0.08, 0]} receiveShadow>
-          <boxGeometry args={[0.1, 0.08, width]} />
-          <meshStandardMaterial color={materials.seam} roughness={0.7} transparent opacity={0.56} />
+      {normalizedRoofType === 'flat' ? (
+        <mesh position={[0, flatRoofCenterY, 0]} castShadow receiveShadow>
+          <boxGeometry args={[length + ROOF_OVERHANG_FT * 2, flatRoofDepth, width + ROOF_OVERHANG_FT * 2]} />
+          <meshStandardMaterial color={materials.roof} roughness={0.44} metalness={0.04} transparent={opacity < 1} opacity={opacity} />
+        </mesh>
+      ) : (
+        <PitchedRoof length={length} width={width} wallHeight={wallHeight} roofRise={roofRise} color={materials.roof} opacity={opacity} />
+      )}
+
+      {normalizedRoofType === 'pitched' && (
+        <mesh position={[0, wallHeight + roofRise + 0.02, 0]} castShadow>
+          <boxGeometry args={[length + ROOF_OVERHANG_FT * 2, 0.08, 0.12]} />
+          <meshStandardMaterial color={materials.roofEdge} roughness={0.42} metalness={0.08} transparent={opacity < 1} opacity={opacity} />
         </mesh>
       )}
     </group>

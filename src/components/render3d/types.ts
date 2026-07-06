@@ -16,6 +16,7 @@ export type CameraPreset = 'isometric' | 'top' | 'side' | 'front';
 export type RenderViewMode = 'customer' | 'internal';
 
 export type FloatingDockBoardDirection = 'none' | 'horizontal' | 'vertical';
+export type BoatPortRoofType = 'flat' | 'pitched';
 
 export type ProjectRenderElementType =
   | 'floating_dock'
@@ -52,6 +53,9 @@ export interface ProjectRenderElement {
   boardDirection?: FloatingDockBoardDirection;
   tubeDiameterFt?: number;
   productSourceLabel?: string;
+  boatPortWallHeightFt?: number;
+  boatPortRoofRiseFt?: number;
+  boatPortRoofType?: BoatPortRoofType;
 }
 
 export interface ProjectRenderModel {

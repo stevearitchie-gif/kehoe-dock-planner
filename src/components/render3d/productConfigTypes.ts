@@ -50,6 +50,11 @@ export interface ProductConfiguration {
     capacityLbs?: number;
     accessories?: Array<{ accessoryId: string; name: string; quantity: number }>;
   };
+  boatPort?: {
+    wallHeightFt?: number;
+    roofRiseFt?: number;
+    roofType?: 'flat' | 'pitched';
+  };
   pricing?: {
     classification?: string;
     priceText?: string;

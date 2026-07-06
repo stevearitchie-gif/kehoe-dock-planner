@@ -1,5 +1,6 @@
 import type { DockObject, DockObjectType, DockProject } from '@/types/dock';
 import type {
+  BoatPortRoofType,
   FloatingDockBoardDirection,
   ProjectRenderElement,
   ProjectRenderElementType,
@@ -82,6 +83,20 @@ function getFloatingDockBoardDirection(object: DockObject): FloatingDockBoardDir
   return undefined;
 }
 
+function getBoatPortRoofType(object: DockObject): BoatPortRoofType | undefined {
+  if (object.type !== 'boat_port') {
+    return undefined;
+  }
+
+  const roofType = object.metadata?.boatPortRoofType;
+  return roofType === 'flat' || roofType === 'pitched' ? roofType : undefined;
+}
+
+function getPositiveMetadataNumber(value: unknown): number | undefined {
+  const parsedValue = Number(value);
+  return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : undefined;
+}
+
 export function buildProjectRenderModel(project: DockProject): ProjectRenderModel | null {
   const supportedObjects = project.objects.filter((object) => isProjectRenderElementType(object.type));
   const unsupportedTypes = Array.from(
@@ -122,6 +137,9 @@ export function buildProjectRenderModel(project: DockProject): ProjectRenderMode
       sourceRotation: object.rotation,
       anchorInterpretation: 'top-left group origin, center adjusted for rotation',
       boardDirection: getFloatingDockBoardDirection(object),
+      boatPortWallHeightFt: getPositiveMetadataNumber(object.metadata?.boatPortWallHeightFt),
+      boatPortRoofRiseFt: getPositiveMetadataNumber(object.metadata?.boatPortRoofRiseFt),
+      boatPortRoofType: getBoatPortRoofType(object),
     };
   });
 

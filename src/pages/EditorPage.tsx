@@ -1334,6 +1334,14 @@ export function EditorPage() {
           color: objectColorByTool[placementTool],
           zIndex: prev.objects.length + 1,
           locked: false,
+          metadata:
+            placementTool === 'boat_port'
+              ? {
+                  boatPortWallHeightFt: 7,
+                  boatPortRoofRiseFt: 1.4,
+                  boatPortRoofType: 'pitched',
+                }
+              : undefined,
         };
 
         setSelectedObjectId(nextObject.id);
@@ -1893,6 +1901,31 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
       metadata: {
         ...object.metadata,
         boardDirection: value,
+      },
+    }));
+  };
+
+  const handleSelectedBoatPortHeightChange = (field: 'boatPortWallHeightFt' | 'boatPortRoofRiseFt', value: string) => {
+    const parsedValue = Number(value);
+    if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+      return;
+    }
+
+    updateSelectedObject((object) => ({
+      ...object,
+      metadata: {
+        ...object.metadata,
+        [field]: parsedValue,
+      },
+    }));
+  };
+
+  const handleSelectedBoatPortRoofTypeChange = (value: 'flat' | 'pitched') => {
+    updateSelectedObject((object) => ({
+      ...object,
+      metadata: {
+        ...object.metadata,
+        boatPortRoofType: value,
       },
     }));
   };
@@ -3034,6 +3067,66 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                                         option.value as 'none' | 'horizontal' | 'vertical',
                                       )
                                     }
+                                    className={`rounded-md border px-2 py-2 text-xs font-medium ${
+                                      isActive
+                                        ? 'border-brand-600 bg-brand-50 text-brand-700'
+                                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    {option.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedObject.type === 'boat_port' && (
+                          <div className="mt-4 rounded-md border border-slate-200 bg-white p-3">
+                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                              Boat Port Structure
+                            </p>
+                            <div className="mt-3 grid grid-cols-2 gap-2">
+                              <label className="block">
+                                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                  Wall height (ft)
+                                </span>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  step="any"
+                                  value={selectedObject.metadata?.boatPortWallHeightFt ?? 7}
+                                  onChange={(event) => handleSelectedBoatPortHeightChange('boatPortWallHeightFt', event.target.value)}
+                                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                                />
+                              </label>
+                              <label className="block">
+                                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                  Roof rise (ft)
+                                </span>
+                                <input
+                                  type="number"
+                                  min={0.25}
+                                  step="any"
+                                  value={selectedObject.metadata?.boatPortRoofRiseFt ?? 1.4}
+                                  onChange={(event) => handleSelectedBoatPortHeightChange('boatPortRoofRiseFt', event.target.value)}
+                                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                                />
+                              </label>
+                            </div>
+                            <div className="mt-3 grid grid-cols-2 gap-2">
+                              {[
+                                { label: 'Flat', value: 'flat' },
+                                { label: 'Pitched', value: 'pitched' },
+                              ].map((option) => {
+                                const activeValue = selectedObject.metadata?.boatPortRoofType ?? 'pitched';
+                                const isActive = activeValue === option.value;
+
+                                return (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() => handleSelectedBoatPortRoofTypeChange(option.value as 'flat' | 'pitched')}
                                     className={`rounded-md border px-2 py-2 text-xs font-medium ${
                                       isActive
                                         ? 'border-brand-600 bg-brand-50 text-brand-700'

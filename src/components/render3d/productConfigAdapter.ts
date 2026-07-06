@@ -64,6 +64,9 @@ function buildBaseElement(config: ProductConfiguration, type: ProjectRenderEleme
     deckFinish: toDeckFinish(config),
     tubeDiameterFt: config.floatingDock?.tubeDiameterFt,
     productSourceLabel: config.productFamily ?? config.source,
+    boatPortWallHeightFt: config.boatPort?.wallHeightFt,
+    boatPortRoofRiseFt: config.boatPort?.roofRiseFt,
+    boatPortRoofType: config.boatPort?.roofType,
   };
 }
 

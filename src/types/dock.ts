@@ -82,6 +82,9 @@ export interface DockObject {
     textureRef?: string;
     connectionPoints?: Point[];
     modelType3D?: string;
+    boatPortWallHeightFt?: number;
+    boatPortRoofRiseFt?: number;
+    boatPortRoofType?: 'flat' | 'pitched';
     text?: string;
     dimensionValue?: number;
   };
