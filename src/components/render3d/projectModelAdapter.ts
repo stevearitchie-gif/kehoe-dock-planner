@@ -92,6 +92,14 @@ function getFloatingDockBoardDirection(object: DockObject): FloatingDockBoardDir
   return undefined;
 }
 
+function getFloatingDockShowStandardCleats(object: DockObject): boolean | undefined {
+  if (object.type !== 'floating_dock') {
+    return undefined;
+  }
+
+  return object.metadata?.showStandardCleats;
+}
+
 function getBoatPortRoofType(object: DockObject): BoatPortRoofType | undefined {
   if (object.type !== 'boat_port') {
     return undefined;
@@ -220,6 +228,7 @@ export function buildProjectRenderModel(project: DockProject): ProjectRenderMode
       sourceRotation: object.rotation,
       anchorInterpretation: 'top-left group origin, center adjusted for rotation',
       boardDirection: getFloatingDockBoardDirection(object),
+      showStandardCleats: getFloatingDockShowStandardCleats(object),
       boatPortWallHeightFt: getPositiveMetadataNumber(object.metadata?.boatPortWallHeightFt),
       boatPortRoofRiseFt: getPositiveMetadataNumber(object.metadata?.boatPortRoofRiseFt),
       boatPortRoofType: getBoatPortRoofType(object),

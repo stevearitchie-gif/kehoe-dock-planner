@@ -9,6 +9,7 @@ export interface KehoeFloatingDockProps {
   viewMode: RenderViewMode;
   deckFinish?: FloatingDockDeckFinish;
   boardDirection?: FloatingDockBoardDirection;
+  showStandardCleats?: boolean;
   deckColorOverride?: string;
   tubeDiameterFt?: number;
 }
@@ -253,6 +254,7 @@ export function KehoeFloatingDock({
   viewMode,
   deckFinish = 'pressure-treated',
   boardDirection = 'vertical',
+  showStandardCleats = true,
   deckColorOverride,
   tubeDiameterFt = DEFAULT_TUBE_DIAMETER_FT,
 }: KehoeFloatingDockProps) {
@@ -320,7 +322,9 @@ export function KehoeFloatingDock({
       ))}
       <SideFasteners width={footprintWidthFt} length={footprintLengthFt} y={rubY + 0.18} color={materials.fastener} />
       <ConnectionPlates width={footprintWidthFt} length={footprintLengthFt} y={deckTopY + 0.035} color={materials.metal} />
-      {viewMode === 'customer' && <Cleats width={footprintWidthFt} length={footprintLengthFt} y={deckTopY + 0.055} color={materials.metal} />}
+      {viewMode === 'customer' && showStandardCleats && (
+        <Cleats width={footprintWidthFt} length={footprintLengthFt} y={deckTopY + 0.055} color={materials.metal} />
+      )}
     </group>
   );
 }

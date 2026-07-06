@@ -22,6 +22,14 @@ interface RampElevationInfo {
   visualTrimDistance: number;
 }
 
+interface AccessoryMountInfo {
+  x: number;
+  z: number;
+  rotation: number;
+  height: number;
+  isDockMounted: boolean;
+}
+
 interface ProjectDockModelProps {
   model: ProjectRenderModel;
   viewMode: RenderViewMode;
@@ -232,6 +240,7 @@ function KehoeFloatingDockElement({ element, viewMode }: { element: ProjectRende
         viewMode={viewMode}
         deckFinish={element.deckFinish}
         boardDirection={element.boardDirection}
+        showStandardCleats={element.showStandardCleats ?? true}
         tubeDiameterFt={element.tubeDiameterFt}
         deckColorOverride={viewMode === 'internal' ? element.color : undefined}
       />
@@ -709,24 +718,25 @@ function hasValidAccessoryProductData(element: ProjectRenderElement) {
 function AccessoryElement({
   element,
   viewMode,
-  mountHeight,
+  mountInfo,
 }: {
   element: ProjectRenderElement;
   viewMode: RenderViewMode;
-  mountHeight: number;
+  mountInfo: AccessoryMountInfo;
 }) {
   if (!hasValidAccessoryProductData(element)) {
-    return <GenericAccessoryElement element={element} viewMode={viewMode} mountHeight={mountHeight} />;
+    return <GenericAccessoryElement element={element} viewMode={viewMode} mountHeight={mountInfo.height} />;
   }
 
   return (
-    <group position={[element.x, mountHeight, element.z]} rotation={[0, element.rotation, 0]}>
+    <group position={[mountInfo.x, mountInfo.height, mountInfo.z]} rotation={[0, mountInfo.rotation, 0]}>
       <KehoeAccessory
         footprintLengthFt={element.length}
         footprintWidthFt={element.width}
         accessoryType={element.accessoryType}
         finish={element.accessoryFinish}
         opacity={element.opacity}
+        mountStyle={element.accessoryType === 'ladder' && mountInfo.isDockMounted ? 'dock_ladder' : 'deck'}
         viewMode={viewMode}
       />
     </group>
@@ -776,15 +786,77 @@ function getPlatformDeckTopHeight(element: ProjectRenderElement) {
   return element.type === 'stationary_dock' ? STATIONARY_DOCK_DECK_TOP_HEIGHT : FLOATING_DOCK_DECK_TOP_HEIGHT;
 }
 
-function getAccessoryMountHeight(element: ProjectRenderElement, platforms: ProjectRenderElement[]) {
+function platformLocalPointToWorld(platform: ProjectRenderElement, localX: number, localZ: number) {
+  const cos = Math.cos(platform.rotation);
+  const sin = Math.sin(platform.rotation);
+
+  return {
+    x: platform.x + localX * cos + localZ * sin,
+    z: platform.z - localX * sin + localZ * cos,
+  };
+}
+
+function getAccessoryMountInfo(element: ProjectRenderElement, platforms: ProjectRenderElement[]): AccessoryMountInfo {
   if (element.type !== 'accessory') {
-    return element.elevation;
+    return {
+      x: element.x,
+      z: element.z,
+      rotation: element.rotation,
+      height: element.elevation,
+      isDockMounted: false,
+    };
   }
 
   const accessoryPoint = { x: element.x, z: element.z };
-  const hostPlatform = platforms.find((platform) => getDistanceToPlatformFootprint(accessoryPoint, platform) <= 0.01);
+  const hostPlatform = platforms.find((platform) => getDistanceToPlatformFootprint(accessoryPoint, platform) <= Math.max(0.01, element.width * 0.5));
 
-  return hostPlatform ? getPlatformDeckTopHeight(hostPlatform) + 0.045 : element.elevation;
+  if (!hostPlatform) {
+    return {
+      x: element.x,
+      z: element.z,
+      rotation: element.rotation,
+      height: element.elevation,
+      isDockMounted: false,
+    };
+  }
+
+  if (element.accessoryType !== 'ladder') {
+    return {
+      x: element.x,
+      z: element.z,
+      rotation: element.rotation,
+      height: getPlatformDeckTopHeight(hostPlatform) + 0.045,
+      isDockMounted: true,
+    };
+  }
+
+  const local = worldPointToPlatformLocal(accessoryPoint, hostPlatform);
+  const distances = [
+    { edge: 'left', distance: Math.abs(local.x + hostPlatform.length / 2) },
+    { edge: 'right', distance: Math.abs(hostPlatform.length / 2 - local.x) },
+    { edge: 'bottom', distance: Math.abs(local.z + hostPlatform.width / 2) },
+    { edge: 'top', distance: Math.abs(hostPlatform.width / 2 - local.z) },
+  ].sort((a, b) => a.distance - b.distance);
+  const nearestEdge = distances[0]?.edge ?? 'top';
+  const clampedX = Math.max(-hostPlatform.length / 2, Math.min(hostPlatform.length / 2, local.x));
+  const clampedZ = Math.max(-hostPlatform.width / 2, Math.min(hostPlatform.width / 2, local.z));
+  const ladderLocal =
+    nearestEdge === 'left'
+      ? { x: -hostPlatform.length / 2 - 0.08, z: clampedZ, rotation: hostPlatform.rotation + Math.PI / 2 }
+      : nearestEdge === 'right'
+        ? { x: hostPlatform.length / 2 + 0.08, z: clampedZ, rotation: hostPlatform.rotation + Math.PI / 2 }
+        : nearestEdge === 'bottom'
+          ? { x: clampedX, z: -hostPlatform.width / 2 - 0.08, rotation: hostPlatform.rotation }
+          : { x: clampedX, z: hostPlatform.width / 2 + 0.08, rotation: hostPlatform.rotation };
+  const world = platformLocalPointToWorld(hostPlatform, ladderLocal.x, ladderLocal.z);
+
+  return {
+    x: world.x,
+    z: world.z,
+    rotation: ladderLocal.rotation,
+    height: getPlatformDeckTopHeight(hostPlatform) + 0.02,
+    isDockMounted: true,
+  };
 }
 
 function getRampLowerEndHeight(deckTopHeight: number) {
@@ -987,6 +1059,7 @@ function getElementRenderKey(element: ProjectRenderElement, rampElevation?: Ramp
     formatKeyNumber(element.elevation),
     element.deckFinish ?? 'deck-default',
     element.boardDirection ?? 'board-default',
+    String(element.showStandardCleats ?? 'standard-cleats-default'),
     formatKeyNumber(element.tubeDiameterFt),
     formatKeyNumber(element.boatPortWallHeightFt),
     formatKeyNumber(element.boatPortRoofRiseFt),
@@ -1011,12 +1084,12 @@ function ProjectElement({
   element,
   viewMode,
   rampElevation,
-  accessoryMountHeight,
+  accessoryMountInfo,
 }: {
   element: ProjectRenderElement;
   viewMode: RenderViewMode;
   rampElevation?: RampElevationInfo;
-  accessoryMountHeight?: number;
+  accessoryMountInfo?: AccessoryMountInfo;
 }) {
   let renderedElement: JSX.Element | null = null;
 
@@ -1084,7 +1157,21 @@ function ProjectElement({
       renderedElement = <BoathouseElement element={element} viewMode={viewMode} />;
       break;
     case 'accessory':
-      renderedElement = <AccessoryElement element={element} viewMode={viewMode} mountHeight={accessoryMountHeight ?? element.elevation} />;
+      renderedElement = (
+        <AccessoryElement
+          element={element}
+          viewMode={viewMode}
+          mountInfo={
+            accessoryMountInfo ?? {
+              x: element.x,
+              z: element.z,
+              rotation: element.rotation,
+              height: element.elevation,
+              isDockMounted: false,
+            }
+          }
+        />
+      );
       break;
     case 'roof_overlay':
       renderedElement = <RoofOverlayElement element={element} viewMode={viewMode} />;
@@ -1113,7 +1200,7 @@ export function ProjectDockModel({ model, viewMode }: ProjectDockModelProps) {
     <group>
       {model.elements.map((element) => {
         const rampElevation = isRampElement(element) ? getRampElevationInfo(element, platforms) : undefined;
-        const accessoryMountHeight = element.type === 'accessory' ? getAccessoryMountHeight(element, platforms) : undefined;
+        const accessoryMountInfo = element.type === 'accessory' ? getAccessoryMountInfo(element, platforms) : undefined;
 
         return (
           <ProjectElement
@@ -1121,7 +1208,7 @@ export function ProjectDockModel({ model, viewMode }: ProjectDockModelProps) {
             element={element}
             viewMode={viewMode}
             rampElevation={rampElevation}
-            accessoryMountHeight={accessoryMountHeight}
+            accessoryMountInfo={accessoryMountInfo}
           />
         );
       })}

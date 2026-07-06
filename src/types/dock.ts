@@ -81,6 +81,7 @@ export interface DockObject {
     elevation?: number;
     material?: string;
     boardDirection?: 'none' | 'horizontal' | 'vertical';
+    showStandardCleats?: boolean;
     textureRef?: string;
     connectionPoints?: Point[];
     modelType3D?: string;

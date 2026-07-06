@@ -14,6 +14,7 @@ Accessories are small dock-attached or standalone add-ons that improve customer-
 - ProductConfiguration can carry a basic `accessory` product type for future quote-driven previews.
 - Floating dock built-in decorative cleats remain separate from first-class accessory objects.
 - Floating dock built-in cleats remain visible because standard cleats are generally supplied with floating docks. Manual accessory cleats represent extra/additional cleats.
+- Floating dock standard cleats can be hidden per dock with `metadata.showStandardCleats = false`. Missing/undefined keeps standard cleats visible for legacy projects.
 
 ## Supported V1 Accessories
 
@@ -60,6 +61,8 @@ This keeps the tablet editor simpler while allowing the right-side panel to swit
 The 3D renderer preserves accessory position, size, rotation, type, and finish.
 
 If an accessory is manually placed over a floating or stationary dock footprint, it renders on top of the dock deck surface with a small clearance so cleats and other deck-mounted accessories remain visible. Accessories that are not over a dock footprint render at the project base plane.
+
+Ladder accessories use a dock-mounted visual when placed over or near a dock footprint. The 3D renderer moves the ladder visual to the nearest dock edge, aligns it with that edge, and draws vertical side rails and rungs dropping down from deck height. If no nearby dock is detected, the ladder renders as a simple upright placeholder.
 
 - Cleat: low metal cleat with two horn hints.
 - Bumper: dark rubber bumper strip.

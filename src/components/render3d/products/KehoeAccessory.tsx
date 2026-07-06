@@ -6,6 +6,7 @@ export interface KehoeAccessoryProps {
   accessoryType?: AccessoryType;
   finish?: AccessoryFinish;
   opacity?: number;
+  mountStyle?: 'deck' | 'dock_ladder';
   viewMode: RenderViewMode;
 }
 
@@ -54,6 +55,7 @@ export function KehoeAccessory({
   accessoryType = 'cleat',
   finish = 'metal',
   opacity = 1,
+  mountStyle = 'deck',
   viewMode,
 }: KehoeAccessoryProps) {
   const length = getPositiveValue(footprintLengthFt, DEFAULT_LENGTH_FT);
@@ -94,25 +96,35 @@ export function KehoeAccessory({
   if (normalizedType === 'ladder') {
     const railX = Math.max(0.14, width * 0.22);
     const rungCount = 4;
+    const ladderDrop = Math.max(2.2, Math.min(4.2, length));
 
     return (
       <group>
         {[-1, 1].map((sign) => (
-          <mesh key={`ladder-rail-${sign}`} position={[sign * railX, 0.32, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
-            <cylinderGeometry args={[0.045, 0.045, length, 12]} />
+          <mesh key={`ladder-rail-${sign}`} position={[sign * railX, mountStyle === 'dock_ladder' ? -ladderDrop / 2 : ladderDrop / 2, 0]} castShadow>
+            <cylinderGeometry args={[0.045, 0.045, ladderDrop, 12]} />
             <meshStandardMaterial color={colors.primary} {...materialProps} />
           </mesh>
         ))}
         {Array.from({ length: rungCount }, (_, index) => {
-          const z = -length * 0.36 + (index * length * 0.72) / (rungCount - 1);
+          const y =
+            mountStyle === 'dock_ladder'
+              ? -ladderDrop * 0.88 + (index * ladderDrop * 0.68) / (rungCount - 1)
+              : ladderDrop * 0.16 + (index * ladderDrop * 0.68) / (rungCount - 1);
 
           return (
-            <mesh key={`ladder-rung-${index}`} position={[0, 0.34, z]} rotation={[0, 0, Math.PI / 2]} castShadow>
+            <mesh key={`ladder-rung-${index}`} position={[0, y, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
               <cylinderGeometry args={[0.035, 0.035, railX * 2, 12]} />
               <meshStandardMaterial color={colors.secondary} roughness={0.36} metalness={0.18} />
             </mesh>
           );
         })}
+        {mountStyle === 'dock_ladder' && [-1, 1].map((sign) => (
+          <mesh key={`ladder-hook-${sign}`} position={[sign * railX, 0.08, 0.16]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+            <cylinderGeometry args={[0.04, 0.04, 0.34, 12]} />
+            <meshStandardMaterial color={colors.secondary} roughness={0.36} metalness={0.18} />
+          </mesh>
+        ))}
       </group>
     );
   }

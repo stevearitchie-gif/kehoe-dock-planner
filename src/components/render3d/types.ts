@@ -60,6 +60,7 @@ export interface ProjectRenderElement {
   anchorInterpretation: string;
   deckFinish?: DeckFinish;
   boardDirection?: FloatingDockBoardDirection;
+  showStandardCleats?: boolean;
   tubeDiameterFt?: number;
   productSourceLabel?: string;
   boatPortWallHeightFt?: number;

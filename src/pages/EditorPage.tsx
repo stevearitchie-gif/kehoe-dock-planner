@@ -1928,6 +1928,16 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
     }));
   };
 
+  const handleSelectedFloatingDockStandardCleatsChange = (checked: boolean) => {
+    updateSelectedObject((object) => ({
+      ...object,
+      metadata: {
+        ...object.metadata,
+        showStandardCleats: checked,
+      },
+    }));
+  };
+
   const handleSelectedBoatPortHeightChange = (field: 'boatPortWallHeightFt' | 'boatPortRoofRiseFt', value: string) => {
     const parsedValue = Number(value);
     if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
@@ -3159,6 +3169,27 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                                 );
                               })}
                             </div>
+                          </div>
+                        )}
+
+                        {selectedObject.type === 'floating_dock' && (
+                          <div className="mt-4 rounded-md border border-slate-200 bg-white p-3">
+                            <label className="flex items-center justify-between gap-3">
+                              <span>
+                                <span className="block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                  Standard Cleats
+                                </span>
+                                <span className="mt-1 block text-xs text-slate-600">
+                                  Show included floating dock cleats.
+                                </span>
+                              </span>
+                              <input
+                                type="checkbox"
+                                checked={selectedObject.metadata?.showStandardCleats ?? true}
+                                onChange={(event) => handleSelectedFloatingDockStandardCleatsChange(event.target.checked)}
+                                className="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                              />
+                            </label>
                           </div>
                         )}
 
