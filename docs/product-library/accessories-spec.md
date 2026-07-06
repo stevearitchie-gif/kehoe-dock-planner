@@ -13,6 +13,7 @@ Accessories are small dock-attached or standalone add-ons that improve customer-
 - Accessories render in the 3D project model through `KehoeAccessory`.
 - ProductConfiguration can carry a basic `accessory` product type for future quote-driven previews.
 - Floating dock built-in decorative cleats remain separate from first-class accessory objects.
+- Floating dock built-in cleats remain visible because standard cleats are generally supplied with floating docks. Manual accessory cleats represent extra/additional cleats.
 
 ## Supported V1 Accessories
 
@@ -58,6 +59,8 @@ This keeps the tablet editor simpler while allowing the right-side panel to swit
 
 The 3D renderer preserves accessory position, size, rotation, type, and finish.
 
+If an accessory is manually placed over a floating or stationary dock footprint, it renders on top of the dock deck surface with a small clearance so cleats and other deck-mounted accessories remain visible. Accessories that are not over a dock footprint render at the project base plane.
+
 - Cleat: low metal cleat with two horn hints.
 - Bumper: dark rubber bumper strip.
 - Ladder: simple metal rails and rungs.
@@ -85,6 +88,7 @@ Customer View uses clean, low-detail geometry. Internal View uses stronger color
 ## Future Enhancements
 
 - Add edge snapping and attachment points on dock products.
+- Add a Show Standard Cleats toggle and automatic standard-cleat spacing rule, such as cleats on each side at no more than 10 ft spacing.
 - Add quantity-driven default placement from Quote Builder ProductConfiguration.
 - Add accessory size classes such as small, standard, and large.
 - Add accessory labels/callouts for customer PDF exports.

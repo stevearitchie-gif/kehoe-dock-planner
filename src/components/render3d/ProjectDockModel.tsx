@@ -681,11 +681,19 @@ function BoathouseElement({ element, viewMode }: { element: ProjectRenderElement
   );
 }
 
-function GenericAccessoryElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
+function GenericAccessoryElement({
+  element,
+  viewMode,
+  mountHeight,
+}: {
+  element: ProjectRenderElement;
+  viewMode: RenderViewMode;
+  mountHeight: number;
+}) {
   const color = viewMode === 'customer' ? '#94a3b8' : element.color;
 
   return (
-    <group position={[element.x, element.elevation, element.z]} rotation={[0, element.rotation, 0]}>
+    <group position={[element.x, mountHeight, element.z]} rotation={[0, element.rotation, 0]}>
       <mesh position={[0, 0.18, 0]} castShadow receiveShadow>
         <boxGeometry args={[element.length, 0.24, element.width]} />
         <meshStandardMaterial color={color} roughness={0.45} metalness={0.08} transparent opacity={element.opacity} />
@@ -698,13 +706,21 @@ function hasValidAccessoryProductData(element: ProjectRenderElement) {
   return Number.isFinite(element.length) && Number.isFinite(element.width) && element.length > 0 && element.width > 0;
 }
 
-function AccessoryElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
+function AccessoryElement({
+  element,
+  viewMode,
+  mountHeight,
+}: {
+  element: ProjectRenderElement;
+  viewMode: RenderViewMode;
+  mountHeight: number;
+}) {
   if (!hasValidAccessoryProductData(element)) {
-    return <GenericAccessoryElement element={element} viewMode={viewMode} />;
+    return <GenericAccessoryElement element={element} viewMode={viewMode} mountHeight={mountHeight} />;
   }
 
   return (
-    <group position={[element.x, element.elevation, element.z]} rotation={[0, element.rotation, 0]}>
+    <group position={[element.x, mountHeight, element.z]} rotation={[0, element.rotation, 0]}>
       <KehoeAccessory
         footprintLengthFt={element.length}
         footprintWidthFt={element.width}
@@ -758,6 +774,17 @@ function isPlatformElement(element: ProjectRenderElement) {
 
 function getPlatformDeckTopHeight(element: ProjectRenderElement) {
   return element.type === 'stationary_dock' ? STATIONARY_DOCK_DECK_TOP_HEIGHT : FLOATING_DOCK_DECK_TOP_HEIGHT;
+}
+
+function getAccessoryMountHeight(element: ProjectRenderElement, platforms: ProjectRenderElement[]) {
+  if (element.type !== 'accessory') {
+    return element.elevation;
+  }
+
+  const accessoryPoint = { x: element.x, z: element.z };
+  const hostPlatform = platforms.find((platform) => getDistanceToPlatformFootprint(accessoryPoint, platform) <= 0.01);
+
+  return hostPlatform ? getPlatformDeckTopHeight(hostPlatform) + 0.045 : element.elevation;
 }
 
 function getRampLowerEndHeight(deckTopHeight: number) {
@@ -984,10 +1011,12 @@ function ProjectElement({
   element,
   viewMode,
   rampElevation,
+  accessoryMountHeight,
 }: {
   element: ProjectRenderElement;
   viewMode: RenderViewMode;
   rampElevation?: RampElevationInfo;
+  accessoryMountHeight?: number;
 }) {
   let renderedElement: JSX.Element | null = null;
 
@@ -1055,7 +1084,7 @@ function ProjectElement({
       renderedElement = <BoathouseElement element={element} viewMode={viewMode} />;
       break;
     case 'accessory':
-      renderedElement = <AccessoryElement element={element} viewMode={viewMode} />;
+      renderedElement = <AccessoryElement element={element} viewMode={viewMode} mountHeight={accessoryMountHeight ?? element.elevation} />;
       break;
     case 'roof_overlay':
       renderedElement = <RoofOverlayElement element={element} viewMode={viewMode} />;
@@ -1084,8 +1113,17 @@ export function ProjectDockModel({ model, viewMode }: ProjectDockModelProps) {
     <group>
       {model.elements.map((element) => {
         const rampElevation = isRampElement(element) ? getRampElevationInfo(element, platforms) : undefined;
+        const accessoryMountHeight = element.type === 'accessory' ? getAccessoryMountHeight(element, platforms) : undefined;
 
-        return <ProjectElement key={getElementRenderKey(element, rampElevation)} element={element} viewMode={viewMode} rampElevation={rampElevation} />;
+        return (
+          <ProjectElement
+            key={getElementRenderKey(element, rampElevation)}
+            element={element}
+            viewMode={viewMode}
+            rampElevation={rampElevation}
+            accessoryMountHeight={accessoryMountHeight}
+          />
+        );
       })}
     </group>
   );
