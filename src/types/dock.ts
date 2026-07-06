@@ -10,6 +10,7 @@ export type DockObjectType =
   | 'boat_lift'
   | 'boat_port'
   | 'boathouse'
+  | 'accessory'
   | 'text_note'
   | 'dimension_line'
   | 'shape_rectangle'
@@ -93,6 +94,8 @@ export interface DockObject {
     boathouseDoorStyle?: 'open' | 'single_door' | 'double_doors' | 'two_slip_doors' | 'none';
     boathouseWallFinish?: 'neutral' | 'wood' | 'metal';
     boathouseRoofFinish?: 'neutral' | 'metal' | 'shingle';
+    accessoryType?: 'cleat' | 'bumper' | 'ladder' | 'bench' | 'post' | 'tie_up_point';
+    accessoryFinish?: 'metal' | 'rubber' | 'wood' | 'neutral';
     text?: string;
     dimensionValue?: number;
   };

@@ -8,6 +8,7 @@ export type ProductConfigurationType =
   | 'boat_lift'
   | 'boat_port'
   | 'boathouse'
+  | 'accessory'
   | 'custom';
 
 export interface ProductConfiguration {
@@ -64,6 +65,10 @@ export interface ProductConfiguration {
     doorStyle?: 'open' | 'single_door' | 'double_doors' | 'two_slip_doors' | 'none';
     wallFinish?: 'neutral' | 'wood' | 'metal';
     roofFinish?: 'neutral' | 'metal' | 'shingle';
+  };
+  accessory?: {
+    type?: 'cleat' | 'bumper' | 'ladder' | 'bench' | 'post' | 'tie_up_point';
+    finish?: 'metal' | 'rubber' | 'wood' | 'neutral';
   };
   pricing?: {
     classification?: string;

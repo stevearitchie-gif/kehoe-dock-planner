@@ -1,4 +1,5 @@
 import { Text } from '@react-three/drei';
+import { KehoeAccessory } from '@/components/render3d/products/KehoeAccessory';
 import { KehoeBoathouse } from '@/components/render3d/products/KehoeBoathouse';
 import { KehoeBoatLift } from '@/components/render3d/products/KehoeBoatLift';
 import { KehoeBoatPort } from '@/components/render3d/products/KehoeBoatPort';
@@ -680,6 +681,42 @@ function BoathouseElement({ element, viewMode }: { element: ProjectRenderElement
   );
 }
 
+function GenericAccessoryElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
+  const color = viewMode === 'customer' ? '#94a3b8' : element.color;
+
+  return (
+    <group position={[element.x, element.elevation, element.z]} rotation={[0, element.rotation, 0]}>
+      <mesh position={[0, 0.18, 0]} castShadow receiveShadow>
+        <boxGeometry args={[element.length, 0.24, element.width]} />
+        <meshStandardMaterial color={color} roughness={0.45} metalness={0.08} transparent opacity={element.opacity} />
+      </mesh>
+    </group>
+  );
+}
+
+function hasValidAccessoryProductData(element: ProjectRenderElement) {
+  return Number.isFinite(element.length) && Number.isFinite(element.width) && element.length > 0 && element.width > 0;
+}
+
+function AccessoryElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
+  if (!hasValidAccessoryProductData(element)) {
+    return <GenericAccessoryElement element={element} viewMode={viewMode} />;
+  }
+
+  return (
+    <group position={[element.x, element.elevation, element.z]} rotation={[0, element.rotation, 0]}>
+      <KehoeAccessory
+        footprintLengthFt={element.length}
+        footprintWidthFt={element.width}
+        accessoryType={element.accessoryType}
+        finish={element.accessoryFinish}
+        opacity={element.opacity}
+        viewMode={viewMode}
+      />
+    </group>
+  );
+}
+
 function RoofOverlayElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
   const roofY = element.elevation + 3.8;
   const canopyColor = viewMode === 'customer' ? '#f3f8fb' : element.color;
@@ -934,6 +971,8 @@ function getElementRenderKey(element: ProjectRenderElement, rampElevation?: Ramp
     element.boathouseDoorStyle ?? 'boathouse-door-default',
     element.boathouseWallFinish ?? 'boathouse-wall-default',
     element.boathouseRoofFinish ?? 'boathouse-roof-finish-default',
+    element.accessoryType ?? 'accessory-type-default',
+    element.accessoryFinish ?? 'accessory-finish-default',
     rampElevation ? String(rampElevation.hasConnection) : 'no-ramp',
     rampElevation ? formatKeyNumber(rampElevation.deckTopHeight) : 'na',
     rampElevation ? formatKeyNumber(rampElevation.lowerEndHeight) : 'na',
@@ -1014,6 +1053,9 @@ function ProjectElement({
       break;
     case 'boathouse':
       renderedElement = <BoathouseElement element={element} viewMode={viewMode} />;
+      break;
+    case 'accessory':
+      renderedElement = <AccessoryElement element={element} viewMode={viewMode} />;
       break;
     case 'roof_overlay':
       renderedElement = <RoofOverlayElement element={element} viewMode={viewMode} />;

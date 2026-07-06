@@ -10,6 +10,7 @@ export const dockElementToolModes = [
   'boat_lift',
   'boat_port',
   'boathouse',
+  'accessory',
   'dimension_line',
 ] as const;
 
@@ -67,6 +68,7 @@ export const toolLabels: Record<ToolMode, string> = {
   boat_lift: 'boat lift',
   boat_port: 'boat port',
   boathouse: 'boathouse',
+  accessory: 'accessory',
   dimension_line: 'dimension line',
   shape_line: 'line',
   shape_arrow_line: 'arrow line',

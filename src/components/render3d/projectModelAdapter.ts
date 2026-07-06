@@ -1,5 +1,7 @@
 import type { DockObject, DockObjectType, DockProject } from '@/types/dock';
 import type {
+  AccessoryFinish,
+  AccessoryType,
   BoatPortRoofType,
   BoathouseDoorStyle,
   BoathouseRoofFinish,
@@ -24,6 +26,7 @@ const supportedObjectTypes = new Set<DockObjectType>([
   'boat_lift',
   'boat_port',
   'boathouse',
+  'accessory',
   'roof_overlay',
 ]);
 
@@ -145,6 +148,33 @@ function getBoathouseRoofFinish(object: DockObject): BoathouseRoofFinish | undef
   return roofFinish === 'neutral' || roofFinish === 'metal' || roofFinish === 'shingle' ? roofFinish : undefined;
 }
 
+function getAccessoryType(object: DockObject): AccessoryType | undefined {
+  if (object.type !== 'accessory') {
+    return undefined;
+  }
+
+  const accessoryType = object.metadata?.accessoryType;
+  return accessoryType === 'cleat' ||
+    accessoryType === 'bumper' ||
+    accessoryType === 'ladder' ||
+    accessoryType === 'bench' ||
+    accessoryType === 'post' ||
+    accessoryType === 'tie_up_point'
+    ? accessoryType
+    : undefined;
+}
+
+function getAccessoryFinish(object: DockObject): AccessoryFinish | undefined {
+  if (object.type !== 'accessory') {
+    return undefined;
+  }
+
+  const accessoryFinish = object.metadata?.accessoryFinish;
+  return accessoryFinish === 'metal' || accessoryFinish === 'rubber' || accessoryFinish === 'wood' || accessoryFinish === 'neutral'
+    ? accessoryFinish
+    : undefined;
+}
+
 function getPositiveMetadataNumber(value: unknown): number | undefined {
   const parsedValue = Number(value);
   return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : undefined;
@@ -200,6 +230,8 @@ export function buildProjectRenderModel(project: DockProject): ProjectRenderMode
       boathouseDoorStyle: getBoathouseDoorStyle(object),
       boathouseWallFinish: getBoathouseWallFinish(object),
       boathouseRoofFinish: getBoathouseRoofFinish(object),
+      accessoryType: getAccessoryType(object),
+      accessoryFinish: getAccessoryFinish(object),
     };
   });
 

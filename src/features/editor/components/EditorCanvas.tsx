@@ -602,6 +602,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       'boat_lift',
       'boat_port',
       'boathouse',
+      'accessory',
       'dimension_line',
       'shape_rectangle',
       'shape_rounded_rectangle',
@@ -1667,6 +1668,70 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                           strokeWidth={2.5}
                           listening={false}
                         />
+                      )}
+                    </>
+                  )}
+
+                  {object.type === 'accessory' && (
+                    <>
+                      {object.metadata?.accessoryType === 'bumper' ? (
+                        <Rect
+                          x={4}
+                          y={object.height / 2 - 3}
+                          width={object.width - 8}
+                          height={6}
+                          cornerRadius={3}
+                          fill="#111827"
+                          opacity={0.8}
+                          listening={false}
+                        />
+                      ) : object.metadata?.accessoryType === 'ladder' ? (
+                        <>
+                          <Line points={[object.width * 0.35, 4, object.width * 0.35, object.height - 4]} stroke="#64748b" strokeWidth={2} listening={false} />
+                          <Line points={[object.width * 0.65, 4, object.width * 0.65, object.height - 4]} stroke="#64748b" strokeWidth={2} listening={false} />
+                          {[0.25, 0.5, 0.75].map((ratio) => (
+                            <Line
+                              key={`ladder-rung-${ratio}`}
+                              points={[object.width * 0.35, object.height * ratio, object.width * 0.65, object.height * ratio]}
+                              stroke="#94a3b8"
+                              strokeWidth={1.5}
+                              listening={false}
+                            />
+                          ))}
+                        </>
+                      ) : object.metadata?.accessoryType === 'bench' ? (
+                        <>
+                          <Rect
+                            x={5}
+                            y={object.height * 0.32}
+                            width={object.width - 10}
+                            height={object.height * 0.22}
+                            fill="#a16207"
+                            cornerRadius={2}
+                            listening={false}
+                          />
+                          <Line points={[8, object.height * 0.72, object.width - 8, object.height * 0.72]} stroke="#64748b" strokeWidth={2} listening={false} />
+                        </>
+                      ) : object.metadata?.accessoryType === 'post' ? (
+                        <Circle x={object.width / 2} y={object.height / 2} radius={Math.max(5, Math.min(object.width, object.height) * 0.28)} fill="#64748b" listening={false} />
+                      ) : object.metadata?.accessoryType === 'tie_up_point' ? (
+                        <>
+                          <Circle
+                            x={object.width / 2}
+                            y={object.height / 2}
+                            radius={Math.max(5, Math.min(object.width, object.height) * 0.28)}
+                            stroke="#475569"
+                            strokeWidth={2}
+                            listening={false}
+                          />
+                          <Line points={[object.width * 0.25, object.height / 2, object.width * 0.75, object.height / 2]} stroke="#94a3b8" strokeWidth={1.5} listening={false} />
+                        </>
+                      ) : (
+                        <>
+                          <Line points={[object.width * 0.22, object.height / 2, object.width * 0.78, object.height / 2]} stroke="#64748b" strokeWidth={3} listening={false} />
+                          <Line points={[object.width * 0.35, object.height * 0.32, object.width * 0.22, object.height / 2, object.width * 0.35, object.height * 0.68]} stroke="#64748b" strokeWidth={2} listening={false} />
+                          <Line points={[object.width * 0.65, object.height * 0.32, object.width * 0.78, object.height / 2, object.width * 0.65, object.height * 0.68]} stroke="#64748b" strokeWidth={2} listening={false} />
+                        </>
                       )}
                     </>
                   )}

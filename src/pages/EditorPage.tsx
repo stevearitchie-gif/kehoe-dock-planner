@@ -1152,6 +1152,7 @@ export function EditorPage() {
       'boat_lift',
       'boat_port',
       'boathouse',
+      'accessory',
       'dimension_line',
       'shape_rectangle',
       'shape_rounded_rectangle',
@@ -1203,6 +1204,7 @@ export function EditorPage() {
           boat_lift: 'Boat Lift',
           boat_port: 'Boat Port',
           boathouse: 'Boathouse',
+          accessory: 'Accessory',
           dimension_line: 'Dimension Line',
           shape_rectangle: 'Rectangle',
           shape_rounded_rectangle: 'Rounded Rectangle',
@@ -1247,6 +1249,7 @@ export function EditorPage() {
           boat_lift: { width: 80, height: 30 },
           boat_port: { width: 120, height: 54 },
           boathouse: { width: 160, height: 90 },
+          accessory: { width: 34, height: 18 },
           dimension_line: { width: 160, height: 24 },
           shape_rectangle: { width: 100, height: 60 },
           shape_rounded_rectangle: { width: 100, height: 60 },
@@ -1291,6 +1294,7 @@ export function EditorPage() {
           boat_lift: '#cbd5e1',
           boat_port: '#bfdbfe',
           boathouse: '#d6d3c8',
+          accessory: '#94a3b8',
           dimension_line: '#0f172a',
           shape_rectangle: '#dbeafe',
           shape_rounded_rectangle: '#dbeafe',
@@ -1355,6 +1359,11 @@ export function EditorPage() {
                     boathouseWallFinish: 'neutral',
                     boathouseRoofFinish: 'metal',
                   }
+                : placementTool === 'accessory'
+                  ? {
+                      accessoryType: 'cleat',
+                      accessoryFinish: 'metal',
+                    }
               : undefined,
         };
 
@@ -1982,6 +1991,23 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
         ...object.metadata,
         boathouseSlipCount: value,
       },
+    }));
+  };
+
+  const handleSelectedAccessoryOptionChange = (field: 'accessoryType' | 'accessoryFinish', value: string) => {
+    updateSelectedObject((object) => ({
+      ...object,
+      metadata: {
+        ...object.metadata,
+        [field]: value,
+      },
+      label:
+        field === 'accessoryType'
+          ? `${value
+              .split('_')
+              .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+              .join(' ')} Accessory`
+          : object.label,
     }));
   };
 
@@ -3369,6 +3395,74 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                                     );
                                   })}
                                 </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedObject.type === 'accessory' && (
+                          <div className="mt-4 rounded-md border border-slate-200 bg-white p-3">
+                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                              Accessory Options
+                            </p>
+                            <div className="mt-3">
+                              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Accessory Type</p>
+                              <div className="mt-2 grid grid-cols-2 gap-2">
+                                {[
+                                  { label: 'Cleat', value: 'cleat' },
+                                  { label: 'Bumper', value: 'bumper' },
+                                  { label: 'Ladder', value: 'ladder' },
+                                  { label: 'Bench', value: 'bench' },
+                                  { label: 'Post', value: 'post' },
+                                  { label: 'Tie Up Point', value: 'tie_up_point' },
+                                ].map((option) => {
+                                  const activeValue = selectedObject.metadata?.accessoryType ?? 'cleat';
+                                  const isActive = activeValue === option.value;
+
+                                  return (
+                                    <button
+                                      key={option.value}
+                                      type="button"
+                                      onClick={() => handleSelectedAccessoryOptionChange('accessoryType', option.value)}
+                                      className={`rounded-md border px-2 py-2 text-xs font-medium ${
+                                        isActive
+                                          ? 'border-brand-600 bg-brand-50 text-brand-700'
+                                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                                      }`}
+                                    >
+                                      {option.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                            <div className="mt-3">
+                              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Finish</p>
+                              <div className="mt-2 grid grid-cols-2 gap-2">
+                                {[
+                                  { label: 'Metal', value: 'metal' },
+                                  { label: 'Rubber', value: 'rubber' },
+                                  { label: 'Wood', value: 'wood' },
+                                  { label: 'Neutral', value: 'neutral' },
+                                ].map((option) => {
+                                  const activeValue = selectedObject.metadata?.accessoryFinish ?? 'metal';
+                                  const isActive = activeValue === option.value;
+
+                                  return (
+                                    <button
+                                      key={option.value}
+                                      type="button"
+                                      onClick={() => handleSelectedAccessoryOptionChange('accessoryFinish', option.value)}
+                                      className={`rounded-md border px-2 py-2 text-xs font-medium ${
+                                        isActive
+                                          ? 'border-brand-600 bg-brand-50 text-brand-700'
+                                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                                      }`}
+                                    >
+                                      {option.label}
+                                    </button>
+                                  );
+                                })}
                               </div>
                             </div>
                           </div>

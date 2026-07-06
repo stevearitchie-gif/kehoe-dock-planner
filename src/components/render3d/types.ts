@@ -22,6 +22,8 @@ export type BoathouseSlipCount = 1 | 2;
 export type BoathouseDoorStyle = 'open' | 'single_door' | 'double_doors' | 'two_slip_doors' | 'none';
 export type BoathouseWallFinish = 'neutral' | 'wood' | 'metal';
 export type BoathouseRoofFinish = 'neutral' | 'metal' | 'shingle';
+export type AccessoryType = 'cleat' | 'bumper' | 'ladder' | 'bench' | 'post' | 'tie_up_point';
+export type AccessoryFinish = 'metal' | 'rubber' | 'wood' | 'neutral';
 
 export type ProjectRenderElementType =
   | 'floating_dock'
@@ -32,6 +34,7 @@ export type ProjectRenderElementType =
   | 'boat_lift'
   | 'boat_port'
   | 'boathouse'
+  | 'accessory'
   | 'roof_overlay';
 
 export interface ProjectRenderElement {
@@ -69,6 +72,8 @@ export interface ProjectRenderElement {
   boathouseDoorStyle?: BoathouseDoorStyle;
   boathouseWallFinish?: BoathouseWallFinish;
   boathouseRoofFinish?: BoathouseRoofFinish;
+  accessoryType?: AccessoryType;
+  accessoryFinish?: AccessoryFinish;
 }
 
 export interface ProjectRenderModel {

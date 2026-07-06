@@ -2,98 +2,99 @@
 
 ## Product Overview
 
-Accessories are small dock-attached or standalone add-ons that improve the customer-facing sales visual and eventually connect quote line items to visible 3D details.
+Accessories are small dock-attached or standalone add-ons that improve customer-facing site visit presentations. Accessories v1 is a lightweight visual framework, not an engineering-grade accessory catalog.
 
 ## Current Implementation Status
 
-- No first-class accessory Dock Planner object types exist yet.
-- No ProductConfiguration `accessory` product type exists yet.
-- Floating dock currently renders built-in customer-view cleats as decorative detail.
-- Boat lift ProductConfiguration can carry accessory metadata, but those accessories do not render as distinct objects.
+- A first-class `accessory` Dock Planner object type exists.
+- Accessory subtype is stored in `metadata.accessoryType`.
+- Accessory finish is stored in `metadata.accessoryFinish`.
+- Accessories can be placed, selected, moved, rotated, resized, saved, exported to PDF, and sent to View 3D.
+- Accessories render in the 3D project model through `KehoeAccessory`.
+- ProductConfiguration can carry a basic `accessory` product type for future quote-driven previews.
+- Floating dock built-in decorative cleats remain separate from first-class accessory objects.
 
-## Target Scope For Next Implementation
+## Supported V1 Accessories
 
-Start with a small accessory set:
+- Cleat.
+- Bumper.
+- Ladder.
+- Bench.
+- Post.
+- Tie-up point.
 
-- Cleats.
-- Bumpers.
-- Ladders.
-- Benches.
-- Posts.
-- Tie-up points.
+## Data Model
 
-Implement accessories as lightweight parametric components with clear attachment rules before exposing broad editing or quote automation.
+Accessories use one generic object type instead of six separate object types:
 
-## Supported Dimensions And Options
+- `type`: `accessory`
+- `metadata.accessoryType`: `cleat | bumper | ladder | bench | post | tie_up_point`
+- `metadata.accessoryFinish`: `metal | rubber | wood | neutral`
 
-- Accessory type.
-- Quantity.
-- Attachment target ID.
-- Attachment edge or local position.
-- Material/finish.
-- Optional size class: small, standard, large.
+This keeps the tablet editor simpler while allowing the right-side panel to switch the visual subtype.
 
-## Visual Rules
+## Defaults
 
-- Accessories should not alter dock/ramp source footprints.
-- Dock-attached accessories should follow the host dock rotation and edge.
-- Quote-driven accessories without layout should use safe default placement and show Internal View assumptions.
-- Customer View should avoid clutter on small docks.
+- New accessory objects default to `cleat`.
+- New accessory finish defaults to `metal`.
+- Default 2D footprint is compact so accessories are easy to place manually.
+- Missing or invalid accessory type safely falls back to cleat.
+- Missing or invalid finish safely falls back to metal.
+
+## 2D Behavior
+
+- Accessories use a simple rectangular footprint like other placed objects.
+- The selected accessory can be resized and rotated using existing editor controls.
+- Each accessory subtype has a simple plan-view cue:
+  - Cleat: horn-style line symbol.
+  - Bumper: dark rubber strip.
+  - Ladder: rails and rungs.
+  - Bench: seat and support line.
+  - Post: circular marker.
+  - Tie-up point: ring marker.
+- No automatic dock-edge snapping is included in v1.
+
+## 3D Behavior
+
+The 3D renderer preserves accessory position, size, rotation, type, and finish.
+
+- Cleat: low metal cleat with two horn hints.
+- Bumper: dark rubber bumper strip.
+- Ladder: simple metal rails and rungs.
+- Bench: simple seat, legs, and back rail.
+- Post: short vertical post/piling marker.
+- Tie-up point: small base with ring.
+
+Customer View uses clean, low-detail geometry. Internal View uses stronger colors for troubleshooting.
 
 ## Material Rules
 
-- Cleats/tie-up points: satin metal.
-- Bumpers: black/dark rubber.
-- Ladders: aluminum/galvanized metal.
-- Benches: wood/composite seat with metal brackets.
-- Posts: galvanized or dark painted metal/wood depending on product.
+- Cleats and tie-up points default to satin metal.
+- Bumpers default to dark rubber.
+- Ladders default to aluminum/metal.
+- Benches use wood-like seats with simple metal supports.
+- Posts use neutral/metal colors unless changed later.
 
 ## Simplifications
 
-- Use simple box/cylinder geometry.
-- Avoid high-poly bolts, ropes, chains, and detailed ladders until needed.
-- Do not auto-place every quote accessory unless layout rules exist.
-
-## Assumptions
-
-- Accessories will need both quote-driven and layout-driven workflows.
-- Some accessories are product details on a host dock, while others are independent placed objects.
+- Accessories are manually placed; no host-dock attachment model exists yet.
+- No automatic quantity spacing, edge detection, or quote placement rules are included.
+- No bolts, ropes, chain, hardware labels, SKU details, or manufacturer-specific profiles are modeled.
+- Accessory dimensions are visual and driven by the object footprint, not product catalog dimensions.
 
 ## Future Enhancements
 
-- `accessory` ProductConfiguration type or a nested accessory model on host products.
-- 2D editor accessory tools.
-- Edge-snapping/attachment points.
-- Quantity-driven default placement.
-- Customer PDF accessory callouts.
-
-## Recommended Accessory Model
-
-Use a combination:
-
-- Dock-attached objects for cleats, bumpers, ladders, benches, and tie-up points.
-- Standalone placed objects for posts or layout-specific hardware.
-- Quote-driven add-ons for visual defaults when exact placement is not yet known.
-
-## Next Modular Product Implementation Order
-
-1. Boat lift placeholder:
-   - First safe scope is a parametric frame with posts, beams, cables, cradle placeholder, model/capacity metadata, and default dimensions.
-   - This should work from both Dock Planner object footprints and ProductConfiguration quote preview data.
-
-2. Boat port placeholder:
-   - First safe scope is a raised canopy/frame over a configurable footprint.
-   - Add only after product type and quote fields are confirmed.
-
-3. Accessories starter set:
-   - Cleats, bumpers, ladders, benches, posts, and tie-up points.
-   - Begin as dock-attached objects or host-product add-ons with default placement assumptions.
-   - Add standalone placement later where layout accuracy matters.
+- Add edge snapping and attachment points on dock products.
+- Add quantity-driven default placement from Quote Builder ProductConfiguration.
+- Add accessory size classes such as small, standard, and large.
+- Add accessory labels/callouts for customer PDF exports.
+- Add approved reference dimensions and SKU mappings.
+- Add host product relationships so accessories can move with a dock section.
 
 ## Reference Material Still Needed
 
 - Accessory catalog/SKU list.
-- Standard dimensions.
-- Material/finish options.
+- Standard dimensions by accessory type.
+- Finish/material options.
 - Photos of common installations.
 - Rules for default placement and quantity spacing.
