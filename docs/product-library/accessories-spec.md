@@ -62,7 +62,7 @@ The 3D renderer preserves accessory position, size, rotation, type, and finish.
 
 If an accessory is manually placed over a floating or stationary dock footprint, it renders on top of the dock deck surface with a small clearance so cleats and other deck-mounted accessories remain visible. Accessories that are not over a dock footprint render at the project base plane.
 
-Ladder accessories use a dock-mounted visual when placed over or near a dock footprint. The 3D renderer moves the ladder visual to the nearest dock edge, aligns it with that edge, and draws vertical side rails and rungs dropping down from deck height. If no nearby dock is detected, the ladder renders as a simple upright placeholder.
+Ladder accessories use a dock-mounted visual when placed over or near a dock footprint. The 3D renderer preserves the projected 2D position and user rotation, then draws vertical side rails and rungs dropping down from deck height. If no nearby dock is detected, the ladder renders as a simple upright placeholder. Automatic edge snapping is intentionally deferred so manual accessory placement remains faithful to the 2D layout.
 
 - Cleat: low metal cleat with two horn hints.
 - Bumper: dark rubber bumper strip.
@@ -91,6 +91,7 @@ Customer View uses clean, low-detail geometry. Internal View uses stronger color
 ## Future Enhancements
 
 - Add edge snapping and attachment points on dock products.
+- Add optional ladder edge snapping once the editor can clearly store the intended host edge.
 - Add a Show Standard Cleats toggle and automatic standard-cleat spacing rule, such as cleats on each side at no more than 10 ft spacing.
 - Add quantity-driven default placement from Quote Builder ProductConfiguration.
 - Add accessory size classes such as small, standard, and large.

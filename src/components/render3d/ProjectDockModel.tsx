@@ -786,16 +786,6 @@ function getPlatformDeckTopHeight(element: ProjectRenderElement) {
   return element.type === 'stationary_dock' ? STATIONARY_DOCK_DECK_TOP_HEIGHT : FLOATING_DOCK_DECK_TOP_HEIGHT;
 }
 
-function platformLocalPointToWorld(platform: ProjectRenderElement, localX: number, localZ: number) {
-  const cos = Math.cos(platform.rotation);
-  const sin = Math.sin(platform.rotation);
-
-  return {
-    x: platform.x + localX * cos + localZ * sin,
-    z: platform.z - localX * sin + localZ * cos,
-  };
-}
-
 function getAccessoryMountInfo(element: ProjectRenderElement, platforms: ProjectRenderElement[]): AccessoryMountInfo {
   if (element.type !== 'accessory') {
     return {
@@ -820,41 +810,11 @@ function getAccessoryMountInfo(element: ProjectRenderElement, platforms: Project
     };
   }
 
-  if (element.accessoryType !== 'ladder') {
-    return {
-      x: element.x,
-      z: element.z,
-      rotation: element.rotation,
-      height: getPlatformDeckTopHeight(hostPlatform) + 0.045,
-      isDockMounted: true,
-    };
-  }
-
-  const local = worldPointToPlatformLocal(accessoryPoint, hostPlatform);
-  const distances = [
-    { edge: 'left', distance: Math.abs(local.x + hostPlatform.length / 2) },
-    { edge: 'right', distance: Math.abs(hostPlatform.length / 2 - local.x) },
-    { edge: 'bottom', distance: Math.abs(local.z + hostPlatform.width / 2) },
-    { edge: 'top', distance: Math.abs(hostPlatform.width / 2 - local.z) },
-  ].sort((a, b) => a.distance - b.distance);
-  const nearestEdge = distances[0]?.edge ?? 'top';
-  const clampedX = Math.max(-hostPlatform.length / 2, Math.min(hostPlatform.length / 2, local.x));
-  const clampedZ = Math.max(-hostPlatform.width / 2, Math.min(hostPlatform.width / 2, local.z));
-  const ladderLocal =
-    nearestEdge === 'left'
-      ? { x: -hostPlatform.length / 2 - 0.08, z: clampedZ, rotation: hostPlatform.rotation + Math.PI / 2 }
-      : nearestEdge === 'right'
-        ? { x: hostPlatform.length / 2 + 0.08, z: clampedZ, rotation: hostPlatform.rotation + Math.PI / 2 }
-        : nearestEdge === 'bottom'
-          ? { x: clampedX, z: -hostPlatform.width / 2 - 0.08, rotation: hostPlatform.rotation }
-          : { x: clampedX, z: hostPlatform.width / 2 + 0.08, rotation: hostPlatform.rotation };
-  const world = platformLocalPointToWorld(hostPlatform, ladderLocal.x, ladderLocal.z);
-
   return {
-    x: world.x,
-    z: world.z,
-    rotation: ladderLocal.rotation,
-    height: getPlatformDeckTopHeight(hostPlatform) + 0.02,
+    x: element.x,
+    z: element.z,
+    rotation: element.rotation,
+    height: getPlatformDeckTopHeight(hostPlatform) + (element.accessoryType === 'ladder' ? 0.02 : 0.045),
     isDockMounted: true,
   };
 }
