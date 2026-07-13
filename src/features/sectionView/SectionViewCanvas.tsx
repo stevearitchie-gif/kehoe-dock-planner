@@ -1,7 +1,7 @@
-import type { ChangeEvent, ReactNode } from 'react';
-import { useMemo, useRef } from 'react';
+import type { ChangeEvent, PointerEvent, ReactNode } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { applySectionTemplate, sectionTemplates } from '@/features/sectionView/sectionTemplates';
-import type { SectionViewData, SectionViewTemplateId } from '@/features/sectionView/sectionTypes';
+import type { SectionViewData, SectionViewManualOffset, SectionViewTemplateId } from '@/features/sectionView/sectionTypes';
 
 interface SectionViewCanvasProps {
   sectionView: SectionViewData;
@@ -21,6 +21,26 @@ const drawingLeft = 92;
 const drawingRight = 1008;
 const baseHighWaterY = 365;
 const lowWaterOffset = 42;
+
+const editableElementLabels: Record<string, string> = {
+  'water-high-label': 'High water label',
+  'water-low-label': 'Low water label',
+  'riprap-group': 'Rip rap stone group',
+  'armour-group': 'Armour stone group',
+  'dock-profile': 'Dock and ramp reference',
+  'dimension-bank': 'Bank dimension',
+  'dimension-drop': 'Lakebed drop dimension',
+  'callout-grade': 'Existing grade callout',
+  'callout-lakebed': 'Lakebed profile callout',
+  'callout-riprap': 'Rip rap callout',
+  'callout-pipe': 'Perforated pipe callout',
+  'callout-armour': 'Armour stone callout',
+  'callout-clear-stone': 'Clear stone base callout',
+  'callout-ramp': 'Access ramp callout',
+  'callout-dock': 'Floating dock callout',
+  notes: 'Drawing notes',
+  'title-block': 'Title block',
+};
 
 function clampNumber(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -125,14 +145,149 @@ function controlGroup(title: string, children: ReactNode) {
 
 export function SectionViewCanvas({ sectionView, projectName, onChange, onGenerateFromBuildPlan }: SectionViewCanvasProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const [manualEditMode, setManualEditMode] = useState(false);
+  const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+  const [dragState, setDragState] = useState<{
+    elementId: string;
+    startPoint: SectionViewManualOffset;
+    startOffset: SectionViewManualOffset;
+  } | null>(null);
   const buildPlanSummary = sectionView.buildPlanSummary;
   const drawingDate = useMemo(() => formatDate(new Date()), []);
+  const manualElementOffsets = sectionView.manualElementOffsets ?? {};
+  const hiddenElementIds = sectionView.hiddenElements ?? [];
+  const hiddenElementSet = useMemo(() => new Set(hiddenElementIds), [hiddenElementIds]);
 
   const updateField = <Key extends keyof SectionViewData>(field: Key, value: SectionViewData[Key]) => {
     onChange({
       ...sectionView,
       [field]: value,
     });
+  };
+
+  const getSvgPoint = (event: PointerEvent<SVGElement>): SectionViewManualOffset | null => {
+    const svgElement = svgRef.current;
+    const matrix = svgElement?.getScreenCTM();
+    if (!svgElement || !matrix) {
+      return null;
+    }
+
+    const point = svgElement.createSVGPoint();
+    point.x = event.clientX;
+    point.y = event.clientY;
+    const svgPoint = point.matrixTransform(matrix.inverse());
+    return { x: svgPoint.x, y: svgPoint.y };
+  };
+
+  const updateManualElementOffset = (elementId: string, offset: SectionViewManualOffset) => {
+    updateField('manualElementOffsets', {
+      ...manualElementOffsets,
+      [elementId]: {
+        x: Math.round(offset.x),
+        y: Math.round(offset.y),
+      },
+    });
+  };
+
+  const resetElementOffset = (elementId: string) => {
+    const nextOffsets = { ...manualElementOffsets };
+    delete nextOffsets[elementId];
+    updateField('manualElementOffsets', nextOffsets);
+  };
+
+  const handleEditablePointerDown = (elementId: string, event: PointerEvent<SVGGElement>) => {
+    if (!manualEditMode) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const startPoint = getSvgPoint(event);
+    if (!startPoint) {
+      return;
+    }
+
+    setSelectedElementId(elementId);
+    setDragState({
+      elementId,
+      startPoint,
+      startOffset: manualElementOffsets[elementId] ?? { x: 0, y: 0 },
+    });
+  };
+
+  const handleSvgPointerMove = (event: PointerEvent<SVGSVGElement>) => {
+    if (!manualEditMode || !dragState) {
+      return;
+    }
+
+    const point = getSvgPoint(event);
+    if (!point) {
+      return;
+    }
+
+    updateManualElementOffset(dragState.elementId, {
+      x: dragState.startOffset.x + point.x - dragState.startPoint.x,
+      y: dragState.startOffset.y + point.y - dragState.startPoint.y,
+    });
+  };
+
+  const handleSvgPointerUp = () => {
+    setDragState(null);
+  };
+
+  const editableElement = (elementId: string, children: ReactNode, handleX: number, handleY: number) => {
+    if (hiddenElementSet.has(elementId)) {
+      return null;
+    }
+
+    const offset = manualElementOffsets[elementId] ?? { x: 0, y: 0 };
+    const isSelected = selectedElementId === elementId;
+
+    return (
+      <g
+        key={elementId}
+        transform={`translate(${offset.x} ${offset.y})`}
+        onPointerDown={(event) => handleEditablePointerDown(elementId, event)}
+        style={{ cursor: manualEditMode ? 'move' : 'default', touchAction: 'none' }}
+      >
+        {children}
+        {manualEditMode && (
+          <g pointerEvents="none">
+            <circle cx={handleX} cy={handleY} r={isSelected ? 7 : 5} fill="#ffffff" stroke={isSelected ? red : blue} strokeWidth="1.6" />
+            {isSelected && (
+              <text x={handleX + 10} y={handleY - 8} fill={red} fontSize="10" fontWeight="700">
+                {editableElementLabels[elementId]}
+              </text>
+            )}
+          </g>
+        )}
+      </g>
+    );
+  };
+
+  const hideSelectedElement = () => {
+    if (!selectedElementId || hiddenElementSet.has(selectedElementId)) {
+      return;
+    }
+
+    updateField('hiddenElements', [...hiddenElementIds, selectedElementId]);
+    setSelectedElementId(null);
+    setDragState(null);
+  };
+
+  const showHiddenElements = () => {
+    updateField('hiddenElements', []);
+  };
+
+  const resetAllManualEdits = () => {
+    onChange({
+      ...sectionView,
+      manualElementOffsets: {},
+      hiddenElements: [],
+    });
+    setSelectedElementId(null);
+    setDragState(null);
   };
 
   const updateNumberField = (
@@ -218,6 +373,14 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
             aria-label="Section view permit drawing sheet"
             className="max-h-full max-w-full bg-white shadow-sm"
             style={{ aspectRatio: '11 / 8.5' }}
+            onPointerMove={handleSvgPointerMove}
+            onPointerUp={handleSvgPointerUp}
+            onPointerLeave={handleSvgPointerUp}
+            onPointerDown={() => {
+              if (manualEditMode) {
+                setSelectedElementId(null);
+              }
+            }}
           >
             <rect width={SVG_WIDTH} height={SVG_HEIGHT} fill="#ffffff" />
             <rect x={sheetMargin} y={sheetMargin} width={SVG_WIDTH - sheetMargin * 2} height={SVG_HEIGHT - sheetMargin * 2} fill="none" stroke={ink} strokeWidth="1.2" />
@@ -244,13 +407,23 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
             </text>
 
             <line x1={drawingLeft} y1={highWaterY} x2={drawingRight} y2={highWaterY} stroke={blue} strokeWidth="1.8" />
-            <text x={drawingLeft + 8} y={highWaterY - 10} fill={blue} fontSize="12" fontWeight="700">
-              HIGH WATER LEVEL
-            </text>
+            {editableElement(
+              'water-high-label',
+              <text x={drawingLeft + 8} y={highWaterY - 10} fill={blue} fontSize="12" fontWeight="700">
+                HIGH WATER LEVEL
+              </text>,
+              drawingLeft + 8,
+              highWaterY - 18,
+            )}
             <line x1={drawingLeft} y1={lowWaterY} x2={drawingRight} y2={lowWaterY} stroke={blue} strokeWidth="1.4" strokeDasharray="10 7" />
-            <text x={drawingLeft + 8} y={lowWaterY + 18} fill={blue} fontSize="12" fontWeight="700">
-              LOW WATER LEVEL
-            </text>
+            {editableElement(
+              'water-low-label',
+              <text x={drawingLeft + 8} y={lowWaterY + 18} fill={blue} fontSize="12" fontWeight="700">
+                LOW WATER LEVEL
+              </text>,
+              drawingLeft + 8,
+              lowWaterY + 10,
+            )}
 
             <polyline
               points={`120,${gradeStartY} 250,${gradeStartY + 12} 390,${gradeMidY} 540,${shorelineToeY}`}
@@ -265,8 +438,10 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
               strokeWidth="1.8"
             />
 
-            {sectionView.showRipRap && !useArmourTemplate && (
-              <g>
+            {sectionView.showRipRap && !useArmourTemplate &&
+              editableElement(
+                'riprap-group',
+                <g>
                 <line x1="236" y1={ripRapTop} x2="558" y2={shorelineToeY + 4} stroke={ink} strokeWidth="1.2" />
                 <line x1="222" y1={ripRapBottom} x2="570" y2={shorelineToeY + 58} stroke={ink} strokeWidth="1.2" strokeDasharray="5 5" />
                 {rockSymbols(260, ripRapTop + 14, 30)}
@@ -276,11 +451,15 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                 </text>
                 <line x1="318" y1={ripRapBottom + 54} x2="410" y2={ripRapBottom + 76} stroke={ink} strokeWidth="5" strokeLinecap="round" />
                 <line x1="318" y1={ripRapBottom + 54} x2="410" y2={ripRapBottom + 76} stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeDasharray="3 5" />
-              </g>
-            )}
+                </g>,
+                238,
+                ripRapTop + 2,
+              )}
 
-            {sectionView.showArmourStone && armourRows > 0 && (
-              <g>
+            {sectionView.showArmourStone && armourRows > 0 &&
+              editableElement(
+                'armour-group',
+                <g>
                 <polygon
                   points={`500,${highWaterY - 8} 686,${highWaterY - 8} 686,${highWaterY + 68 + armourRows * 7} 500,${highWaterY + 68 + armourRows * 7}`}
                   fill="url(#clear-stone)"
@@ -301,11 +480,15 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                     />
                   )),
                 )}
-              </g>
-            )}
+                </g>,
+                500,
+                highWaterY - 56,
+              )}
 
-            {useDockTemplate && (
-              <g stroke={ink} fill="none">
+            {useDockTemplate &&
+              editableElement(
+                'dock-profile',
+                <g stroke={ink} fill="none">
                 <line x1="470" y1={highWaterY - 76} x2="620" y2={highWaterY - 47} strokeWidth="2.2" />
                 <line x1="470" y1={highWaterY - 68} x2="620" y2={highWaterY - 39} strokeWidth="1.1" />
                 <line x1="472" y1={highWaterY - 78} x2="472" y2={highWaterY - 58} strokeWidth="1.1" />
@@ -313,37 +496,61 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                 <line x1="646" y1={highWaterY - 42} x2="794" y2={highWaterY - 42} strokeWidth="1.1" />
                 <ellipse cx="688" cy={highWaterY - 23} rx="42" ry="12" strokeWidth="1.3" />
                 <ellipse cx="764" cy={highWaterY - 23} rx="42" ry="12" strokeWidth="1.3" />
-              </g>
-            )}
+                </g>,
+                470,
+                highWaterY - 86,
+              )}
 
             {sectionView.showDimensions && (
               <g stroke={ink} strokeWidth="1.2" fill="none">
-                <line x1="92" y1={gradeStartY} x2="92" y2={highWaterY} markerStart="url(#black-arrow)" markerEnd="url(#black-arrow)" />
-                <text x="55" y={(gradeStartY + highWaterY) / 2} fill={ink} stroke="none" fontSize="11">
-                  BANK {sectionHeight.toFixed(1)} ft
-                </text>
-                <line x1="958" y1={lowWaterY} x2="958" y2={lakebedEndY - 70} markerStart="url(#black-arrow)" markerEnd="url(#black-arrow)" />
-                <text x="888" y={(lowWaterY + lakebedEndY - 70) / 2} fill={ink} stroke="none" fontSize="11">
-                  DROP {lakebedDrop.toFixed(1)} ft
-                </text>
+                {editableElement(
+                  'dimension-bank',
+                  <>
+                    <line x1="92" y1={gradeStartY} x2="92" y2={highWaterY} markerStart="url(#black-arrow)" markerEnd="url(#black-arrow)" />
+                    <text x="55" y={(gradeStartY + highWaterY) / 2} fill={ink} stroke="none" fontSize="11">
+                      BANK {sectionHeight.toFixed(1)} ft
+                    </text>
+                  </>,
+                  92,
+                  (gradeStartY + highWaterY) / 2 - 20,
+                )}
+                {editableElement(
+                  'dimension-drop',
+                  <>
+                    <line x1="958" y1={lowWaterY} x2="958" y2={lakebedEndY - 70} markerStart="url(#black-arrow)" markerEnd="url(#black-arrow)" />
+                    <text x="888" y={(lowWaterY + lakebedEndY - 70) / 2} fill={ink} stroke="none" fontSize="11">
+                      DROP {lakebedDrop.toFixed(1)} ft
+                    </text>
+                  </>,
+                  958,
+                  (lowWaterY + lakebedEndY - 70) / 2 - 20,
+                )}
               </g>
             )}
 
-            {[
-              callout('EXISTING GRADE', 136, 150, 282, gradeStartY + 15, 'grade'),
-              callout('LAKEBED PROFILE', 132, 592, 390, lakebedEndY, 'lakebed'),
-              sectionView.showRipRap && !useArmourTemplate ? callout('RIP RAP STONE', 620, 236, 454, ripRapTop + 76, 'riprap') : null,
-              sectionView.showRipRap && !useArmourTemplate ? callout('PERFORATED PIPE', 208, 530, 360, ripRapBottom + 65, 'pipe') : null,
-              useArmourTemplate ? callout('ARMOUR STONE WALL', 736, 238, 632, highWaterY - 46, 'armour') : null,
-              useArmourTemplate ? callout('CLEAR STONE BASE', 724, 454, 616, highWaterY + 76, 'clear-stone') : null,
-              useDockTemplate ? callout('ACCESS RAMP', 486, 178, 535, highWaterY - 62, 'ramp') : null,
-              useDockTemplate ? callout('FLOATING DOCK', 786, 202, 716, highWaterY - 56, 'dock') : null,
-            ]}
+            {editableElement('callout-grade', callout('EXISTING GRADE', 136, 150, 282, gradeStartY + 15, 'grade'), 136, 138)}
+            {editableElement('callout-lakebed', callout('LAKEBED PROFILE', 132, 592, 390, lakebedEndY, 'lakebed'), 132, 580)}
+            {sectionView.showRipRap && !useArmourTemplate &&
+              editableElement('callout-riprap', callout('RIP RAP STONE', 620, 236, 454, ripRapTop + 76, 'riprap'), 620, 224)}
+            {sectionView.showRipRap && !useArmourTemplate &&
+              editableElement('callout-pipe', callout('PERFORATED PIPE', 208, 530, 360, ripRapBottom + 65, 'pipe'), 208, 518)}
+            {useArmourTemplate &&
+              editableElement('callout-armour', callout('ARMOUR STONE WALL', 736, 238, 632, highWaterY - 46, 'armour'), 736, 226)}
+            {useArmourTemplate &&
+              editableElement('callout-clear-stone', callout('CLEAR STONE BASE', 724, 454, 616, highWaterY + 76, 'clear-stone'), 724, 442)}
+            {useDockTemplate && editableElement('callout-ramp', callout('ACCESS RAMP', 486, 178, 535, highWaterY - 62, 'ramp'), 486, 166)}
+            {useDockTemplate &&
+              editableElement('callout-dock', callout('FLOATING DOCK', 786, 202, 716, highWaterY - 56, 'dock'), 786, 190)}
 
-            <text x="72" y="742" fill={mutedInk} fontSize="11">
-              {sectionView.notes}
-            </text>
-            {titleBlock(projectName, sectionView.title, drawingDate)}
+            {editableElement(
+              'notes',
+              <text x="72" y="742" fill={mutedInk} fontSize="11">
+                {sectionView.notes}
+              </text>,
+              72,
+              728,
+            )}
+            {editableElement('title-block', titleBlock(projectName, sectionView.title, drawingDate), 728, 646)}
           </svg>
         </div>
       </section>
@@ -393,6 +600,65 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
             ) : (
               <p className="text-sm text-slate-600">No Build Plan data imported yet.</p>
             ),
+          )}
+
+          {controlGroup(
+            'Manual Edit Mode',
+            <div className="space-y-3">
+              <label className="flex min-h-11 items-center justify-between gap-3 text-sm text-slate-700">
+                <span>Enable drag editing</span>
+                <input
+                  type="checkbox"
+                  checked={manualEditMode}
+                  onChange={(event) => {
+                    setManualEditMode(event.target.checked);
+                    setSelectedElementId(null);
+                    setDragState(null);
+                  }}
+                  className="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                />
+              </label>
+              <div className="rounded-md bg-slate-50 p-2 text-sm text-slate-700">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Selected item</p>
+                <p className="mt-1">{selectedElementId ? editableElementLabels[selectedElementId] : 'None selected'}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  disabled={!selectedElementId}
+                  onClick={() => selectedElementId && resetElementOffset(selectedElementId)}
+                  className="min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Reset selected
+                </button>
+                <button
+                  type="button"
+                  disabled={!selectedElementId}
+                  onClick={hideSelectedElement}
+                  className="min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Hide selected
+                </button>
+                <button
+                  type="button"
+                  disabled={hiddenElementIds.length === 0}
+                  onClick={showHiddenElements}
+                  className="min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Show hidden
+                </button>
+                <button
+                  type="button"
+                  onClick={resetAllManualEdits}
+                  className="min-h-11 rounded-md border border-red-200 bg-white px-3 py-2 text-sm text-red-700 hover:bg-red-50"
+                >
+                  Reset all
+                </button>
+              </div>
+              <p className="text-xs text-slate-500">
+                Drag handles appear on the drawing while edit mode is on. Export PNG includes the adjusted layout.
+              </p>
+            </div>,
           )}
 
           {controlGroup(

@@ -1,5 +1,10 @@
 export type SectionViewTemplateId = 'rip_rap' | 'armour_stone' | 'floating_dock_shoreline';
 
+export interface SectionViewManualOffset {
+  x: number;
+  y: number;
+}
+
 export interface SectionViewData {
   templateId: SectionViewTemplateId;
   title: string;
@@ -12,6 +17,8 @@ export interface SectionViewData {
   showArmourStone: boolean;
   showDockReference: boolean;
   showDimensions: boolean;
+  manualElementOffsets?: Record<string, SectionViewManualOffset>;
+  hiddenElements?: string[];
   buildPlanSummary?: {
     generatedAt: string;
     hasProjectScale: boolean;
