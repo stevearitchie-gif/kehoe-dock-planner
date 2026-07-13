@@ -12,6 +12,17 @@ export interface SectionViewManualTransform {
   scaleY?: number;
 }
 
+export interface SectionViewRipRapSettings {
+  x: number;
+  y: number;
+  length: number;
+  depth: number;
+  slopeDegrees: number;
+  stoneSize: number;
+  density: number;
+  showFilterLayer: boolean;
+}
+
 export interface SectionViewData {
   templateId: SectionViewTemplateId;
   title: string;
@@ -26,6 +37,7 @@ export interface SectionViewData {
   showDimensions: boolean;
   manualElementOffsets?: Record<string, SectionViewManualOffset>;
   manualElementTransforms?: Record<string, SectionViewManualTransform>;
+  ripRapSettings?: SectionViewRipRapSettings;
   hiddenElements?: string[];
   buildPlanSummary?: {
     generatedAt: string;

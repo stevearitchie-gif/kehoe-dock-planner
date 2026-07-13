@@ -1,7 +1,13 @@
 import type { ChangeEvent, PointerEvent, ReactNode } from 'react';
 import { useMemo, useRef, useState } from 'react';
 import { applySectionTemplate, sectionTemplates } from '@/features/sectionView/sectionTemplates';
-import type { SectionViewData, SectionViewManualOffset, SectionViewManualTransform, SectionViewTemplateId } from '@/features/sectionView/sectionTypes';
+import type {
+  SectionViewData,
+  SectionViewManualOffset,
+  SectionViewManualTransform,
+  SectionViewRipRapSettings,
+  SectionViewTemplateId,
+} from '@/features/sectionView/sectionTypes';
 
 interface SectionViewCanvasProps {
   sectionView: SectionViewData;
@@ -21,6 +27,16 @@ const drawingLeft = 92;
 const drawingRight = 1008;
 const baseHighWaterY = 365;
 const lowWaterOffset = 42;
+const defaultRipRapSettings: SectionViewRipRapSettings = {
+  x: 238,
+  y: 274,
+  length: 352,
+  depth: 92,
+  slopeDegrees: 15,
+  stoneSize: 16,
+  density: 1.05,
+  showFilterLayer: true,
+};
 
 const editableElementLabels: Record<string, string> = {
   'water-high-label': 'High water label',
@@ -63,6 +79,11 @@ function formatDate(date: Date) {
   return date.toLocaleDateString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit' });
 }
 
+function hashUnit(seed: number) {
+  const value = Math.sin(seed * 12.9898) * 43758.5453;
+  return value - Math.floor(value);
+}
+
 function callout(label: string, labelX: number, labelY: number, targetX: number, targetY: number, key: string) {
   return (
     <g key={key} stroke={red} fill="none" strokeWidth="1.5">
@@ -74,23 +95,36 @@ function callout(label: string, labelX: number, labelY: number, targetX: number,
   );
 }
 
-function rockSymbols(startX: number, startY: number, count: number, slope = 0.35) {
-  return Array.from({ length: count }, (_, index) => {
-    const column = index % 9;
-    const row = Math.floor(index / 9);
-    const jitterX = [0, 9, -6, 5, -10, 7, -4, 11, -8][column] ?? 0;
-    const jitterY = [0, -8, 5, -3, 7, -5, 4, -7, 6][index % 9] ?? 0;
-    const x = startX + column * 29 + row * 13 + jitterX;
-    const y = startY + column * slope * 11 + row * 22 + jitterY;
-    const size = 11 + (index % 5) * 2;
-    const points = [
-      `${x - size},${y + 2}`,
-      `${x - size * 0.45},${y - size}`,
-      `${x + size * 0.7},${y - size * 0.55}`,
-      `${x + size},${y + size * 0.25}`,
-      `${x + size * 0.15},${y + size}`,
-    ].join(' ');
-    return <polygon key={index} points={points} fill={index % 3 === 0 ? '#d1d5db' : '#e5e7eb'} stroke={ink} strokeWidth="1" />;
+function ripRapStoneField(settings: SectionViewRipRapSettings) {
+  const spacing = Math.max(10, settings.stoneSize * 1.18);
+  const columns = Math.max(4, Math.ceil(settings.length / spacing));
+  const rows = Math.max(2, Math.ceil(settings.depth / spacing));
+  const stones = Math.max(8, Math.round(columns * rows * clampNumber(settings.density, 0.25, 2)));
+
+  return Array.from({ length: stones }, (_, index) => {
+    const column = index % columns;
+    const row = Math.floor(index / columns) % rows;
+    const jitterX = (hashUnit(index + 3) - 0.5) * spacing * 0.62;
+    const jitterY = (hashUnit(index + 17) - 0.5) * spacing * 0.62;
+    const x = Math.min(settings.length - settings.stoneSize * 0.55, Math.max(settings.stoneSize * 0.55, column * spacing + spacing * 0.5 + jitterX));
+    const y = Math.min(settings.depth - settings.stoneSize * 0.55, Math.max(settings.stoneSize * 0.55, row * spacing + spacing * 0.5 + jitterY));
+    const size = settings.stoneSize * (0.72 + hashUnit(index + 31) * 0.7);
+    const pointCount = 5 + Math.floor(hashUnit(index + 43) * 3);
+    const points = Array.from({ length: pointCount }, (_, pointIndex) => {
+      const angle = (Math.PI * 2 * pointIndex) / pointCount;
+      const radius = size * (0.62 + hashUnit(index * 11 + pointIndex + 59) * 0.48);
+      return `${(x + Math.cos(angle) * radius).toFixed(1)},${(y + Math.sin(angle) * radius).toFixed(1)}`;
+    }).join(' ');
+
+    return (
+      <polygon
+        key={index}
+        points={points}
+        fill={index % 3 === 0 ? '#cbd5e1' : '#e5e7eb'}
+        stroke={ink}
+        strokeWidth="1"
+      />
+    );
   });
 }
 
@@ -231,13 +265,24 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     });
   };
 
+  const updateRipRapSettings = (settings: Partial<SectionViewRipRapSettings>) => {
+    updateField('ripRapSettings', {
+      ...ripRapSettings,
+      ...settings,
+    });
+  };
+
   const resetElementOffset = (elementId: string) => {
     const nextOffsets = { ...manualElementOffsets };
     const nextTransforms = { ...manualElementTransforms };
     delete nextOffsets[elementId];
     delete nextTransforms[elementId];
-    updateField('manualElementOffsets', nextOffsets);
-    updateField('manualElementTransforms', nextTransforms);
+    onChange({
+      ...sectionView,
+      manualElementOffsets: nextOffsets,
+      manualElementTransforms: nextTransforms,
+      ripRapSettings: elementId === 'riprap-group' ? undefined : sectionView.ripRapSettings,
+    });
   };
 
   const handleEditablePointerDown = (elementId: string, event: PointerEvent<SVGGElement>) => {
@@ -346,6 +391,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
       ...sectionView,
       manualElementOffsets: {},
       manualElementTransforms: {},
+      ripRapSettings: undefined,
       hiddenElements: [],
     });
     setSelectedElementId(null);
@@ -421,6 +467,12 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
   const lakebedEndY = 495 + lakebedDrop * 7;
   const ripRapTop = gradeMidY + 24;
   const ripRapBottom = ripRapTop + Math.max(30, ripRapDepth * 19);
+  const ripRapSettings: SectionViewRipRapSettings = {
+    ...defaultRipRapSettings,
+    y: ripRapTop,
+    depth: Math.max(58, ripRapBottom - ripRapTop + 36),
+    ...(sectionView.ripRapSettings ?? {}),
+  };
   const useArmourTemplate = sectionView.templateId === 'armour_stone' || sectionView.showArmourStone;
   const useDockTemplate = sectionView.templateId === 'floating_dock_shoreline' || sectionView.showDockReference;
 
@@ -499,19 +551,55 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
               editableElement(
                 'riprap-group',
                 <g>
-                <rect x="210" y={ripRapTop - 10} width="390" height={ripRapBottom - ripRapTop + 120} fill="#ffffff" opacity="0.01" />
-                <line x1="236" y1={ripRapTop} x2="558" y2={shorelineToeY + 4} stroke={ink} strokeWidth="1.2" />
-                <line x1="222" y1={ripRapBottom} x2="570" y2={shorelineToeY + 58} stroke={ink} strokeWidth="1.2" strokeDasharray="5 5" />
-                {rockSymbols(250, ripRapTop + 14, 45)}
-                <path d={`M255 ${ripRapBottom + 38} C344 ${ripRapBottom + 62}, 445 ${ripRapBottom + 74}, 555 ${shorelineToeY + 78}`} fill="none" stroke={ink} strokeWidth="1" />
-                <text x="370" y={ripRapBottom + 78} fill={ink} fontSize="11" fontWeight="700">
-                  CLEAR STONE / FILTER LAYER
-                </text>
-                <line x1="318" y1={ripRapBottom + 54} x2="410" y2={ripRapBottom + 76} stroke={ink} strokeWidth="5" strokeLinecap="round" />
-                <line x1="318" y1={ripRapBottom + 54} x2="410" y2={ripRapBottom + 76} stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeDasharray="3 5" />
+                <rect
+                  x={ripRapSettings.x - 12}
+                  y={ripRapSettings.y - 16}
+                  width={ripRapSettings.length + 30}
+                  height={ripRapSettings.depth + 54}
+                  fill="#ffffff"
+                  opacity="0.01"
+                  transform={`rotate(${ripRapSettings.slopeDegrees} ${ripRapSettings.x} ${ripRapSettings.y})`}
+                />
+                <g transform={`translate(${ripRapSettings.x} ${ripRapSettings.y}) rotate(${ripRapSettings.slopeDegrees})`}>
+                  <clipPath id="rip-rap-zone-clip">
+                    <polygon points={`0,0 ${ripRapSettings.length},0 ${ripRapSettings.length},${ripRapSettings.depth} 0,${ripRapSettings.depth}`} />
+                  </clipPath>
+                  <polygon
+                    points={`0,0 ${ripRapSettings.length},0 ${ripRapSettings.length},${ripRapSettings.depth} 0,${ripRapSettings.depth}`}
+                    fill="#f8fafc"
+                    stroke={ink}
+                    strokeWidth="1.2"
+                  />
+                  <g clipPath="url(#rip-rap-zone-clip)">{ripRapStoneField(ripRapSettings)}</g>
+                  {ripRapSettings.showFilterLayer && (
+                    <>
+                      <path
+                        d={`M0 ${ripRapSettings.depth + 18} C${ripRapSettings.length * 0.28} ${ripRapSettings.depth + 30}, ${ripRapSettings.length * 0.62} ${ripRapSettings.depth + 32}, ${ripRapSettings.length} ${ripRapSettings.depth + 18}`}
+                        fill="none"
+                        stroke={ink}
+                        strokeWidth="1"
+                        strokeDasharray="5 5"
+                      />
+                      <text x={ripRapSettings.length * 0.36} y={ripRapSettings.depth + 42} fill={ink} fontSize="11" fontWeight="700">
+                        CLEAR STONE / FILTER LAYER
+                      </text>
+                      <line x1={ripRapSettings.length * 0.22} y1={ripRapSettings.depth + 30} x2={ripRapSettings.length * 0.46} y2={ripRapSettings.depth + 42} stroke={ink} strokeWidth="5" strokeLinecap="round" />
+                      <line
+                        x1={ripRapSettings.length * 0.22}
+                        y1={ripRapSettings.depth + 30}
+                        x2={ripRapSettings.length * 0.46}
+                        y2={ripRapSettings.depth + 42}
+                        stroke="#ffffff"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeDasharray="3 5"
+                      />
+                    </>
+                  )}
+                </g>
                 </g>,
-                238,
-                ripRapTop + 2,
+                ripRapSettings.x,
+                ripRapSettings.y - 12,
               )}
 
             {sectionView.showArmourStone && armourRows > 0 &&
@@ -735,6 +823,51 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                     </div>
                   ) : (
                     <p className="mt-2 text-xs text-slate-500">This item is move-only for now.</p>
+                  )}
+                  {selectedElementId === 'riprap-group' && (
+                    <div className="mt-3 border-t border-slate-200 pt-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Rip Rap Zone</p>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        {[
+                          { label: 'Position X', value: ripRapSettings.x, field: 'x', min: 0, max: SVG_WIDTH, step: 5 },
+                          { label: 'Position Y', value: ripRapSettings.y, field: 'y', min: 0, max: SVG_HEIGHT, step: 5 },
+                          { label: 'Length', value: ripRapSettings.length, field: 'length', min: 80, max: 720, step: 10 },
+                          { label: 'Depth', value: ripRapSettings.depth, field: 'depth', min: 24, max: 260, step: 5 },
+                          { label: 'Slope', value: ripRapSettings.slopeDegrees, field: 'slopeDegrees', min: -35, max: 45, step: 1 },
+                          { label: 'Stone size', value: ripRapSettings.stoneSize, field: 'stoneSize', min: 6, max: 34, step: 1 },
+                          { label: 'Density', value: ripRapSettings.density, field: 'density', min: 0.25, max: 2, step: 0.05 },
+                        ].map((control) => (
+                          <label key={control.field} className="block">
+                            <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">{control.label}</span>
+                            <input
+                              type="number"
+                              min={control.min}
+                              max={control.max}
+                              step={control.step}
+                              value={control.value}
+                              onChange={(event) => {
+                                const parsedValue = Number(event.target.value);
+                                if (Number.isFinite(parsedValue)) {
+                                  updateRipRapSettings({
+                                    [control.field]: clampNumber(parsedValue, control.min, control.max),
+                                  });
+                                }
+                              }}
+                              className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-700"
+                            />
+                          </label>
+                        ))}
+                      </div>
+                      <label className="mt-2 flex min-h-11 items-center justify-between gap-3 text-sm text-slate-700">
+                        <span>Show filter layer</span>
+                        <input
+                          type="checkbox"
+                          checked={ripRapSettings.showFilterLayer}
+                          onChange={(event) => updateRipRapSettings({ showFilterLayer: event.target.checked })}
+                          className="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                        />
+                      </label>
+                    </div>
                   )}
                 </div>
               )}
