@@ -124,6 +124,15 @@ function ripRapBoundaryPoints(topPoints: SectionViewPoint[], bottomPoints: Secti
   return [...topPoints, ...bottomPoints.slice().reverse()].map((point) => `${point.x},${point.y}`).join(' ');
 }
 
+function pointBounds(points: SectionViewPoint[]) {
+  return {
+    minX: Math.min(...points.map((point) => point.x)),
+    maxX: Math.max(...points.map((point) => point.x)),
+    minY: Math.min(...points.map((point) => point.y)),
+    maxY: Math.max(...points.map((point) => point.y)),
+  };
+}
+
 function buildRipRapBoundary(settings: SectionViewRipRapSettings) {
   const slopeRise = Math.tan((settings.slopeDegrees * Math.PI) / 180) * settings.length;
   const topPoints = [
@@ -153,10 +162,13 @@ function callout(label: string, labelX: number, labelY: number, targetX: number,
   );
 }
 
-function ripRapStoneField(settings: SectionViewRipRapSettings) {
+function ripRapStoneField(settings: SectionViewRipRapSettings, topPoints: SectionViewPoint[], bottomPoints: SectionViewPoint[]) {
+  const bounds = pointBounds([...topPoints, ...bottomPoints]);
+  const fieldWidth = Math.max(settings.stoneSize * 2, bounds.maxX - bounds.minX);
+  const fieldHeight = Math.max(settings.stoneSize * 2, bounds.maxY - bounds.minY);
   const spacing = Math.max(10, settings.stoneSize * 1.18);
-  const columns = Math.max(4, Math.ceil(settings.length / spacing));
-  const rows = Math.max(2, Math.ceil(settings.depth / spacing));
+  const columns = Math.max(4, Math.ceil(fieldWidth / spacing));
+  const rows = Math.max(2, Math.ceil(fieldHeight / spacing));
   const stones = Math.max(8, Math.round(columns * rows * clampNumber(settings.density, 0.25, 2)));
 
   return Array.from({ length: stones }, (_, index) => {
@@ -164,8 +176,8 @@ function ripRapStoneField(settings: SectionViewRipRapSettings) {
     const row = Math.floor(index / columns) % rows;
     const jitterX = (hashUnit(index + 3) - 0.5) * spacing * 0.62;
     const jitterY = (hashUnit(index + 17) - 0.5) * spacing * 0.62;
-    const x = Math.min(settings.length - settings.stoneSize * 0.55, Math.max(settings.stoneSize * 0.55, column * spacing + spacing * 0.5 + jitterX));
-    const y = Math.min(settings.depth - settings.stoneSize * 0.55, Math.max(settings.stoneSize * 0.55, row * spacing + spacing * 0.5 + jitterY));
+    const x = Math.min(bounds.maxX - settings.stoneSize * 0.55, Math.max(bounds.minX + settings.stoneSize * 0.55, bounds.minX + column * spacing + spacing * 0.5 + jitterX));
+    const y = Math.min(bounds.maxY - settings.stoneSize * 0.55, Math.max(bounds.minY + settings.stoneSize * 0.55, bounds.minY + row * spacing + spacing * 0.5 + jitterY));
     const size = settings.stoneSize * (0.72 + hashUnit(index + 31) * 0.7);
     const pointCount = 5 + Math.floor(hashUnit(index + 43) * 3);
     const points = Array.from({ length: pointCount }, (_, pointIndex) => {
@@ -725,6 +737,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     ripRapTopPoints: sectionView.profileGeometry?.ripRapTopPoints ?? defaultProfileGeometry.ripRapTopPoints,
     ripRapBottomPoints: sectionView.profileGeometry?.ripRapBottomPoints ?? defaultProfileGeometry.ripRapBottomPoints,
   };
+  const ripRapBounds = pointBounds([...profileGeometry.ripRapTopPoints, ...profileGeometry.ripRapBottomPoints]);
   const selectedPointMatch = selectedElementId?.match(/^(gradePoints|lakebedPoints|ripRapTopPoints|ripRapBottomPoints):(\d+)$/);
   const selectedPointLine = selectedPointMatch?.[1] as keyof SectionViewProfileGeometry | undefined;
   const selectedPointIndex = selectedPointMatch ? Number(selectedPointMatch[2]) : undefined;
@@ -798,10 +811,10 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                 'riprap-group',
                 <g>
                 <rect
-                  x={Math.min(...profileGeometry.ripRapTopPoints.map((point) => point.x), ...profileGeometry.ripRapBottomPoints.map((point) => point.x)) - 18}
-                  y={Math.min(...profileGeometry.ripRapTopPoints.map((point) => point.y), ...profileGeometry.ripRapBottomPoints.map((point) => point.y)) - 18}
-                  width={ripRapSettings.length + 30}
-                  height={ripRapSettings.depth + 54}
+                  x={ripRapBounds.minX - 18}
+                  y={ripRapBounds.minY - 18}
+                  width={ripRapBounds.maxX - ripRapBounds.minX + 36}
+                  height={ripRapBounds.maxY - ripRapBounds.minY + 36}
                   fill="#ffffff"
                   opacity="0.01"
                 />
@@ -819,7 +832,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                     stroke={ink}
                     strokeWidth="1.2"
                   />
-                  <g clipPath="url(#rip-rap-zone-clip)" transform={`translate(${ripRapSettings.x} ${ripRapSettings.y})`}>{ripRapStoneField(ripRapSettings)}</g>
+                  <g clipPath="url(#rip-rap-zone-clip)">{ripRapStoneField(ripRapSettings, profileGeometry.ripRapTopPoints, profileGeometry.ripRapBottomPoints)}</g>
                   {ripRapSettings.showFilterLayer && (
                     <>
                       <path
