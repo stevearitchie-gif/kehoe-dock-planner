@@ -23,6 +23,13 @@ export interface SectionViewRipRapSettings {
   showFilterLayer: boolean;
 }
 
+export interface SectionViewRipRapZone extends SectionViewRipRapSettings {
+  id: string;
+  label: string;
+  topPoints: SectionViewPoint[];
+  bottomPoints: SectionViewPoint[];
+}
+
 export interface SectionViewPoint {
   x: number;
   y: number;
@@ -45,6 +52,17 @@ export interface SectionViewTitleBlock {
   date?: string;
 }
 
+export interface SectionViewCustomItem {
+  id: string;
+  type: 'label';
+  label: string;
+  x: number;
+  y: number;
+  scaleX?: number;
+  scaleY?: number;
+  hidden?: boolean;
+}
+
 export interface SectionViewData {
   templateId: SectionViewTemplateId;
   title: string;
@@ -60,6 +78,8 @@ export interface SectionViewData {
   manualElementOffsets?: Record<string, SectionViewManualOffset>;
   manualElementTransforms?: Record<string, SectionViewManualTransform>;
   ripRapSettings?: SectionViewRipRapSettings;
+  ripRapZones?: SectionViewRipRapZone[];
+  customItems?: SectionViewCustomItem[];
   profileGeometry?: SectionViewProfileGeometry;
   labelOverrides?: Record<string, string>;
   titleBlock?: SectionViewTitleBlock;

@@ -3,11 +3,13 @@ import { useMemo, useRef, useState } from 'react';
 import { applySectionTemplate, sectionTemplates } from '@/features/sectionView/sectionTemplates';
 import type {
   SectionViewData,
+  SectionViewCustomItem,
   SectionViewManualOffset,
   SectionViewManualTransform,
   SectionViewPoint,
   SectionViewProfileGeometry,
   SectionViewRipRapSettings,
+  SectionViewRipRapZone,
   SectionViewTemplateId,
 } from '@/features/sectionView/sectionTypes';
 
@@ -171,6 +173,29 @@ function buildRipRapBoundary(settings: SectionViewRipRapSettings) {
   return { topPoints, bottomPoints };
 }
 
+function normalizeRipRapZone(zone: SectionViewRipRapZone): SectionViewRipRapZone {
+  const boundary = zone.topPoints.length > 0 && zone.bottomPoints.length > 0
+    ? { topPoints: zone.topPoints, bottomPoints: zone.bottomPoints }
+    : buildRipRapBoundary(zone);
+
+  return {
+    ...zone,
+    topPoints: boundary.topPoints,
+    bottomPoints: boundary.bottomPoints,
+  };
+}
+
+function makeRipRapZone(id: string, label: string, settings: SectionViewRipRapSettings, topPoints?: SectionViewPoint[], bottomPoints?: SectionViewPoint[]): SectionViewRipRapZone {
+  const boundary = topPoints && bottomPoints ? { topPoints, bottomPoints } : buildRipRapBoundary(settings);
+  return {
+    ...settings,
+    id,
+    label,
+    topPoints: boundary.topPoints,
+    bottomPoints: boundary.bottomPoints,
+  };
+}
+
 function callout(label: string, labelX: number, labelY: number, targetX: number, targetY: number, key: string) {
   return (
     <g key={key} stroke={red} fill="none" strokeWidth="1.5">
@@ -306,6 +331,8 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
   const [pointDragState, setPointDragState] = useState<{
     lineId: keyof SectionViewProfileGeometry;
     pointIndex: number;
+    zoneId?: string;
+    boundary?: 'top' | 'bottom';
   } | null>(null);
   const buildPlanSummary = sectionView.buildPlanSummary;
   const drawingDate = useMemo(() => formatDate(new Date()), []);
@@ -323,11 +350,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
   const labelOverrides = sectionView.labelOverrides ?? {};
 
   const labelText = (id: string, fallback: string) => labelOverrides[id] ?? fallback;
-  const selectedItemName = selectedElementId?.includes(':')
-    ? `${profileLineLabels[selectedElementId.split(':')[0] as keyof SectionViewProfileGeometry]} point ${Number(selectedElementId.split(':')[1]) + 1}`
-    : selectedElementId
-      ? editableElementLabels[selectedElementId]
-      : 'None selected';
+  const customItems = sectionView.customItems ?? [];
 
   const updateField = <Key extends keyof SectionViewData>(field: Key, value: SectionViewData[Key]) => {
     onChange({
@@ -398,6 +421,43 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     });
   };
 
+  const updateRipRapZones = (zones: SectionViewRipRapZone[]) => {
+    const normalizedZones = zones.map(normalizeRipRapZone);
+    const primaryZone = normalizedZones[0];
+    onChange({
+      ...sectionView,
+      ripRapZones: normalizedZones,
+      ripRapSettings: primaryZone ? {
+        x: primaryZone.x,
+        y: primaryZone.y,
+        length: primaryZone.length,
+        depth: primaryZone.depth,
+        slopeDegrees: primaryZone.slopeDegrees,
+        stoneSize: primaryZone.stoneSize,
+        density: primaryZone.density,
+        showFilterLayer: primaryZone.showFilterLayer,
+      } : sectionView.ripRapSettings,
+      profileGeometry: primaryZone ? {
+        ...(sectionView.profileGeometry ?? {}),
+        ripRapTopPoints: primaryZone.topPoints,
+        ripRapBottomPoints: primaryZone.bottomPoints,
+      } : sectionView.profileGeometry,
+    });
+  };
+
+  const updateRipRapZone = (zoneId: string, update: (zone: SectionViewRipRapZone) => SectionViewRipRapZone) => {
+    updateRipRapZones(ripRapZones.map((zone) => (zone.id === zoneId ? update(zone) : zone)));
+  };
+
+  const updateRipRapZonePoint = (zoneId: string, boundary: 'top' | 'bottom', pointIndex: number, point: SectionViewPoint) => {
+    updateRipRapZone(zoneId, (zone) => ({
+      ...zone,
+      [boundary === 'top' ? 'topPoints' : 'bottomPoints']: zone[boundary === 'top' ? 'topPoints' : 'bottomPoints'].map((currentPoint, index) =>
+        index === pointIndex ? { x: Math.round(point.x), y: Math.round(point.y) } : currentPoint,
+      ),
+    }));
+  };
+
   const handleProfilePointPointerDown = (lineId: keyof SectionViewProfileGeometry, pointIndex: number, event: PointerEvent<SVGCircleElement>) => {
     if (!manualEditMode) {
       return;
@@ -411,24 +471,36 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     setDragState(null);
   };
 
-  const updateRipRapSettings = (settings: Partial<SectionViewRipRapSettings>) => {
+  const handleRipRapZonePointPointerDown = (zoneId: string, boundary: 'top' | 'bottom', pointIndex: number, event: PointerEvent<SVGCircleElement>) => {
+    if (!manualEditMode) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setSelectedElementId(`ripRapZone:${zoneId}:${boundary}:${pointIndex}`);
+    setPointDragState({ lineId: 'ripRapTopPoints', pointIndex, zoneId, boundary });
+    setDragState(null);
+  };
+
+  const updateRipRapSettings = (zoneId: string, settings: Partial<SectionViewRipRapSettings>) => {
+    const currentZone = ripRapZones.find((zone) => zone.id === zoneId) ?? legacyRipRapZone;
     const nextSettings = {
-      ...ripRapSettings,
+      ...currentZone,
       ...settings,
     };
     const nextBoundary = buildRipRapBoundary(nextSettings);
-    onChange({
-      ...sectionView,
-      ripRapSettings: nextSettings,
-      profileGeometry: {
-        ...(sectionView.profileGeometry ?? {}),
-        ripRapTopPoints: nextBoundary.topPoints,
-        ripRapBottomPoints: nextBoundary.bottomPoints,
-      },
-    });
+    updateRipRapZone(zoneId, (zone) => ({
+      ...zone,
+      ...nextSettings,
+      topPoints: nextBoundary.topPoints,
+      bottomPoints: nextBoundary.bottomPoints,
+    }));
   };
 
   const moveRipRapSystem = (
+    zoneId: string,
     nextX: number,
     nextY: number,
     startX: number,
@@ -440,23 +512,29 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     const deltaY = nextY - startY;
     const nextOffsets = { ...manualElementOffsets };
     const nextTransforms = { ...manualElementTransforms };
-    delete nextOffsets['riprap-group'];
-    delete nextTransforms['riprap-group'];
+    delete nextOffsets[`riprap-zone:${zoneId}`];
+    delete nextTransforms[`riprap-zone:${zoneId}`];
 
+    const shiftedZones = ripRapZones.map((zone) => zone.id === zoneId ? {
+      ...zone,
+      x: Math.round(nextX),
+      y: Math.round(nextY),
+      topPoints: startTopPoints.map((point) => ({ x: Math.round(point.x + deltaX), y: Math.round(point.y + deltaY) })),
+      bottomPoints: startBottomPoints.map((point) => ({ x: Math.round(point.x + deltaX), y: Math.round(point.y + deltaY) })),
+    } : zone);
+
+    const primaryZone = shiftedZones[0];
     onChange({
       ...sectionView,
       manualElementOffsets: nextOffsets,
       manualElementTransforms: nextTransforms,
-      ripRapSettings: {
-        ...ripRapSettings,
-        x: Math.round(nextX),
-        y: Math.round(nextY),
-      },
-      profileGeometry: {
+      ripRapZones: shiftedZones,
+      ripRapSettings: primaryZone,
+      profileGeometry: primaryZone ? {
         ...(sectionView.profileGeometry ?? {}),
-        ripRapTopPoints: startTopPoints.map((point) => ({ x: Math.round(point.x + deltaX), y: Math.round(point.y + deltaY) })),
-        ripRapBottomPoints: startBottomPoints.map((point) => ({ x: Math.round(point.x + deltaX), y: Math.round(point.y + deltaY) })),
-      },
+        ripRapTopPoints: primaryZone.topPoints,
+        ripRapBottomPoints: primaryZone.bottomPoints,
+      } : sectionView.profileGeometry,
     });
   };
 
@@ -476,6 +554,18 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
 
   const resetElementOffset = (elementId: string) => {
     const pointMatch = elementId.match(/^(gradePoints|lakebedPoints|ripRapTopPoints|ripRapBottomPoints):(\d+)$/);
+    const zonePointMatch = elementId.match(/^ripRapZone:(.+):(top|bottom):(\d+)$/);
+    if (zonePointMatch) {
+      const zoneId = zonePointMatch[1];
+      const boundary = zonePointMatch[2] as 'top' | 'bottom';
+      const pointIndex = Number(zonePointMatch[3]);
+      const zone = ripRapZones.find((currentZone) => currentZone.id === zoneId);
+      if (zone) {
+        const defaultBoundary = buildRipRapBoundary(zone);
+        updateRipRapZonePoint(zoneId, boundary, pointIndex, defaultBoundary[boundary === 'top' ? 'topPoints' : 'bottomPoints'][pointIndex]);
+      }
+      return;
+    }
     if (pointMatch) {
       const lineId = pointMatch[1] as keyof SectionViewProfileGeometry;
       const pointIndex = Number(pointMatch[2]);
@@ -490,9 +580,23 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     delete nextTransforms[elementId];
     delete nextLabelOverrides[elementId];
     const nextProfileGeometry = { ...(sectionView.profileGeometry ?? {}) };
-    if (elementId === 'riprap-group') {
-      delete nextProfileGeometry.ripRapTopPoints;
-      delete nextProfileGeometry.ripRapBottomPoints;
+    const zoneMatch = elementId.match(/^riprap-zone:(.+)$/);
+    if (zoneMatch) {
+      const zoneId = zoneMatch[1];
+      const resetZones = ripRapZones.map((zone) => {
+        if (zone.id !== zoneId) {
+          return zone;
+        }
+
+        const boundary = buildRipRapBoundary(zone);
+        return {
+          ...zone,
+          topPoints: boundary.topPoints,
+          bottomPoints: boundary.bottomPoints,
+        };
+      });
+      updateRipRapZones(resetZones);
+      return;
     }
     onChange({
       ...sectionView,
@@ -500,7 +604,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
       manualElementTransforms: nextTransforms,
       labelOverrides: nextLabelOverrides,
       profileGeometry: nextProfileGeometry,
-      ripRapSettings: elementId === 'riprap-group' ? undefined : sectionView.ripRapSettings,
+      ripRapSettings: sectionView.ripRapSettings,
     });
   };
 
@@ -518,15 +622,17 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     }
 
     setSelectedElementId(elementId);
+    const zoneMatch = elementId.match(/^riprap-zone:(.+)$/);
+    const dragZone = zoneMatch ? ripRapZones.find((zone) => zone.id === zoneMatch[1]) : undefined;
     setDragState({
       elementId,
       startPoint,
       startOffset: {
-        x: elementId === 'riprap-group' ? ripRapSettings.x : manualElementTransforms[elementId]?.x ?? manualElementOffsets[elementId]?.x ?? 0,
-        y: elementId === 'riprap-group' ? ripRapSettings.y : manualElementTransforms[elementId]?.y ?? manualElementOffsets[elementId]?.y ?? 0,
+        x: dragZone ? dragZone.x : manualElementTransforms[elementId]?.x ?? manualElementOffsets[elementId]?.x ?? 0,
+        y: dragZone ? dragZone.y : manualElementTransforms[elementId]?.y ?? manualElementOffsets[elementId]?.y ?? 0,
       },
-      startRipRapTopPoints: elementId === 'riprap-group' ? profileGeometry.ripRapTopPoints.map((point) => ({ ...point })) : undefined,
-      startRipRapBottomPoints: elementId === 'riprap-group' ? profileGeometry.ripRapBottomPoints.map((point) => ({ ...point })) : undefined,
+      startRipRapTopPoints: dragZone ? dragZone.topPoints.map((point) => ({ ...point })) : undefined,
+      startRipRapBottomPoints: dragZone ? dragZone.bottomPoints.map((point) => ({ ...point })) : undefined,
     });
   };
 
@@ -534,7 +640,11 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     if (manualEditMode && pointDragState) {
       const point = getSvgPoint(event);
       if (point) {
-        updateProfilePoint(pointDragState.lineId, pointDragState.pointIndex, point);
+        if (pointDragState.zoneId && pointDragState.boundary) {
+          updateRipRapZonePoint(pointDragState.zoneId, pointDragState.boundary, pointDragState.pointIndex, point);
+        } else {
+          updateProfilePoint(pointDragState.lineId, pointDragState.pointIndex, point);
+        }
       }
       return;
     }
@@ -551,8 +661,9 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     const nextX = dragState.startOffset.x + point.x - dragState.startPoint.x;
     const nextY = dragState.startOffset.y + point.y - dragState.startPoint.y;
 
-    if (dragState.elementId === 'riprap-group' && dragState.startRipRapTopPoints && dragState.startRipRapBottomPoints) {
-      moveRipRapSystem(nextX, nextY, dragState.startOffset.x, dragState.startOffset.y, dragState.startRipRapTopPoints, dragState.startRipRapBottomPoints);
+    const zoneMatch = dragState.elementId.match(/^riprap-zone:(.+)$/);
+    if (zoneMatch && dragState.startRipRapTopPoints && dragState.startRipRapBottomPoints) {
+      moveRipRapSystem(zoneMatch[1], nextX, nextY, dragState.startOffset.x, dragState.startOffset.y, dragState.startRipRapTopPoints, dragState.startRipRapBottomPoints);
       return;
     }
 
@@ -577,11 +688,11 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
       ...(manualElementTransforms[elementId] ?? {}),
     };
     const offset = {
-      x: elementId === 'riprap-group' ? 0 : transform.x ?? 0,
-      y: elementId === 'riprap-group' ? 0 : transform.y ?? 0,
+      x: elementId.startsWith('riprap-zone:') ? 0 : transform.x ?? 0,
+      y: elementId.startsWith('riprap-zone:') ? 0 : transform.y ?? 0,
     };
-    const scaleX = elementId === 'riprap-group' ? 1 : transform.scaleX ?? 1;
-    const scaleY = elementId === 'riprap-group' ? 1 : transform.scaleY ?? 1;
+    const scaleX = elementId.startsWith('riprap-zone:') ? 1 : transform.scaleX ?? 1;
+    const scaleY = elementId.startsWith('riprap-zone:') ? 1 : transform.scaleY ?? 1;
     const isSelected = selectedElementId === elementId;
 
     return (
@@ -599,7 +710,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
             <circle cx={handleX} cy={handleY} r={isSelected ? 7 : 5} fill="#ffffff" stroke={isSelected ? red : blue} strokeWidth="1.6" />
             {isSelected && (
               <text x={handleX + 10} y={handleY - 8} fill={red} fontSize="10" fontWeight="700">
-                {editableElementLabels[elementId]}
+                {editableElementLabels[elementId] ?? ripRapZones.find((zone) => `riprap-zone:${zone.id}` === elementId)?.label ?? 'Editable item'}
               </text>
             )}
           </g>
@@ -650,6 +761,144 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     );
   };
 
+  const ripRapZonePointHandles = (zone: SectionViewRipRapZone) => {
+    if (!manualEditMode) {
+      return null;
+    }
+
+    return (
+      <g>
+        {(['top', 'bottom'] as const).flatMap((boundary) =>
+          zone[boundary === 'top' ? 'topPoints' : 'bottomPoints'].map((point, index) => {
+            const elementId = `ripRapZone:${zone.id}:${boundary}:${index}`;
+            const isSelected = selectedElementId === elementId;
+            return (
+              <g key={elementId}>
+                <circle
+                  cx={point.x}
+                  cy={point.y}
+                  r="14"
+                  fill="#ffffff"
+                  opacity="0.01"
+                  onPointerDown={(event) => handleRipRapZonePointPointerDown(zone.id, boundary, index, event)}
+                  style={{ cursor: 'move', touchAction: 'none' }}
+                />
+                <circle
+                  cx={point.x}
+                  cy={point.y}
+                  r={isSelected ? 6 : 4}
+                  fill="#ffffff"
+                  stroke={isSelected ? red : blue}
+                  strokeWidth="1.6"
+                  pointerEvents="none"
+                />
+              </g>
+            );
+          }),
+        )}
+      </g>
+    );
+  };
+
+  const duplicateSelectedElement = () => {
+    if (!selectedElementId) {
+      return;
+    }
+
+    const zoneMatch = selectedElementId.match(/^riprap-zone:(.+)$/);
+    if (zoneMatch) {
+      const sourceZone = ripRapZones.find((zone) => zone.id === zoneMatch[1]);
+      if (!sourceZone) {
+        return;
+      }
+
+      const duplicateId = `riprap-${Date.now().toString(36)}`;
+      const offset = 34;
+      const duplicateZone = normalizeRipRapZone({
+        ...sourceZone,
+        id: duplicateId,
+        label: `${sourceZone.label} copy`,
+        x: sourceZone.x + offset,
+        y: sourceZone.y + offset,
+        topPoints: sourceZone.topPoints.map((point) => ({ x: point.x + offset, y: point.y + offset })),
+        bottomPoints: sourceZone.bottomPoints.map((point) => ({ x: point.x + offset, y: point.y + offset })),
+      });
+      updateRipRapZones([...ripRapZones, duplicateZone]);
+      setSelectedElementId(`riprap-zone:${duplicateId}`);
+      return;
+    }
+
+    const customMatch = selectedElementId.match(/^custom:(.+)$/);
+    const sourceCustom = customMatch ? customItems.find((item) => item.id === customMatch[1]) : undefined;
+    const duplicateCustomId = `custom-${Date.now().toString(36)}`;
+    const duplicateLabel = sourceCustom?.label ?? labelText(selectedElementId, defaultElementText[selectedElementId] ?? editableElementLabels[selectedElementId] ?? 'Custom label');
+    const sourceTransform = {
+      ...(manualElementOffsets[selectedElementId] ?? {}),
+      ...(manualElementTransforms[selectedElementId] ?? {}),
+    };
+    const duplicateItem: SectionViewCustomItem = {
+      id: duplicateCustomId,
+      type: 'label',
+      label: `${duplicateLabel} copy`,
+      x: (sourceCustom?.x ?? 170 + (sourceTransform.x ?? 0)) + 28,
+      y: (sourceCustom?.y ?? 170 + (sourceTransform.y ?? 0)) + 28,
+    };
+    onChange({
+      ...sectionView,
+      customItems: [...customItems, duplicateItem],
+      manualElementTransforms: {
+        ...manualElementTransforms,
+        [`custom:${duplicateCustomId}`]: {
+          scaleX: sourceCustom?.scaleX ?? sourceTransform.scaleX ?? 1,
+          scaleY: sourceCustom?.scaleY ?? sourceTransform.scaleY ?? 1,
+        },
+      },
+    });
+    setSelectedElementId(`custom:${duplicateCustomId}`);
+  };
+
+  const mirrorSelectedElement = (axis: 'horizontal' | 'vertical') => {
+    if (!selectedElementId) {
+      return;
+    }
+
+    const zoneMatch = selectedElementId.match(/^riprap-zone:(.+)$/);
+    if (zoneMatch) {
+      const sourceZone = ripRapZones.find((zone) => zone.id === zoneMatch[1]);
+      if (!sourceZone) {
+        return;
+      }
+
+      const bounds = pointBounds([...sourceZone.topPoints, ...sourceZone.bottomPoints]);
+      const centerX = (bounds.minX + bounds.maxX) / 2;
+      const centerY = (bounds.minY + bounds.maxY) / 2;
+      updateRipRapZone(sourceZone.id, (zone) => ({
+        ...zone,
+        topPoints: zone.topPoints.map((point) => ({
+          x: Math.round(axis === 'horizontal' ? centerX - (point.x - centerX) : point.x),
+          y: Math.round(axis === 'vertical' ? centerY - (point.y - centerY) : point.y),
+        })),
+        bottomPoints: zone.bottomPoints.map((point) => ({
+          x: Math.round(axis === 'horizontal' ? centerX - (point.x - centerX) : point.x),
+          y: Math.round(axis === 'vertical' ? centerY - (point.y - centerY) : point.y),
+        })),
+      }));
+      return;
+    }
+
+    const customMatch = selectedElementId.match(/^custom:(.+)$/);
+    if (customMatch) {
+      updateManualElementTransform(selectedElementId, {
+        [axis === 'horizontal' ? 'scaleX' : 'scaleY']: axis === 'horizontal' ? -selectedScaleX : -selectedScaleY,
+      });
+      return;
+    }
+
+    updateManualElementTransform(selectedElementId, {
+      [axis === 'horizontal' ? 'scaleX' : 'scaleY']: axis === 'horizontal' ? -selectedScaleX : -selectedScaleY,
+    });
+  };
+
   const hideSelectedElement = () => {
     if (!selectedElementId || hiddenElementSet.has(selectedElementId)) {
       return;
@@ -672,6 +921,8 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
       manualElementOffsets: {},
       manualElementTransforms: {},
       ripRapSettings: undefined,
+      ripRapZones: undefined,
+      customItems: [],
       profileGeometry: undefined,
       labelOverrides: {},
       hiddenElements: [],
@@ -778,11 +1029,35 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     ripRapTopPoints: sectionView.profileGeometry?.ripRapTopPoints ?? defaultProfileGeometry.ripRapTopPoints,
     ripRapBottomPoints: sectionView.profileGeometry?.ripRapBottomPoints ?? defaultProfileGeometry.ripRapBottomPoints,
   };
-  const ripRapBounds = pointBounds([...profileGeometry.ripRapTopPoints, ...profileGeometry.ripRapBottomPoints]);
+  const legacyRipRapZone = makeRipRapZone('riprap-main', 'Rip rap zone', ripRapSettings, profileGeometry.ripRapTopPoints, profileGeometry.ripRapBottomPoints);
+  const ripRapZones = (sectionView.ripRapZones && sectionView.ripRapZones.length > 0 ? sectionView.ripRapZones : [legacyRipRapZone]).map(normalizeRipRapZone);
+  const selectedRipRapZoneId = selectedElementId?.startsWith('riprap-zone:') ? selectedElementId.replace('riprap-zone:', '') : undefined;
+  const selectedRipRapZone = selectedRipRapZoneId ? ripRapZones.find((zone) => zone.id === selectedRipRapZoneId) : undefined;
   const selectedPointMatch = selectedElementId?.match(/^(gradePoints|lakebedPoints|ripRapTopPoints|ripRapBottomPoints):(\d+)$/);
+  const selectedZonePointMatch = selectedElementId?.match(/^ripRapZone:(.+):(top|bottom):(\d+)$/);
   const selectedPointLine = selectedPointMatch?.[1] as keyof SectionViewProfileGeometry | undefined;
   const selectedPointIndex = selectedPointMatch ? Number(selectedPointMatch[2]) : undefined;
-  const selectedPoint = selectedPointLine && selectedPointIndex !== undefined ? profileGeometry[selectedPointLine][selectedPointIndex] : undefined;
+  const selectedZonePoint = selectedZonePointMatch
+    ? ripRapZones
+        .find((zone) => zone.id === selectedZonePointMatch[1])
+        ?.[selectedZonePointMatch[2] === 'top' ? 'topPoints' : 'bottomPoints']?.[Number(selectedZonePointMatch[3])]
+    : undefined;
+  const selectedPoint = selectedPointLine && selectedPointIndex !== undefined ? profileGeometry[selectedPointLine][selectedPointIndex] : selectedZonePoint;
+  const selectedZoneName = selectedElementId?.startsWith('riprap-zone:')
+    ? ripRapZones.find((zone) => `riprap-zone:${zone.id}` === selectedElementId)?.label
+    : undefined;
+  const selectedCustomName = selectedElementId?.startsWith('custom:')
+    ? customItems.find((item) => `custom:${item.id}` === selectedElementId)?.label
+    : undefined;
+  const selectedItemName = selectedZoneName ?? selectedCustomName ?? (
+    selectedZonePointMatch
+      ? `Rip rap ${selectedZonePointMatch[2]} boundary point ${Number(selectedZonePointMatch[3]) + 1}`
+      : selectedElementId?.includes(':')
+        ? `${profileLineLabels[selectedElementId.split(':')[0] as keyof SectionViewProfileGeometry]} point ${Number(selectedElementId.split(':')[1]) + 1}`
+        : selectedElementId
+          ? editableElementLabels[selectedElementId]
+          : 'None selected'
+  );
   const useArmourTemplate = sectionView.templateId === 'armour_stone' || sectionView.showArmourStone;
   const useDockTemplate = sectionView.templateId === 'floating_dock_shoreline' || sectionView.showDockReference;
 
@@ -848,62 +1123,66 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
             <polyline points={pointsToPolyline(profileGeometry.lakebedPoints)} fill="none" stroke={ink} strokeWidth="1.8" />
 
             {sectionView.showRipRap && !useArmourTemplate &&
-              editableElement(
-                'riprap-group',
-                <g>
-                <rect
-                  x={ripRapBounds.minX - 18}
-                  y={ripRapBounds.minY - 18}
-                  width={ripRapBounds.maxX - ripRapBounds.minX + 36}
-                  height={ripRapBounds.maxY - ripRapBounds.minY + 36}
-                  fill="#ffffff"
-                  opacity="0.01"
-                />
-                <g>
-                  <clipPath id="rip-rap-zone-clip">
-                    <polygon points={ripRapBoundaryPoints(profileGeometry.ripRapTopPoints, profileGeometry.ripRapBottomPoints)} />
-                  </clipPath>
-                  <path
-                    d={`${pointsToPath(profileGeometry.ripRapTopPoints)} L ${profileGeometry.ripRapBottomPoints
-                      .slice()
-                      .reverse()
-                      .map((point) => `${point.x} ${point.y}`)
-                      .join(' L ')} Z`}
-                    fill="#f8fafc"
-                    stroke={ink}
-                    strokeWidth="1.2"
-                  />
-                  <g clipPath="url(#rip-rap-zone-clip)">{ripRapStoneField(ripRapSettings, profileGeometry.ripRapTopPoints, profileGeometry.ripRapBottomPoints)}</g>
-                  {ripRapSettings.showFilterLayer && (
-                    <>
+              ripRapZones.map((zone) => {
+                const zoneBounds = pointBounds([...zone.topPoints, ...zone.bottomPoints]);
+                const clipId = `rip-rap-zone-clip-${zone.id}`;
+                return editableElement(
+                  `riprap-zone:${zone.id}`,
+                  <g>
+                    <rect
+                      x={zoneBounds.minX - 18}
+                      y={zoneBounds.minY - 18}
+                      width={zoneBounds.maxX - zoneBounds.minX + 36}
+                      height={zoneBounds.maxY - zoneBounds.minY + 36}
+                      fill="#ffffff"
+                      opacity="0.01"
+                    />
+                    <g>
+                      <clipPath id={clipId}>
+                        <polygon points={ripRapBoundaryPoints(zone.topPoints, zone.bottomPoints)} />
+                      </clipPath>
                       <path
-                        d={pointsToPath(profileGeometry.ripRapBottomPoints)}
-                        fill="none"
+                        d={`${pointsToPath(zone.topPoints)} L ${zone.bottomPoints
+                          .slice()
+                          .reverse()
+                          .map((point) => `${point.x} ${point.y}`)
+                          .join(' L ')} Z`}
+                        fill="#f8fafc"
                         stroke={ink}
-                        strokeWidth="1"
-                        strokeDasharray="5 5"
+                        strokeWidth="1.2"
                       />
-                      <text x={profileGeometry.ripRapBottomPoints[1]?.x ?? ripRapSettings.x + ripRapSettings.length * 0.36} y={(profileGeometry.ripRapBottomPoints[1]?.y ?? ripRapSettings.y + ripRapSettings.depth) + 34} fill={ink} fontSize="11" fontWeight="700">
-                        CLEAR STONE / FILTER LAYER
-                      </text>
-                      <line x1={profileGeometry.ripRapBottomPoints[0]?.x ?? ripRapSettings.x} y1={(profileGeometry.ripRapBottomPoints[0]?.y ?? ripRapSettings.y + ripRapSettings.depth) + 24} x2={profileGeometry.ripRapBottomPoints[1]?.x ?? ripRapSettings.x + ripRapSettings.length * 0.35} y2={(profileGeometry.ripRapBottomPoints[1]?.y ?? ripRapSettings.y + ripRapSettings.depth) + 34} stroke={ink} strokeWidth="5" strokeLinecap="round" />
-                      <line
-                        x1={profileGeometry.ripRapBottomPoints[0]?.x ?? ripRapSettings.x}
-                        y1={(profileGeometry.ripRapBottomPoints[0]?.y ?? ripRapSettings.y + ripRapSettings.depth) + 24}
-                        x2={profileGeometry.ripRapBottomPoints[1]?.x ?? ripRapSettings.x + ripRapSettings.length * 0.35}
-                        y2={(profileGeometry.ripRapBottomPoints[1]?.y ?? ripRapSettings.y + ripRapSettings.depth) + 34}
-                        stroke="#ffffff"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeDasharray="3 5"
-                      />
-                    </>
-                  )}
-                </g>
-                </g>,
-                ripRapSettings.x,
-                ripRapSettings.y - 12,
-              )}
+                      <g clipPath={`url(#${clipId})`}>{ripRapStoneField(zone, zone.topPoints, zone.bottomPoints)}</g>
+                      {zone.showFilterLayer && (
+                        <>
+                          <path
+                            d={pointsToPath(zone.bottomPoints)}
+                            fill="none"
+                            stroke={ink}
+                            strokeWidth="1"
+                            strokeDasharray="5 5"
+                          />
+                          <text x={zone.bottomPoints[1]?.x ?? zone.x + zone.length * 0.36} y={(zone.bottomPoints[1]?.y ?? zone.y + zone.depth) + 34} fill={ink} fontSize="11" fontWeight="700">
+                            CLEAR STONE / FILTER LAYER
+                          </text>
+                          <line x1={zone.bottomPoints[0]?.x ?? zone.x} y1={(zone.bottomPoints[0]?.y ?? zone.y + zone.depth) + 24} x2={zone.bottomPoints[1]?.x ?? zone.x + zone.length * 0.35} y2={(zone.bottomPoints[1]?.y ?? zone.y + zone.depth) + 34} stroke={ink} strokeWidth="5" strokeLinecap="round" />
+                          <line
+                            x1={zone.bottomPoints[0]?.x ?? zone.x}
+                            y1={(zone.bottomPoints[0]?.y ?? zone.y + zone.depth) + 24}
+                            x2={zone.bottomPoints[1]?.x ?? zone.x + zone.length * 0.35}
+                            y2={(zone.bottomPoints[1]?.y ?? zone.y + zone.depth) + 34}
+                            stroke="#ffffff"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeDasharray="3 5"
+                          />
+                        </>
+                      )}
+                    </g>
+                  </g>,
+                  zone.x,
+                  zone.y - 12,
+                );
+              })}
 
             {sectionView.showArmourStone && armourRows > 0 &&
               editableElement(
@@ -1002,10 +1281,19 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
               728,
             )}
             {editableElement('title-block', titleBlock(projectName, sectionView.title, drawingDate, sectionView.titleBlock), 728, 646)}
+            {customItems.map((item) =>
+              editableElement(
+                `custom:${item.id}`,
+                <text x={item.x} y={item.y} fill={red} fontSize="13" fontWeight="700">
+                  {item.label}
+                </text>,
+                item.x,
+                item.y - 12,
+              ),
+            )}
             {profilePointHandles('gradePoints', profileGeometry.gradePoints)}
             {profilePointHandles('lakebedPoints', profileGeometry.lakebedPoints)}
-            {sectionView.showRipRap && !useArmourTemplate && profilePointHandles('ripRapTopPoints', profileGeometry.ripRapTopPoints)}
-            {sectionView.showRipRap && !useArmourTemplate && profilePointHandles('ripRapBottomPoints', profileGeometry.ripRapBottomPoints)}
+            {sectionView.showRipRap && !useArmourTemplate && ripRapZones.map((zone) => ripRapZonePointHandles(zone))}
           </svg>
         </div>
       </section>
@@ -1079,7 +1367,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
               </div>
               {selectedElementId && (
                 <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
-                  {selectedPoint && selectedPointLine && selectedPointIndex !== undefined ? (
+                  {selectedPoint ? (
                     <div className="grid grid-cols-2 gap-2">
                       {[
                         { label: 'Point X', value: selectedPoint.x, field: 'x' },
@@ -1094,10 +1382,17 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                             onChange={(event) => {
                               const parsedValue = Number(event.target.value);
                               if (Number.isFinite(parsedValue)) {
-                                updateProfilePoint(selectedPointLine, selectedPointIndex, {
-                                  ...selectedPoint,
-                                  [control.field]: parsedValue,
-                                });
+                                if (selectedZonePointMatch) {
+                                  updateRipRapZonePoint(selectedZonePointMatch[1], selectedZonePointMatch[2] as 'top' | 'bottom', Number(selectedZonePointMatch[3]), {
+                                    ...selectedPoint,
+                                    [control.field]: parsedValue,
+                                  });
+                                } else if (selectedPointLine && selectedPointIndex !== undefined) {
+                                  updateProfilePoint(selectedPointLine, selectedPointIndex, {
+                                    ...selectedPoint,
+                                    [control.field]: parsedValue,
+                                  });
+                                }
                               }
                             }}
                             className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-700"
@@ -1107,12 +1402,21 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                     </div>
                   ) : (
                     <>
-                  {selectedElementId !== 'riprap-group' && selectedElementId !== 'title-block' && selectedElementId !== 'notes' && (
+                  {!selectedElementId.startsWith('riprap-zone:') && selectedElementId !== 'title-block' && selectedElementId !== 'notes' && (
                     <label className="mb-2 block">
                       <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Label text</span>
                       <input
-                        value={labelText(selectedElementId, defaultElementText[selectedElementId] ?? editableElementLabels[selectedElementId] ?? '')}
-                        onChange={(event) => updateLabelOverride(selectedElementId, event.target.value)}
+                        value={selectedElementId.startsWith('custom:')
+                          ? customItems.find((item) => `custom:${item.id}` === selectedElementId)?.label ?? ''
+                          : labelText(selectedElementId, defaultElementText[selectedElementId] ?? editableElementLabels[selectedElementId] ?? '')}
+                        onChange={(event) => {
+                          const customMatch = selectedElementId.match(/^custom:(.+)$/);
+                          if (customMatch) {
+                            updateField('customItems', customItems.map((item) => item.id === customMatch[1] ? { ...item, label: event.target.value } : item));
+                            return;
+                          }
+                          updateLabelOverride(selectedElementId, event.target.value);
+                        }}
                         className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-700"
                       />
                     </label>
@@ -1169,16 +1473,24 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                   ) : (
                     <p className="mt-2 text-xs text-slate-500">This item is move-only for now.</p>
                   )}
-                  {selectedElementId === 'riprap-group' && (
+                  {selectedRipRapZone && (
                     <div className="mt-3 border-t border-slate-200 pt-3">
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Rip Rap Zone</p>
+                      <label className="mt-2 block">
+                        <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Layer label</span>
+                        <input
+                          value={selectedRipRapZone.label}
+                          onChange={(event) => updateRipRapZone(selectedRipRapZone.id, (zone) => ({ ...zone, label: event.target.value }))}
+                          className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-700"
+                        />
+                      </label>
                       <div className="mt-2 grid grid-cols-2 gap-2">
                         {[
-                          { label: 'Position X', value: ripRapSettings.x, field: 'x', min: 0, max: SVG_WIDTH, step: 5 },
-                          { label: 'Position Y', value: ripRapSettings.y, field: 'y', min: 0, max: SVG_HEIGHT, step: 5 },
-                          { label: 'Length', value: ripRapSettings.length, field: 'length', min: 80, max: 720, step: 10 },
-                          { label: 'Depth', value: ripRapSettings.depth, field: 'depth', min: 24, max: 260, step: 5 },
-                          { label: 'Slope', value: ripRapSettings.slopeDegrees, field: 'slopeDegrees', min: -35, max: 45, step: 1 },
+                          { label: 'Position X', value: selectedRipRapZone.x, field: 'x', min: 0, max: SVG_WIDTH, step: 5 },
+                          { label: 'Position Y', value: selectedRipRapZone.y, field: 'y', min: 0, max: SVG_HEIGHT, step: 5 },
+                          { label: 'Length', value: selectedRipRapZone.length, field: 'length', min: 80, max: 720, step: 10 },
+                          { label: 'Depth', value: selectedRipRapZone.depth, field: 'depth', min: 24, max: 260, step: 5 },
+                          { label: 'Slope', value: selectedRipRapZone.slopeDegrees, field: 'slopeDegrees', min: -35, max: 45, step: 1 },
                         ].map((control) => (
                           <label key={control.field} className="block">
                             <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">{control.label}</span>
@@ -1191,7 +1503,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                               onChange={(event) => {
                                 const parsedValue = Number(event.target.value);
                                 if (Number.isFinite(parsedValue)) {
-                                  updateRipRapSettings({
+                                  updateRipRapSettings(selectedRipRapZone.id, {
                                     [control.field]: clampNumber(parsedValue, control.min, control.max),
                                   });
                                 }
@@ -1203,8 +1515,8 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                         <label className="block">
                           <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Stone Size</span>
                           <select
-                            value={closestOptionValue(ripRapStoneSizeOptions, ripRapSettings.stoneSize)}
-                            onChange={(event) => updateRipRapSettings({ stoneSize: Number(event.target.value) })}
+                            value={closestOptionValue(ripRapStoneSizeOptions, selectedRipRapZone.stoneSize)}
+                            onChange={(event) => updateRipRapSettings(selectedRipRapZone.id, { stoneSize: Number(event.target.value) })}
                             className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-700"
                           >
                             {ripRapStoneSizeOptions.map((option) => (
@@ -1217,8 +1529,8 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                         <label className="block">
                           <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Density</span>
                           <select
-                            value={closestOptionValue(ripRapDensityOptions, ripRapSettings.density)}
-                            onChange={(event) => updateRipRapSettings({ density: Number(event.target.value) })}
+                            value={closestOptionValue(ripRapDensityOptions, selectedRipRapZone.density)}
+                            onChange={(event) => updateRipRapSettings(selectedRipRapZone.id, { density: Number(event.target.value) })}
                             className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-700"
                           >
                             {ripRapDensityOptions.map((option) => (
@@ -1233,8 +1545,8 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                         <span>Show filter layer</span>
                         <input
                           type="checkbox"
-                          checked={ripRapSettings.showFilterLayer}
-                          onChange={(event) => updateRipRapSettings({ showFilterLayer: event.target.checked })}
+                          checked={selectedRipRapZone.showFilterLayer}
+                          onChange={(event) => updateRipRapSettings(selectedRipRapZone.id, { showFilterLayer: event.target.checked })}
                           className="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                         />
                       </label>
@@ -1245,6 +1557,30 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                 </div>
               )}
               <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  disabled={!selectedElementId || Boolean(selectedPoint)}
+                  onClick={duplicateSelectedElement}
+                  className="min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Duplicate selected
+                </button>
+                <button
+                  type="button"
+                  disabled={!selectedElementId || Boolean(selectedPoint)}
+                  onClick={() => mirrorSelectedElement('horizontal')}
+                  className="min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Mirror horizontal
+                </button>
+                <button
+                  type="button"
+                  disabled={!selectedElementId || Boolean(selectedPoint)}
+                  onClick={() => mirrorSelectedElement('vertical')}
+                  className="min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Mirror vertical
+                </button>
                 <button
                   type="button"
                   disabled={!selectedElementId}
