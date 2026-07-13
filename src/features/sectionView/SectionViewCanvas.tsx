@@ -128,6 +128,49 @@ function ripRapStoneField(settings: SectionViewRipRapSettings) {
   });
 }
 
+function ripRapZonePoints(settings: SectionViewRipRapSettings) {
+  const length = settings.length;
+  const depth = settings.depth;
+  const topInset = Math.min(32, length * 0.08);
+  const bottomInset = Math.min(42, length * 0.1);
+  const topPoints = [
+    [topInset, 2],
+    [length * 0.18, -6],
+    [length * 0.36, 8],
+    [length * 0.55, -2],
+    [length * 0.76, 7],
+    [length - topInset * 0.6, 0],
+  ];
+  const bottomPoints = [
+    [length - bottomInset * 0.25, depth - 4],
+    [length * 0.78, depth + 12],
+    [length * 0.56, depth + 4],
+    [length * 0.35, depth + 16],
+    [length * 0.14, depth + 7],
+    [bottomInset * 0.35, depth - 2],
+  ];
+
+  return [...topPoints, ...bottomPoints].map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+}
+
+function ripRapZonePath(settings: SectionViewRipRapSettings) {
+  const length = settings.length;
+  const depth = settings.depth;
+  const topInset = Math.min(32, length * 0.08);
+  const bottomInset = Math.min(42, length * 0.1);
+
+  return [
+    `M ${topInset} 2`,
+    `C ${length * 0.18} -8, ${length * 0.26} 9, ${length * 0.36} 8`,
+    `C ${length * 0.48} 7, ${length * 0.5} -7, ${length * 0.62} 0`,
+    `C ${length * 0.76} 9, ${length * 0.84} 2, ${length - topInset * 0.6} 0`,
+    `L ${length - bottomInset * 0.25} ${depth - 4}`,
+    `C ${length * 0.8} ${depth + 15}, ${length * 0.62} ${depth + 2}, ${length * 0.48} ${depth + 9}`,
+    `C ${length * 0.33} ${depth + 18}, ${length * 0.2} ${depth + 4}, ${bottomInset * 0.35} ${depth - 2}`,
+    'Z',
+  ].join(' ');
+}
+
 function titleBlock(projectName: string, title: string, drawingDate: string) {
   const x = 728;
   const y = 658;
@@ -562,10 +605,10 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                 />
                 <g transform={`translate(${ripRapSettings.x} ${ripRapSettings.y}) rotate(${ripRapSettings.slopeDegrees})`}>
                   <clipPath id="rip-rap-zone-clip">
-                    <polygon points={`0,0 ${ripRapSettings.length},0 ${ripRapSettings.length},${ripRapSettings.depth} 0,${ripRapSettings.depth}`} />
+                    <polygon points={ripRapZonePoints(ripRapSettings)} />
                   </clipPath>
-                  <polygon
-                    points={`0,0 ${ripRapSettings.length},0 ${ripRapSettings.length},${ripRapSettings.depth} 0,${ripRapSettings.depth}`}
+                  <path
+                    d={ripRapZonePath(ripRapSettings)}
                     fill="#f8fafc"
                     stroke={ink}
                     strokeWidth="1.2"
@@ -574,7 +617,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                   {ripRapSettings.showFilterLayer && (
                     <>
                       <path
-                        d={`M0 ${ripRapSettings.depth + 18} C${ripRapSettings.length * 0.28} ${ripRapSettings.depth + 30}, ${ripRapSettings.length * 0.62} ${ripRapSettings.depth + 32}, ${ripRapSettings.length} ${ripRapSettings.depth + 18}`}
+                        d={`M${ripRapSettings.length * 0.04} ${ripRapSettings.depth + 10} C${ripRapSettings.length * 0.24} ${ripRapSettings.depth + 29}, ${ripRapSettings.length * 0.44} ${ripRapSettings.depth + 18}, ${ripRapSettings.length * 0.62} ${ripRapSettings.depth + 29} C${ripRapSettings.length * 0.78} ${ripRapSettings.depth + 38}, ${ripRapSettings.length * 0.92} ${ripRapSettings.depth + 20}, ${ripRapSettings.length * 0.98} ${ripRapSettings.depth + 15}`}
                         fill="none"
                         stroke={ink}
                         strokeWidth="1"
