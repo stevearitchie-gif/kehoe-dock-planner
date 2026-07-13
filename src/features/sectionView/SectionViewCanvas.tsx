@@ -249,11 +249,13 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
         key={elementId}
         transform={`translate(${offset.x} ${offset.y})`}
         onPointerDown={(event) => handleEditablePointerDown(elementId, event)}
-        style={{ cursor: manualEditMode ? 'move' : 'default', touchAction: 'none' }}
+        data-section-editable-id={elementId}
+        style={{ cursor: manualEditMode ? 'move' : 'default', pointerEvents: 'all', touchAction: 'none' }}
       >
         {children}
         {manualEditMode && (
-          <g pointerEvents="none">
+          <g pointerEvents="all">
+            <circle cx={handleX} cy={handleY} r="18" fill="#ffffff" opacity="0.01" />
             <circle cx={handleX} cy={handleY} r={isSelected ? 7 : 5} fill="#ffffff" stroke={isSelected ? red : blue} strokeWidth="1.6" />
             {isSelected && (
               <text x={handleX + 10} y={handleY - 8} fill={red} fontSize="10" fontWeight="700">
@@ -271,13 +273,15 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
       return;
     }
 
-    updateField('hiddenElements', [...hiddenElementIds, selectedElementId]);
+    updateField('hiddenElements', Array.from(new Set([...hiddenElementIds, selectedElementId])));
     setSelectedElementId(null);
     setDragState(null);
   };
 
   const showHiddenElements = () => {
     updateField('hiddenElements', []);
+    setSelectedElementId(null);
+    setDragState(null);
   };
 
   const resetAllManualEdits = () => {
@@ -376,11 +380,6 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
             onPointerMove={handleSvgPointerMove}
             onPointerUp={handleSvgPointerUp}
             onPointerLeave={handleSvgPointerUp}
-            onPointerDown={() => {
-              if (manualEditMode) {
-                setSelectedElementId(null);
-              }
-            }}
           >
             <rect width={SVG_WIDTH} height={SVG_HEIGHT} fill="#ffffff" />
             <rect x={sheetMargin} y={sheetMargin} width={SVG_WIDTH - sheetMargin * 2} height={SVG_HEIGHT - sheetMargin * 2} fill="none" stroke={ink} strokeWidth="1.2" />
@@ -442,6 +441,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
               editableElement(
                 'riprap-group',
                 <g>
+                <rect x="210" y={ripRapTop - 10} width="390" height={ripRapBottom - ripRapTop + 120} fill="#ffffff" opacity="0.01" />
                 <line x1="236" y1={ripRapTop} x2="558" y2={shorelineToeY + 4} stroke={ink} strokeWidth="1.2" />
                 <line x1="222" y1={ripRapBottom} x2="570" y2={shorelineToeY + 58} stroke={ink} strokeWidth="1.2" strokeDasharray="5 5" />
                 {rockSymbols(260, ripRapTop + 14, 30)}
@@ -460,6 +460,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
               editableElement(
                 'armour-group',
                 <g>
+                <rect x="485" y={highWaterY - 58 - armourRows * 30} width="220" height={150 + armourRows * 30} fill="#ffffff" opacity="0.01" />
                 <polygon
                   points={`500,${highWaterY - 8} 686,${highWaterY - 8} 686,${highWaterY + 68 + armourRows * 7} 500,${highWaterY + 68 + armourRows * 7}`}
                   fill="url(#clear-stone)"
@@ -489,6 +490,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
               editableElement(
                 'dock-profile',
                 <g stroke={ink} fill="none">
+                <rect x="455" y={highWaterY - 96} width="380" height="100" fill="#ffffff" opacity="0.01" stroke="none" />
                 <line x1="470" y1={highWaterY - 76} x2="620" y2={highWaterY - 47} strokeWidth="2.2" />
                 <line x1="470" y1={highWaterY - 68} x2="620" y2={highWaterY - 39} strokeWidth="1.1" />
                 <line x1="472" y1={highWaterY - 78} x2="472" y2={highWaterY - 58} strokeWidth="1.1" />
