@@ -5,6 +5,13 @@ export interface SectionViewManualOffset {
   y: number;
 }
 
+export interface SectionViewManualTransform {
+  x?: number;
+  y?: number;
+  scaleX?: number;
+  scaleY?: number;
+}
+
 export interface SectionViewData {
   templateId: SectionViewTemplateId;
   title: string;
@@ -18,6 +25,7 @@ export interface SectionViewData {
   showDockReference: boolean;
   showDimensions: boolean;
   manualElementOffsets?: Record<string, SectionViewManualOffset>;
+  manualElementTransforms?: Record<string, SectionViewManualTransform>;
   hiddenElements?: string[];
   buildPlanSummary?: {
     generatedAt: string;

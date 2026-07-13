@@ -1,7 +1,7 @@
 import type { ChangeEvent, PointerEvent, ReactNode } from 'react';
 import { useMemo, useRef, useState } from 'react';
 import { applySectionTemplate, sectionTemplates } from '@/features/sectionView/sectionTemplates';
-import type { SectionViewData, SectionViewManualOffset, SectionViewTemplateId } from '@/features/sectionView/sectionTypes';
+import type { SectionViewData, SectionViewManualOffset, SectionViewManualTransform, SectionViewTemplateId } from '@/features/sectionView/sectionTypes';
 
 interface SectionViewCanvasProps {
   sectionView: SectionViewData;
@@ -42,6 +42,8 @@ const editableElementLabels: Record<string, string> = {
   'title-block': 'Title block',
 };
 
+const resizableElementIds = new Set(['riprap-group', 'armour-group', 'dock-profile', 'dimension-bank', 'dimension-drop']);
+
 function clampNumber(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
@@ -74,11 +76,13 @@ function callout(label: string, labelX: number, labelY: number, targetX: number,
 
 function rockSymbols(startX: number, startY: number, count: number, slope = 0.35) {
   return Array.from({ length: count }, (_, index) => {
-    const column = index % 11;
-    const row = Math.floor(index / 11);
-    const x = startX + column * 36 + row * 12;
-    const y = startY + column * slope * 13 + row * 28;
-    const size = 8 + (index % 4) * 2;
+    const column = index % 9;
+    const row = Math.floor(index / 9);
+    const jitterX = [0, 9, -6, 5, -10, 7, -4, 11, -8][column] ?? 0;
+    const jitterY = [0, -8, 5, -3, 7, -5, 4, -7, 6][index % 9] ?? 0;
+    const x = startX + column * 29 + row * 13 + jitterX;
+    const y = startY + column * slope * 11 + row * 22 + jitterY;
+    const size = 11 + (index % 5) * 2;
     const points = [
       `${x - size},${y + 2}`,
       `${x - size * 0.45},${y - size}`,
@@ -86,7 +90,7 @@ function rockSymbols(startX: number, startY: number, count: number, slope = 0.35
       `${x + size},${y + size * 0.25}`,
       `${x + size * 0.15},${y + size}`,
     ].join(' ');
-    return <polygon key={index} points={points} fill="none" stroke={ink} strokeWidth="1" />;
+    return <polygon key={index} points={points} fill={index % 3 === 0 ? '#d1d5db' : '#e5e7eb'} stroke={ink} strokeWidth="1" />;
   });
 }
 
@@ -155,8 +159,16 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
   const buildPlanSummary = sectionView.buildPlanSummary;
   const drawingDate = useMemo(() => formatDate(new Date()), []);
   const manualElementOffsets = sectionView.manualElementOffsets ?? {};
+  const manualElementTransforms = sectionView.manualElementTransforms ?? {};
   const hiddenElementIds = sectionView.hiddenElements ?? [];
   const hiddenElementSet = useMemo(() => new Set(hiddenElementIds), [hiddenElementIds]);
+  const selectedTransform = selectedElementId ? manualElementTransforms[selectedElementId] : undefined;
+  const selectedOffset = selectedElementId ? manualElementOffsets[selectedElementId] : undefined;
+  const selectedX = selectedTransform?.x ?? selectedOffset?.x ?? 0;
+  const selectedY = selectedTransform?.y ?? selectedOffset?.y ?? 0;
+  const selectedScaleX = selectedTransform?.scaleX ?? 1;
+  const selectedScaleY = selectedTransform?.scaleY ?? 1;
+  const selectedCanResize = Boolean(selectedElementId && resizableElementIds.has(selectedElementId));
 
   const updateField = <Key extends keyof SectionViewData>(field: Key, value: SectionViewData[Key]) => {
     onChange({
@@ -180,19 +192,52 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
   };
 
   const updateManualElementOffset = (elementId: string, offset: SectionViewManualOffset) => {
+    const nextOffset = {
+      x: Math.round(offset.x),
+      y: Math.round(offset.y),
+    };
+    updateField('manualElementOffsets', {
+      ...manualElementOffsets,
+      [elementId]: nextOffset,
+    });
+    updateField('manualElementTransforms', {
+      ...manualElementTransforms,
+      [elementId]: {
+        ...(manualElementTransforms[elementId] ?? {}),
+        ...nextOffset,
+      },
+    });
+  };
+
+  const updateManualElementTransform = (elementId: string, transform: SectionViewManualTransform) => {
+    const currentTransform = {
+      ...(manualElementOffsets[elementId] ?? {}),
+      ...(manualElementTransforms[elementId] ?? {}),
+    };
+    const nextTransform = {
+      ...currentTransform,
+      ...transform,
+    };
     updateField('manualElementOffsets', {
       ...manualElementOffsets,
       [elementId]: {
-        x: Math.round(offset.x),
-        y: Math.round(offset.y),
+        x: Math.round(nextTransform.x ?? 0),
+        y: Math.round(nextTransform.y ?? 0),
       },
+    });
+    updateField('manualElementTransforms', {
+      ...manualElementTransforms,
+      [elementId]: nextTransform,
     });
   };
 
   const resetElementOffset = (elementId: string) => {
     const nextOffsets = { ...manualElementOffsets };
+    const nextTransforms = { ...manualElementTransforms };
     delete nextOffsets[elementId];
+    delete nextTransforms[elementId];
     updateField('manualElementOffsets', nextOffsets);
+    updateField('manualElementTransforms', nextTransforms);
   };
 
   const handleEditablePointerDown = (elementId: string, event: PointerEvent<SVGGElement>) => {
@@ -212,7 +257,10 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     setDragState({
       elementId,
       startPoint,
-      startOffset: manualElementOffsets[elementId] ?? { x: 0, y: 0 },
+      startOffset: {
+        x: manualElementTransforms[elementId]?.x ?? manualElementOffsets[elementId]?.x ?? 0,
+        y: manualElementTransforms[elementId]?.y ?? manualElementOffsets[elementId]?.y ?? 0,
+      },
     });
   };
 
@@ -241,13 +289,22 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
       return null;
     }
 
-    const offset = manualElementOffsets[elementId] ?? { x: 0, y: 0 };
+    const transform = {
+      ...(manualElementOffsets[elementId] ?? {}),
+      ...(manualElementTransforms[elementId] ?? {}),
+    };
+    const offset = {
+      x: transform.x ?? 0,
+      y: transform.y ?? 0,
+    };
+    const scaleX = transform.scaleX ?? 1;
+    const scaleY = transform.scaleY ?? 1;
     const isSelected = selectedElementId === elementId;
 
     return (
       <g
         key={elementId}
-        transform={`translate(${offset.x} ${offset.y})`}
+        transform={`translate(${offset.x} ${offset.y}) scale(${scaleX} ${scaleY})`}
         onPointerDown={(event) => handleEditablePointerDown(elementId, event)}
         data-section-editable-id={elementId}
         style={{ cursor: manualEditMode ? 'move' : 'default', pointerEvents: 'all', touchAction: 'none' }}
@@ -288,6 +345,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     onChange({
       ...sectionView,
       manualElementOffsets: {},
+      manualElementTransforms: {},
       hiddenElements: [],
     });
     setSelectedElementId(null);
@@ -444,7 +502,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                 <rect x="210" y={ripRapTop - 10} width="390" height={ripRapBottom - ripRapTop + 120} fill="#ffffff" opacity="0.01" />
                 <line x1="236" y1={ripRapTop} x2="558" y2={shorelineToeY + 4} stroke={ink} strokeWidth="1.2" />
                 <line x1="222" y1={ripRapBottom} x2="570" y2={shorelineToeY + 58} stroke={ink} strokeWidth="1.2" strokeDasharray="5 5" />
-                {rockSymbols(260, ripRapTop + 14, 30)}
+                {rockSymbols(250, ripRapTop + 14, 45)}
                 <path d={`M255 ${ripRapBottom + 38} C344 ${ripRapBottom + 62}, 445 ${ripRapBottom + 74}, 555 ${shorelineToeY + 78}`} fill="none" stroke={ink} strokeWidth="1" />
                 <text x="370" y={ripRapBottom + 78} fill={ink} fontSize="11" fontWeight="700">
                   CLEAR STONE / FILTER LAYER
@@ -624,6 +682,62 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Selected item</p>
                 <p className="mt-1">{selectedElementId ? editableElementLabels[selectedElementId] : 'None selected'}</p>
               </div>
+              {selectedElementId && (
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { label: 'X offset', value: selectedX, field: 'x' },
+                      { label: 'Y offset', value: selectedY, field: 'y' },
+                    ].map((control) => (
+                      <label key={control.field} className="block">
+                        <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">{control.label}</span>
+                        <input
+                          type="number"
+                          step={5}
+                          value={control.value}
+                          onChange={(event) => {
+                            const parsedValue = Number(event.target.value);
+                            if (Number.isFinite(parsedValue)) {
+                              updateManualElementTransform(selectedElementId, { [control.field]: parsedValue });
+                            }
+                          }}
+                          className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-700"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  {selectedCanResize ? (
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      {[
+                        { label: 'Scale width', value: selectedScaleX, field: 'scaleX' },
+                        { label: 'Scale height', value: selectedScaleY, field: 'scaleY' },
+                      ].map((control) => (
+                        <label key={control.field} className="block">
+                          <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">{control.label}</span>
+                          <input
+                            type="number"
+                            min={0.35}
+                            max={2.5}
+                            step={0.05}
+                            value={control.value}
+                            onChange={(event) => {
+                              const parsedValue = Number(event.target.value);
+                              if (Number.isFinite(parsedValue)) {
+                                updateManualElementTransform(selectedElementId, {
+                                  [control.field]: clampNumber(parsedValue, 0.35, 2.5),
+                                });
+                              }
+                            }}
+                            className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-700"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-xs text-slate-500">This item is move-only for now.</p>
+                  )}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
