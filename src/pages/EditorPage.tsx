@@ -13,8 +13,11 @@ import editorTools, {
 } from '@/features/editor/toolDefinitions';
 import { EditorCanvas, type EditorCanvasHandle } from '@/features/editor/components/EditorCanvas';
 import { getProject, saveProject } from '@/features/projects/projectService';
+import { SectionViewCanvas } from '@/features/sectionView/SectionViewCanvas';
+import { getDefaultSectionView } from '@/features/sectionView/sectionTemplates';
 import { storage } from '@/lib/firebase';
 import type { DockObject, DockProject, Point, ProjectScale, UnitType } from '@/types/dock';
+import type { SectionViewData } from '@/features/sectionView/sectionTypes';
 
 const MIN_OBJECT_SIZE = 10;
 const GRID_SIZE = 40;
@@ -60,6 +63,7 @@ const OUTLINE_COLOR_PRESETS = [
 ];
 
 type GenericShapeTool = (typeof genericShapeToolModes)[number];
+type PlannerView = 'build' | 'section';
 
 interface SelectedObjectDimensionInputs {
   objectId: string | null;
@@ -409,6 +413,7 @@ function buildEditorProject(projectId: string | undefined): DockProject {
     updatedAt: new Date().toISOString(),
     shorelinePoints: [],
     objects: [],
+    sectionView: getDefaultSectionView(),
   };
 }
 
@@ -685,6 +690,7 @@ export function EditorPage() {
   const editorCanvasRef = useRef<EditorCanvasHandle | null>(null);
 
   const [project, setProject] = useState<DockProject>(() => buildEditorProject(projectId));
+  const [activePlannerView, setActivePlannerView] = useState<PlannerView>('build');
   const [activeTool, setActiveTool] = useState<ToolMode>('select');
   const [scalePoints, setScalePoints] = useState<Point[]>([]);
   const [zoom, setZoom] = useState(1);
@@ -1071,6 +1077,14 @@ export function EditorPage() {
         titleBlockOffsetX: 0,
         titleBlockOffsetY: 0,
       },
+    }));
+  };
+
+  const handleSectionViewChange = (sectionView: SectionViewData) => {
+    setProject((prev) => ({
+      ...prev,
+      sectionView,
+      updatedAt: new Date().toISOString(),
     }));
   };
 
@@ -2461,6 +2475,27 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
           </div>
         )}
 
+        <div className="flex flex-wrap gap-2 border-b border-slate-200 bg-white px-4 py-2">
+          {[
+            { label: 'Build Plan', value: 'build' },
+            { label: 'Section View', value: 'section' },
+          ].map((tab) => (
+            <button
+              key={tab.value}
+              type="button"
+              onClick={() => setActivePlannerView(tab.value as PlannerView)}
+              className={`min-h-11 rounded-md border px-3 py-2 text-sm font-medium ${
+                activePlannerView === tab.value
+                  ? 'border-brand-600 bg-brand-50 text-brand-700'
+                  : 'border-slate-200 text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {activePlannerView === 'build' ? (
         <main
           className="grid h-full min-h-0 w-full min-w-0 overflow-hidden"
           style={{ gridTemplateColumns: editorGridTemplateColumns }}
@@ -4020,6 +4055,15 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
           </aside>
           )}
         </main>
+        ) : (
+          <main className="h-full min-h-0 overflow-hidden bg-slate-50 p-4">
+            <SectionViewCanvas
+              sectionView={project.sectionView ?? getDefaultSectionView()}
+              projectName={projectName}
+              onChange={handleSectionViewChange}
+            />
+          </main>
+        )}
       </div>
     </AppShell>
   );

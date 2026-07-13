@@ -1,3 +1,5 @@
+import type { SectionViewData } from '@/features/sectionView/sectionTypes';
+
 export type UnitType = 'ft' | 'm';
 
 export type DockObjectType =
@@ -122,6 +124,7 @@ export interface DockProject {
   shorelineLabelOffsetX?: number;
   shorelineLabelOffsetY?: number;
   objects: DockObject[];
+  sectionView?: SectionViewData;
   notes?: string;
   clientName?: string;
   projectLocation?: string;
