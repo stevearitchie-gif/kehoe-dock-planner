@@ -12,6 +12,14 @@ export interface SectionViewData {
   showArmourStone: boolean;
   showDockReference: boolean;
   showDimensions: boolean;
+  buildPlanSummary?: {
+    generatedAt: string;
+    hasProjectScale: boolean;
+    scaleLabel: string;
+    detectedItems: string[];
+    floatingDockLabel?: string;
+    rampLabel?: string;
+    structureSummary?: string[];
+  };
   notes?: string;
 }
-

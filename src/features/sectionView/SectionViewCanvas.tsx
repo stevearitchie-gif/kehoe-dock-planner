@@ -7,6 +7,7 @@ interface SectionViewCanvasProps {
   sectionView: SectionViewData;
   projectName: string;
   onChange: (sectionView: SectionViewData) => void;
+  onGenerateFromBuildPlan: () => void;
 }
 
 const SVG_WIDTH = 960;
@@ -32,8 +33,9 @@ function toFilename(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'section-view';
 }
 
-export function SectionViewCanvas({ sectionView, projectName, onChange }: SectionViewCanvasProps) {
+export function SectionViewCanvas({ sectionView, projectName, onChange, onGenerateFromBuildPlan }: SectionViewCanvasProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const buildPlanSummary = sectionView.buildPlanSummary;
 
   const updateField = <Key extends keyof SectionViewData>(field: Key, value: SectionViewData[Key]) => {
     onChange({
@@ -231,6 +233,47 @@ export function SectionViewCanvas({ sectionView, projectName, onChange }: Sectio
           </button>
         </div>
 
+        <button
+          type="button"
+          onClick={onGenerateFromBuildPlan}
+          className="mt-4 min-h-11 w-full rounded-md border border-brand-600 bg-brand-600 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+        >
+          {buildPlanSummary ? 'Refresh from Build Plan' : 'Generate from Build Plan'}
+        </button>
+
+        <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Build Plan Data</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Imported fields are summarized only. Section geometry remains manually editable.
+              </p>
+            </div>
+            {buildPlanSummary && (
+              <span className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-slate-500">
+                {buildPlanSummary.hasProjectScale ? 'Scaled' : 'Approx'}
+              </span>
+            )}
+          </div>
+
+          {buildPlanSummary ? (
+            <div className="mt-3 space-y-2 text-sm text-slate-700">
+              <p className="text-xs text-slate-500">{buildPlanSummary.scaleLabel}</p>
+              <ul className="space-y-1">
+                {buildPlanSummary.detectedItems.map((item) => (
+                  <li key={item} className="rounded bg-white px-2 py-1">
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-slate-600">
+              No Build Plan data imported yet. Use Generate from Build Plan to pull reliable project dimensions and object summaries.
+            </p>
+          )}
+        </div>
+
         <div className="mt-4 grid gap-2">
           {(Object.keys(sectionTemplates) as SectionViewTemplateId[]).map((templateId) => (
             <button
@@ -312,4 +355,3 @@ export function SectionViewCanvas({ sectionView, projectName, onChange }: Sectio
     </div>
   );
 }
-

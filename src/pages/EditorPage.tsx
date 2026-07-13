@@ -14,6 +14,7 @@ import editorTools, {
 import { EditorCanvas, type EditorCanvasHandle } from '@/features/editor/components/EditorCanvas';
 import { getProject, saveProject } from '@/features/projects/projectService';
 import { SectionViewCanvas } from '@/features/sectionView/SectionViewCanvas';
+import { generateSectionViewFromBuildPlan } from '@/features/sectionView/buildPlanSectionAdapter';
 import { getDefaultSectionView } from '@/features/sectionView/sectionTemplates';
 import { storage } from '@/lib/firebase';
 import type { DockObject, DockProject, Point, ProjectScale, UnitType } from '@/types/dock';
@@ -1084,6 +1085,14 @@ export function EditorPage() {
     setProject((prev) => ({
       ...prev,
       sectionView,
+      updatedAt: new Date().toISOString(),
+    }));
+  };
+
+  const handleGenerateSectionViewFromBuildPlan = () => {
+    setProject((prev) => ({
+      ...prev,
+      sectionView: generateSectionViewFromBuildPlan(prev, currentScale, prev.sectionView ?? getDefaultSectionView()),
       updatedAt: new Date().toISOString(),
     }));
   };
@@ -4061,6 +4070,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
               sectionView={project.sectionView ?? getDefaultSectionView()}
               projectName={projectName}
               onChange={handleSectionViewChange}
+              onGenerateFromBuildPlan={handleGenerateSectionViewFromBuildPlan}
             />
           </main>
         )}
