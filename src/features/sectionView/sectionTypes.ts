@@ -23,6 +23,28 @@ export interface SectionViewRipRapSettings {
   showFilterLayer: boolean;
 }
 
+export interface SectionViewPoint {
+  x: number;
+  y: number;
+}
+
+export interface SectionViewProfileGeometry {
+  gradePoints?: SectionViewPoint[];
+  lakebedPoints?: SectionViewPoint[];
+  ripRapTopPoints?: SectionViewPoint[];
+  ripRapBottomPoints?: SectionViewPoint[];
+}
+
+export interface SectionViewTitleBlock {
+  client?: string;
+  location?: string;
+  description?: string;
+  drawingNumber?: string;
+  revision?: string;
+  completedBy?: string;
+  date?: string;
+}
+
 export interface SectionViewData {
   templateId: SectionViewTemplateId;
   title: string;
@@ -38,6 +60,9 @@ export interface SectionViewData {
   manualElementOffsets?: Record<string, SectionViewManualOffset>;
   manualElementTransforms?: Record<string, SectionViewManualTransform>;
   ripRapSettings?: SectionViewRipRapSettings;
+  profileGeometry?: SectionViewProfileGeometry;
+  labelOverrides?: Record<string, string>;
+  titleBlock?: SectionViewTitleBlock;
   hiddenElements?: string[];
   buildPlanSummary?: {
     generatedAt: string;

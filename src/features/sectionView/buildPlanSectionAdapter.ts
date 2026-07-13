@@ -90,6 +90,13 @@ export function generateSectionViewFromBuildPlan(
     templateId: floatingDock ? 'floating_dock_shoreline' : currentSectionView.templateId,
     title: floatingDock && currentSectionView.title.trim().length === 0 ? 'Floating Dock / Shoreline Section' : currentSectionView.title,
     showDockReference: floatingDock ? true : currentSectionView.showDockReference,
+    labelOverrides: {
+      ...(floatingDock && !currentSectionView.labelOverrides?.['callout-dock']
+        ? { 'callout-dock': `FLOATING DOCK ${formatDimension(floatingDock, currentScale)}` }
+        : {}),
+      ...(ramp && !currentSectionView.labelOverrides?.['callout-ramp'] ? { 'callout-ramp': `${ramp.type.replace(/_/g, ' ').toUpperCase()} ${formatDimension(ramp, currentScale)}` } : {}),
+      ...(currentSectionView.labelOverrides ?? {}),
+    },
     buildPlanSummary: {
       generatedAt: new Date().toISOString(),
       hasProjectScale: hasScale(currentScale),

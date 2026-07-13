@@ -5,6 +5,8 @@ import type {
   SectionViewData,
   SectionViewManualOffset,
   SectionViewManualTransform,
+  SectionViewPoint,
+  SectionViewProfileGeometry,
   SectionViewRipRapSettings,
   SectionViewTemplateId,
 } from '@/features/sectionView/sectionTypes';
@@ -58,6 +60,28 @@ const editableElementLabels: Record<string, string> = {
   'title-block': 'Title block',
 };
 
+const defaultElementText: Record<string, string> = {
+  'water-high-label': 'HIGH WATER LEVEL',
+  'water-low-label': 'LOW WATER LEVEL',
+  'dimension-bank': 'BANK HEIGHT',
+  'dimension-drop': 'LAKEBED DROP',
+  'callout-grade': 'EXISTING GRADE',
+  'callout-lakebed': 'LAKEBED PROFILE',
+  'callout-riprap': 'RIP RAP STONE',
+  'callout-pipe': 'PERFORATED PIPE',
+  'callout-armour': 'ARMOUR STONE WALL',
+  'callout-clear-stone': 'CLEAR STONE BASE',
+  'callout-ramp': 'ACCESS RAMP',
+  'callout-dock': 'FLOATING DOCK',
+};
+
+const profileLineLabels: Record<keyof SectionViewProfileGeometry, string> = {
+  gradePoints: 'Existing grade',
+  lakebedPoints: 'Lakebed',
+  ripRapTopPoints: 'Rip rap top boundary',
+  ripRapBottomPoints: 'Rip rap bottom boundary',
+};
+
 const resizableElementIds = new Set(['riprap-group', 'armour-group', 'dock-profile', 'dimension-bank', 'dimension-drop']);
 
 function clampNumber(value: number, min: number, max: number) {
@@ -82,6 +106,22 @@ function formatDate(date: Date) {
 function hashUnit(seed: number) {
   const value = Math.sin(seed * 12.9898) * 43758.5453;
   return value - Math.floor(value);
+}
+
+function pointsToPolyline(points: SectionViewPoint[]) {
+  return points.map((point) => `${point.x},${point.y}`).join(' ');
+}
+
+function pointsToPath(points: SectionViewPoint[]) {
+  if (points.length === 0) {
+    return '';
+  }
+
+  return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
+}
+
+function ripRapBoundaryPoints(topPoints: SectionViewPoint[], bottomPoints: SectionViewPoint[]) {
+  return [...topPoints, ...bottomPoints.slice().reverse()].map((point) => `${point.x},${point.y}`).join(' ');
 }
 
 function callout(label: string, labelX: number, labelY: number, targetX: number, targetY: number, key: string) {
@@ -128,61 +168,18 @@ function ripRapStoneField(settings: SectionViewRipRapSettings) {
   });
 }
 
-function ripRapZonePoints(settings: SectionViewRipRapSettings) {
-  const length = settings.length;
-  const depth = settings.depth;
-  const topInset = Math.min(32, length * 0.08);
-  const bottomInset = Math.min(42, length * 0.1);
-  const topPoints = [
-    [topInset, 2],
-    [length * 0.18, -6],
-    [length * 0.36, 8],
-    [length * 0.55, -2],
-    [length * 0.76, 7],
-    [length - topInset * 0.6, 0],
-  ];
-  const bottomPoints = [
-    [length - bottomInset * 0.25, depth - 4],
-    [length * 0.78, depth + 12],
-    [length * 0.56, depth + 4],
-    [length * 0.35, depth + 16],
-    [length * 0.14, depth + 7],
-    [bottomInset * 0.35, depth - 2],
-  ];
-
-  return [...topPoints, ...bottomPoints].map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
-}
-
-function ripRapZonePath(settings: SectionViewRipRapSettings) {
-  const length = settings.length;
-  const depth = settings.depth;
-  const topInset = Math.min(32, length * 0.08);
-  const bottomInset = Math.min(42, length * 0.1);
-
-  return [
-    `M ${topInset} 2`,
-    `C ${length * 0.18} -8, ${length * 0.26} 9, ${length * 0.36} 8`,
-    `C ${length * 0.48} 7, ${length * 0.5} -7, ${length * 0.62} 0`,
-    `C ${length * 0.76} 9, ${length * 0.84} 2, ${length - topInset * 0.6} 0`,
-    `L ${length - bottomInset * 0.25} ${depth - 4}`,
-    `C ${length * 0.8} ${depth + 15}, ${length * 0.62} ${depth + 2}, ${length * 0.48} ${depth + 9}`,
-    `C ${length * 0.33} ${depth + 18}, ${length * 0.2} ${depth + 4}, ${bottomInset * 0.35} ${depth - 2}`,
-    'Z',
-  ].join(' ');
-}
-
-function titleBlock(projectName: string, title: string, drawingDate: string) {
+function titleBlock(projectName: string, title: string, drawingDate: string, titleBlock: SectionViewData['titleBlock']) {
   const x = 728;
   const y = 658;
   const rowHeight = 20;
   const rows = [
-    ['CLIENT', projectName || 'Kehoe Dock Planner'],
-    ['LOCATION', 'Site visit / permit support'],
-    ['DESCRIPTION', title],
-    ['DRAWING #', 'SV-1'],
-    ['REV', 'A'],
-    ['COMPLETED BY', 'Kehoe Marine'],
-    ['DATE', drawingDate],
+    ['CLIENT', titleBlock?.client || projectName || 'Kehoe Dock Planner'],
+    ['LOCATION', titleBlock?.location || 'Site visit / permit support'],
+    ['DESCRIPTION', titleBlock?.description || title],
+    ['DRAWING #', titleBlock?.drawingNumber || 'SV-1'],
+    ['REV', titleBlock?.revision || 'A'],
+    ['COMPLETED BY', titleBlock?.completedBy || 'Kehoe Marine'],
+    ['DATE', titleBlock?.date || drawingDate],
     ['SCALE', 'NOT TO SCALE'],
   ];
 
@@ -233,6 +230,10 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     startPoint: SectionViewManualOffset;
     startOffset: SectionViewManualOffset;
   } | null>(null);
+  const [pointDragState, setPointDragState] = useState<{
+    lineId: keyof SectionViewProfileGeometry;
+    pointIndex: number;
+  } | null>(null);
   const buildPlanSummary = sectionView.buildPlanSummary;
   const drawingDate = useMemo(() => formatDate(new Date()), []);
   const manualElementOffsets = sectionView.manualElementOffsets ?? {};
@@ -246,6 +247,14 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
   const selectedScaleX = selectedTransform?.scaleX ?? 1;
   const selectedScaleY = selectedTransform?.scaleY ?? 1;
   const selectedCanResize = Boolean(selectedElementId && resizableElementIds.has(selectedElementId));
+  const labelOverrides = sectionView.labelOverrides ?? {};
+
+  const labelText = (id: string, fallback: string) => labelOverrides[id] ?? fallback;
+  const selectedItemName = selectedElementId?.includes(':')
+    ? `${profileLineLabels[selectedElementId.split(':')[0] as keyof SectionViewProfileGeometry]} point ${Number(selectedElementId.split(':')[1]) + 1}`
+    : selectedElementId
+      ? editableElementLabels[selectedElementId]
+      : 'None selected';
 
   const updateField = <Key extends keyof SectionViewData>(field: Key, value: SectionViewData[Key]) => {
     onChange({
@@ -308,6 +317,27 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     });
   };
 
+  const updateProfilePoint = (lineId: keyof SectionViewProfileGeometry, pointIndex: number, point: SectionViewPoint) => {
+    const currentPoints = profileGeometry[lineId];
+    updateField('profileGeometry', {
+      ...(sectionView.profileGeometry ?? {}),
+      [lineId]: currentPoints.map((currentPoint, index) => (index === pointIndex ? { x: Math.round(point.x), y: Math.round(point.y) } : currentPoint)),
+    });
+  };
+
+  const handleProfilePointPointerDown = (lineId: keyof SectionViewProfileGeometry, pointIndex: number, event: PointerEvent<SVGCircleElement>) => {
+    if (!manualEditMode) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setSelectedElementId(`${lineId}:${pointIndex}`);
+    setPointDragState({ lineId, pointIndex });
+    setDragState(null);
+  };
+
   const updateRipRapSettings = (settings: Partial<SectionViewRipRapSettings>) => {
     updateField('ripRapSettings', {
       ...ripRapSettings,
@@ -315,15 +345,40 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     });
   };
 
+  const updateLabelOverride = (elementId: string, value: string) => {
+    updateField('labelOverrides', {
+      ...labelOverrides,
+      [elementId]: value,
+    });
+  };
+
+  const updateTitleBlockField = (field: keyof NonNullable<SectionViewData['titleBlock']>, value: string) => {
+    updateField('titleBlock', {
+      ...(sectionView.titleBlock ?? {}),
+      [field]: value,
+    });
+  };
+
   const resetElementOffset = (elementId: string) => {
+    const pointMatch = elementId.match(/^(gradePoints|lakebedPoints|ripRapTopPoints|ripRapBottomPoints):(\d+)$/);
+    if (pointMatch) {
+      const lineId = pointMatch[1] as keyof SectionViewProfileGeometry;
+      const pointIndex = Number(pointMatch[2]);
+      updateProfilePoint(lineId, pointIndex, defaultProfileGeometry[lineId][pointIndex]);
+      return;
+    }
+
     const nextOffsets = { ...manualElementOffsets };
     const nextTransforms = { ...manualElementTransforms };
+    const nextLabelOverrides = { ...labelOverrides };
     delete nextOffsets[elementId];
     delete nextTransforms[elementId];
+    delete nextLabelOverrides[elementId];
     onChange({
       ...sectionView,
       manualElementOffsets: nextOffsets,
       manualElementTransforms: nextTransforms,
+      labelOverrides: nextLabelOverrides,
       ripRapSettings: elementId === 'riprap-group' ? undefined : sectionView.ripRapSettings,
     });
   };
@@ -353,6 +408,14 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
   };
 
   const handleSvgPointerMove = (event: PointerEvent<SVGSVGElement>) => {
+    if (manualEditMode && pointDragState) {
+      const point = getSvgPoint(event);
+      if (point) {
+        updateProfilePoint(pointDragState.lineId, pointDragState.pointIndex, point);
+      }
+      return;
+    }
+
     if (!manualEditMode || !dragState) {
       return;
     }
@@ -370,6 +433,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
 
   const handleSvgPointerUp = () => {
     setDragState(null);
+    setPointDragState(null);
   };
 
   const editableElement = (elementId: string, children: ReactNode, handleX: number, handleY: number) => {
@@ -413,6 +477,48 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     );
   };
 
+  const profilePointHandles = (lineId: keyof SectionViewProfileGeometry, points: SectionViewPoint[]) => {
+    if (!manualEditMode) {
+      return null;
+    }
+
+    return (
+      <g>
+        {points.map((point, index) => {
+          const elementId = `${lineId}:${index}`;
+          const isSelected = selectedElementId === elementId;
+          return (
+            <g key={elementId}>
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r="14"
+                fill="#ffffff"
+                opacity="0.01"
+                onPointerDown={(event) => handleProfilePointPointerDown(lineId, index, event)}
+                style={{ cursor: 'move', touchAction: 'none' }}
+              />
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r={isSelected ? 6 : 4}
+                fill="#ffffff"
+                stroke={isSelected ? red : blue}
+                strokeWidth="1.6"
+                pointerEvents="none"
+              />
+              {isSelected && (
+                <text x={point.x + 10} y={point.y - 8} fill={red} fontSize="10" fontWeight="700" pointerEvents="none">
+                  {profileLineLabels[lineId]} point {index + 1}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </g>
+    );
+  };
+
   const hideSelectedElement = () => {
     if (!selectedElementId || hiddenElementSet.has(selectedElementId)) {
       return;
@@ -435,6 +541,8 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
       manualElementOffsets: {},
       manualElementTransforms: {},
       ripRapSettings: undefined,
+      profileGeometry: undefined,
+      labelOverrides: {},
       hiddenElements: [],
     });
     setSelectedElementId(null);
@@ -516,6 +624,42 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     depth: Math.max(58, ripRapBottom - ripRapTop + 36),
     ...(sectionView.ripRapSettings ?? {}),
   };
+  const defaultProfileGeometry: Required<SectionViewProfileGeometry> = {
+    gradePoints: [
+      { x: 120, y: gradeStartY },
+      { x: 250, y: gradeStartY + 12 },
+      { x: 390, y: gradeMidY },
+      { x: 540, y: shorelineToeY },
+    ],
+    lakebedPoints: [
+      { x: 120, y: lakebedEndY + 30 },
+      { x: 355, y: lakebedEndY + 4 },
+      { x: 630, y: lakebedEndY - 46 },
+      { x: 990, y: lakebedEndY - 70 },
+    ],
+    ripRapTopPoints: [
+      { x: ripRapSettings.x + 18, y: ripRapSettings.y + 2 },
+      { x: ripRapSettings.x + ripRapSettings.length * 0.34, y: ripRapSettings.y + 8 },
+      { x: ripRapSettings.x + ripRapSettings.length * 0.62, y: ripRapSettings.y },
+      { x: ripRapSettings.x + ripRapSettings.length - 18, y: ripRapSettings.y + 5 },
+    ],
+    ripRapBottomPoints: [
+      { x: ripRapSettings.x + 12, y: ripRapSettings.y + ripRapSettings.depth - 2 },
+      { x: ripRapSettings.x + ripRapSettings.length * 0.35, y: ripRapSettings.y + ripRapSettings.depth + 16 },
+      { x: ripRapSettings.x + ripRapSettings.length * 0.68, y: ripRapSettings.y + ripRapSettings.depth + 8 },
+      { x: ripRapSettings.x + ripRapSettings.length - 10, y: ripRapSettings.y + ripRapSettings.depth - 4 },
+    ],
+  };
+  const profileGeometry: Required<SectionViewProfileGeometry> = {
+    gradePoints: sectionView.profileGeometry?.gradePoints ?? defaultProfileGeometry.gradePoints,
+    lakebedPoints: sectionView.profileGeometry?.lakebedPoints ?? defaultProfileGeometry.lakebedPoints,
+    ripRapTopPoints: sectionView.profileGeometry?.ripRapTopPoints ?? defaultProfileGeometry.ripRapTopPoints,
+    ripRapBottomPoints: sectionView.profileGeometry?.ripRapBottomPoints ?? defaultProfileGeometry.ripRapBottomPoints,
+  };
+  const selectedPointMatch = selectedElementId?.match(/^(gradePoints|lakebedPoints|ripRapTopPoints|ripRapBottomPoints):(\d+)$/);
+  const selectedPointLine = selectedPointMatch?.[1] as keyof SectionViewProfileGeometry | undefined;
+  const selectedPointIndex = selectedPointMatch ? Number(selectedPointMatch[2]) : undefined;
+  const selectedPoint = selectedPointLine && selectedPointIndex !== undefined ? profileGeometry[selectedPointLine][selectedPointIndex] : undefined;
   const useArmourTemplate = sectionView.templateId === 'armour_stone' || sectionView.showArmourStone;
   const useDockTemplate = sectionView.templateId === 'floating_dock_shoreline' || sectionView.showDockReference;
 
@@ -562,7 +706,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
             {editableElement(
               'water-high-label',
               <text x={drawingLeft + 8} y={highWaterY - 10} fill={blue} fontSize="12" fontWeight="700">
-                HIGH WATER LEVEL
+                {labelText('water-high-label', 'HIGH WATER LEVEL')}
               </text>,
               drawingLeft + 8,
               highWaterY - 18,
@@ -571,24 +715,14 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
             {editableElement(
               'water-low-label',
               <text x={drawingLeft + 8} y={lowWaterY + 18} fill={blue} fontSize="12" fontWeight="700">
-                LOW WATER LEVEL
+                {labelText('water-low-label', 'LOW WATER LEVEL')}
               </text>,
               drawingLeft + 8,
               lowWaterY + 10,
             )}
 
-            <polyline
-              points={`120,${gradeStartY} 250,${gradeStartY + 12} 390,${gradeMidY} 540,${shorelineToeY}`}
-              fill="none"
-              stroke={ink}
-              strokeWidth="2"
-            />
-            <polyline
-              points={`120,${lakebedEndY + 30} 355,${lakebedEndY + 4} 630,${lakebedEndY - 46} 990,${lakebedEndY - 70}`}
-              fill="none"
-              stroke={ink}
-              strokeWidth="1.8"
-            />
+            <polyline points={pointsToPolyline(profileGeometry.gradePoints)} fill="none" stroke={ink} strokeWidth="2" />
+            <polyline points={pointsToPolyline(profileGeometry.lakebedPoints)} fill="none" stroke={ink} strokeWidth="1.8" />
 
             {sectionView.showRipRap && !useArmourTemplate &&
               editableElement(
@@ -605,10 +739,19 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                 />
                 <g transform={`translate(${ripRapSettings.x} ${ripRapSettings.y}) rotate(${ripRapSettings.slopeDegrees})`}>
                   <clipPath id="rip-rap-zone-clip">
-                    <polygon points={ripRapZonePoints(ripRapSettings)} />
+                    <polygon
+                      points={ripRapBoundaryPoints(
+                        profileGeometry.ripRapTopPoints.map((point) => ({ x: point.x - ripRapSettings.x, y: point.y - ripRapSettings.y })),
+                        profileGeometry.ripRapBottomPoints.map((point) => ({ x: point.x - ripRapSettings.x, y: point.y - ripRapSettings.y })),
+                      )}
+                    />
                   </clipPath>
                   <path
-                    d={ripRapZonePath(ripRapSettings)}
+                    d={`${pointsToPath(profileGeometry.ripRapTopPoints.map((point) => ({ x: point.x - ripRapSettings.x, y: point.y - ripRapSettings.y })))} L ${profileGeometry.ripRapBottomPoints
+                      .slice()
+                      .reverse()
+                      .map((point) => `${point.x - ripRapSettings.x} ${point.y - ripRapSettings.y}`)
+                      .join(' L ')} Z`}
                     fill="#f8fafc"
                     stroke={ink}
                     strokeWidth="1.2"
@@ -699,7 +842,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                   <>
                     <line x1="92" y1={gradeStartY} x2="92" y2={highWaterY} markerStart="url(#black-arrow)" markerEnd="url(#black-arrow)" />
                     <text x="55" y={(gradeStartY + highWaterY) / 2} fill={ink} stroke="none" fontSize="11">
-                      BANK {sectionHeight.toFixed(1)} ft
+                      {labelText('dimension-bank', `BANK ${sectionHeight.toFixed(1)} ft`)}
                     </text>
                   </>,
                   92,
@@ -710,7 +853,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                   <>
                     <line x1="958" y1={lowWaterY} x2="958" y2={lakebedEndY - 70} markerStart="url(#black-arrow)" markerEnd="url(#black-arrow)" />
                     <text x="888" y={(lowWaterY + lakebedEndY - 70) / 2} fill={ink} stroke="none" fontSize="11">
-                      DROP {lakebedDrop.toFixed(1)} ft
+                      {labelText('dimension-drop', `DROP ${lakebedDrop.toFixed(1)} ft`)}
                     </text>
                   </>,
                   958,
@@ -719,19 +862,19 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
               </g>
             )}
 
-            {editableElement('callout-grade', callout('EXISTING GRADE', 136, 150, 282, gradeStartY + 15, 'grade'), 136, 138)}
-            {editableElement('callout-lakebed', callout('LAKEBED PROFILE', 132, 592, 390, lakebedEndY, 'lakebed'), 132, 580)}
+            {editableElement('callout-grade', callout(labelText('callout-grade', 'EXISTING GRADE'), 136, 150, 282, gradeStartY + 15, 'grade'), 136, 138)}
+            {editableElement('callout-lakebed', callout(labelText('callout-lakebed', 'LAKEBED PROFILE'), 132, 592, 390, lakebedEndY, 'lakebed'), 132, 580)}
             {sectionView.showRipRap && !useArmourTemplate &&
-              editableElement('callout-riprap', callout('RIP RAP STONE', 620, 236, 454, ripRapTop + 76, 'riprap'), 620, 224)}
+              editableElement('callout-riprap', callout(labelText('callout-riprap', 'RIP RAP STONE'), 620, 236, 454, ripRapTop + 76, 'riprap'), 620, 224)}
             {sectionView.showRipRap && !useArmourTemplate &&
-              editableElement('callout-pipe', callout('PERFORATED PIPE', 208, 530, 360, ripRapBottom + 65, 'pipe'), 208, 518)}
+              editableElement('callout-pipe', callout(labelText('callout-pipe', 'PERFORATED PIPE'), 208, 530, 360, ripRapBottom + 65, 'pipe'), 208, 518)}
             {useArmourTemplate &&
-              editableElement('callout-armour', callout('ARMOUR STONE WALL', 736, 238, 632, highWaterY - 46, 'armour'), 736, 226)}
+              editableElement('callout-armour', callout(labelText('callout-armour', 'ARMOUR STONE WALL'), 736, 238, 632, highWaterY - 46, 'armour'), 736, 226)}
             {useArmourTemplate &&
-              editableElement('callout-clear-stone', callout('CLEAR STONE BASE', 724, 454, 616, highWaterY + 76, 'clear-stone'), 724, 442)}
-            {useDockTemplate && editableElement('callout-ramp', callout('ACCESS RAMP', 486, 178, 535, highWaterY - 62, 'ramp'), 486, 166)}
+              editableElement('callout-clear-stone', callout(labelText('callout-clear-stone', 'CLEAR STONE BASE'), 724, 454, 616, highWaterY + 76, 'clear-stone'), 724, 442)}
+            {useDockTemplate && editableElement('callout-ramp', callout(labelText('callout-ramp', 'ACCESS RAMP'), 486, 178, 535, highWaterY - 62, 'ramp'), 486, 166)}
             {useDockTemplate &&
-              editableElement('callout-dock', callout('FLOATING DOCK', 786, 202, 716, highWaterY - 56, 'dock'), 786, 190)}
+              editableElement('callout-dock', callout(labelText('callout-dock', 'FLOATING DOCK'), 786, 202, 716, highWaterY - 56, 'dock'), 786, 190)}
 
             {editableElement(
               'notes',
@@ -741,7 +884,11 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
               72,
               728,
             )}
-            {editableElement('title-block', titleBlock(projectName, sectionView.title, drawingDate), 728, 646)}
+            {editableElement('title-block', titleBlock(projectName, sectionView.title, drawingDate, sectionView.titleBlock), 728, 646)}
+            {profilePointHandles('gradePoints', profileGeometry.gradePoints)}
+            {profilePointHandles('lakebedPoints', profileGeometry.lakebedPoints)}
+            {sectionView.showRipRap && !useArmourTemplate && profilePointHandles('ripRapTopPoints', profileGeometry.ripRapTopPoints)}
+            {sectionView.showRipRap && !useArmourTemplate && profilePointHandles('ripRapBottomPoints', profileGeometry.ripRapBottomPoints)}
           </svg>
         </div>
       </section>
@@ -811,10 +958,48 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
               </label>
               <div className="rounded-md bg-slate-50 p-2 text-sm text-slate-700">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Selected item</p>
-                <p className="mt-1">{selectedElementId ? editableElementLabels[selectedElementId] : 'None selected'}</p>
+                <p className="mt-1">{selectedItemName}</p>
               </div>
               {selectedElementId && (
                 <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
+                  {selectedPoint && selectedPointLine && selectedPointIndex !== undefined ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { label: 'Point X', value: selectedPoint.x, field: 'x' },
+                        { label: 'Point Y', value: selectedPoint.y, field: 'y' },
+                      ].map((control) => (
+                        <label key={control.field} className="block">
+                          <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">{control.label}</span>
+                          <input
+                            type="number"
+                            step={5}
+                            value={control.value}
+                            onChange={(event) => {
+                              const parsedValue = Number(event.target.value);
+                              if (Number.isFinite(parsedValue)) {
+                                updateProfilePoint(selectedPointLine, selectedPointIndex, {
+                                  ...selectedPoint,
+                                  [control.field]: parsedValue,
+                                });
+                              }
+                            }}
+                            className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-700"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                  {selectedElementId !== 'riprap-group' && selectedElementId !== 'title-block' && selectedElementId !== 'notes' && (
+                    <label className="mb-2 block">
+                      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Label text</span>
+                      <input
+                        value={labelText(selectedElementId, defaultElementText[selectedElementId] ?? editableElementLabels[selectedElementId] ?? '')}
+                        onChange={(event) => updateLabelOverride(selectedElementId, event.target.value)}
+                        className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-700"
+                      />
+                    </label>
+                  )}
                   <div className="grid grid-cols-2 gap-2">
                     {[
                       { label: 'X offset', value: selectedX, field: 'x' },
@@ -912,6 +1097,8 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                       </label>
                     </div>
                   )}
+                    </>
+                  )}
                 </div>
               )}
               <div className="grid grid-cols-2 gap-2">
@@ -975,14 +1162,35 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
 
           {controlGroup(
             'Project / Title Block',
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Description / Title</span>
-              <input
-                value={sectionView.title}
-                onChange={(event) => updateField('title', event.target.value)}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
-              />
-            </label>,
+            <div className="space-y-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Sheet title</span>
+                <input
+                  value={sectionView.title}
+                  onChange={(event) => updateField('title', event.target.value)}
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                />
+              </label>
+              {[
+                ['client', 'Client'],
+                ['location', 'Location'],
+                ['description', 'Description'],
+                ['drawingNumber', 'Drawing #'],
+                ['revision', 'Revision'],
+                ['completedBy', 'Completed by'],
+                ['date', 'Date'],
+              ].map(([field, label]) => (
+                <label key={field} className="block">
+                  <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">{label}</span>
+                  <input
+                    value={sectionView.titleBlock?.[field as keyof NonNullable<SectionViewData['titleBlock']>] ?? ''}
+                    onChange={(event) => updateTitleBlockField(field as keyof NonNullable<SectionViewData['titleBlock']>, event.target.value)}
+                    placeholder={field === 'client' ? projectName : undefined}
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                  />
+                </label>
+              ))}
+            </div>,
           )}
 
           {controlGroup(
