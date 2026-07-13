@@ -82,7 +82,7 @@ const profileLineLabels: Record<keyof SectionViewProfileGeometry, string> = {
   ripRapBottomPoints: 'Rip rap bottom boundary',
 };
 
-const resizableElementIds = new Set(['riprap-group', 'armour-group', 'dock-profile', 'dimension-bank', 'dimension-drop']);
+const resizableElementIds = new Set(['armour-group', 'dock-profile', 'dimension-bank', 'dimension-drop']);
 
 function clampNumber(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -122,6 +122,24 @@ function pointsToPath(points: SectionViewPoint[]) {
 
 function ripRapBoundaryPoints(topPoints: SectionViewPoint[], bottomPoints: SectionViewPoint[]) {
   return [...topPoints, ...bottomPoints.slice().reverse()].map((point) => `${point.x},${point.y}`).join(' ');
+}
+
+function buildRipRapBoundary(settings: SectionViewRipRapSettings) {
+  const slopeRise = Math.tan((settings.slopeDegrees * Math.PI) / 180) * settings.length;
+  const topPoints = [
+    { x: settings.x + 18, y: settings.y + 2 },
+    { x: settings.x + settings.length * 0.34, y: settings.y + slopeRise * 0.34 + 8 },
+    { x: settings.x + settings.length * 0.62, y: settings.y + slopeRise * 0.62 },
+    { x: settings.x + settings.length - 18, y: settings.y + slopeRise + 5 },
+  ];
+  const bottomPoints = [
+    { x: settings.x + 12, y: settings.y + settings.depth - 2 },
+    { x: settings.x + settings.length * 0.35, y: settings.y + slopeRise * 0.35 + settings.depth + 16 },
+    { x: settings.x + settings.length * 0.68, y: settings.y + slopeRise * 0.68 + settings.depth + 8 },
+    { x: settings.x + settings.length - 10, y: settings.y + slopeRise + settings.depth - 4 },
+  ];
+
+  return { topPoints, bottomPoints };
 }
 
 function callout(label: string, labelX: number, labelY: number, targetX: number, targetY: number, key: string) {
@@ -229,6 +247,8 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     elementId: string;
     startPoint: SectionViewManualOffset;
     startOffset: SectionViewManualOffset;
+    startRipRapTopPoints?: SectionViewPoint[];
+    startRipRapBottomPoints?: SectionViewPoint[];
   } | null>(null);
   const [pointDragState, setPointDragState] = useState<{
     lineId: keyof SectionViewProfileGeometry;
@@ -339,9 +359,51 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
   };
 
   const updateRipRapSettings = (settings: Partial<SectionViewRipRapSettings>) => {
-    updateField('ripRapSettings', {
+    const nextSettings = {
       ...ripRapSettings,
       ...settings,
+    };
+    const nextBoundary = buildRipRapBoundary(nextSettings);
+    onChange({
+      ...sectionView,
+      ripRapSettings: nextSettings,
+      profileGeometry: {
+        ...(sectionView.profileGeometry ?? {}),
+        ripRapTopPoints: nextBoundary.topPoints,
+        ripRapBottomPoints: nextBoundary.bottomPoints,
+      },
+    });
+  };
+
+  const moveRipRapSystem = (
+    nextX: number,
+    nextY: number,
+    startX: number,
+    startY: number,
+    startTopPoints: SectionViewPoint[],
+    startBottomPoints: SectionViewPoint[],
+  ) => {
+    const deltaX = nextX - startX;
+    const deltaY = nextY - startY;
+    const nextOffsets = { ...manualElementOffsets };
+    const nextTransforms = { ...manualElementTransforms };
+    delete nextOffsets['riprap-group'];
+    delete nextTransforms['riprap-group'];
+
+    onChange({
+      ...sectionView,
+      manualElementOffsets: nextOffsets,
+      manualElementTransforms: nextTransforms,
+      ripRapSettings: {
+        ...ripRapSettings,
+        x: Math.round(nextX),
+        y: Math.round(nextY),
+      },
+      profileGeometry: {
+        ...(sectionView.profileGeometry ?? {}),
+        ripRapTopPoints: startTopPoints.map((point) => ({ x: Math.round(point.x + deltaX), y: Math.round(point.y + deltaY) })),
+        ripRapBottomPoints: startBottomPoints.map((point) => ({ x: Math.round(point.x + deltaX), y: Math.round(point.y + deltaY) })),
+      },
     });
   };
 
@@ -374,11 +436,17 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     delete nextOffsets[elementId];
     delete nextTransforms[elementId];
     delete nextLabelOverrides[elementId];
+    const nextProfileGeometry = { ...(sectionView.profileGeometry ?? {}) };
+    if (elementId === 'riprap-group') {
+      delete nextProfileGeometry.ripRapTopPoints;
+      delete nextProfileGeometry.ripRapBottomPoints;
+    }
     onChange({
       ...sectionView,
       manualElementOffsets: nextOffsets,
       manualElementTransforms: nextTransforms,
       labelOverrides: nextLabelOverrides,
+      profileGeometry: nextProfileGeometry,
       ripRapSettings: elementId === 'riprap-group' ? undefined : sectionView.ripRapSettings,
     });
   };
@@ -401,9 +469,11 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
       elementId,
       startPoint,
       startOffset: {
-        x: manualElementTransforms[elementId]?.x ?? manualElementOffsets[elementId]?.x ?? 0,
-        y: manualElementTransforms[elementId]?.y ?? manualElementOffsets[elementId]?.y ?? 0,
+        x: elementId === 'riprap-group' ? ripRapSettings.x : manualElementTransforms[elementId]?.x ?? manualElementOffsets[elementId]?.x ?? 0,
+        y: elementId === 'riprap-group' ? ripRapSettings.y : manualElementTransforms[elementId]?.y ?? manualElementOffsets[elementId]?.y ?? 0,
       },
+      startRipRapTopPoints: elementId === 'riprap-group' ? profileGeometry.ripRapTopPoints.map((point) => ({ ...point })) : undefined,
+      startRipRapBottomPoints: elementId === 'riprap-group' ? profileGeometry.ripRapBottomPoints.map((point) => ({ ...point })) : undefined,
     });
   };
 
@@ -425,9 +495,17 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
       return;
     }
 
+    const nextX = dragState.startOffset.x + point.x - dragState.startPoint.x;
+    const nextY = dragState.startOffset.y + point.y - dragState.startPoint.y;
+
+    if (dragState.elementId === 'riprap-group' && dragState.startRipRapTopPoints && dragState.startRipRapBottomPoints) {
+      moveRipRapSystem(nextX, nextY, dragState.startOffset.x, dragState.startOffset.y, dragState.startRipRapTopPoints, dragState.startRipRapBottomPoints);
+      return;
+    }
+
     updateManualElementOffset(dragState.elementId, {
-      x: dragState.startOffset.x + point.x - dragState.startPoint.x,
-      y: dragState.startOffset.y + point.y - dragState.startPoint.y,
+      x: nextX,
+      y: nextY,
     });
   };
 
@@ -446,11 +524,11 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
       ...(manualElementTransforms[elementId] ?? {}),
     };
     const offset = {
-      x: transform.x ?? 0,
-      y: transform.y ?? 0,
+      x: elementId === 'riprap-group' ? 0 : transform.x ?? 0,
+      y: elementId === 'riprap-group' ? 0 : transform.y ?? 0,
     };
-    const scaleX = transform.scaleX ?? 1;
-    const scaleY = transform.scaleY ?? 1;
+    const scaleX = elementId === 'riprap-group' ? 1 : transform.scaleX ?? 1;
+    const scaleY = elementId === 'riprap-group' ? 1 : transform.scaleY ?? 1;
     const isSelected = selectedElementId === elementId;
 
     return (
@@ -624,6 +702,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     depth: Math.max(58, ripRapBottom - ripRapTop + 36),
     ...(sectionView.ripRapSettings ?? {}),
   };
+  const defaultRipRapBoundary = buildRipRapBoundary(ripRapSettings);
   const defaultProfileGeometry: Required<SectionViewProfileGeometry> = {
     gradePoints: [
       { x: 120, y: gradeStartY },
@@ -637,18 +716,8 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
       { x: 630, y: lakebedEndY - 46 },
       { x: 990, y: lakebedEndY - 70 },
     ],
-    ripRapTopPoints: [
-      { x: ripRapSettings.x + 18, y: ripRapSettings.y + 2 },
-      { x: ripRapSettings.x + ripRapSettings.length * 0.34, y: ripRapSettings.y + 8 },
-      { x: ripRapSettings.x + ripRapSettings.length * 0.62, y: ripRapSettings.y },
-      { x: ripRapSettings.x + ripRapSettings.length - 18, y: ripRapSettings.y + 5 },
-    ],
-    ripRapBottomPoints: [
-      { x: ripRapSettings.x + 12, y: ripRapSettings.y + ripRapSettings.depth - 2 },
-      { x: ripRapSettings.x + ripRapSettings.length * 0.35, y: ripRapSettings.y + ripRapSettings.depth + 16 },
-      { x: ripRapSettings.x + ripRapSettings.length * 0.68, y: ripRapSettings.y + ripRapSettings.depth + 8 },
-      { x: ripRapSettings.x + ripRapSettings.length - 10, y: ripRapSettings.y + ripRapSettings.depth - 4 },
-    ],
+    ripRapTopPoints: defaultRipRapBoundary.topPoints,
+    ripRapBottomPoints: defaultRipRapBoundary.bottomPoints,
   };
   const profileGeometry: Required<SectionViewProfileGeometry> = {
     gradePoints: sectionView.profileGeometry?.gradePoints ?? defaultProfileGeometry.gradePoints,
@@ -729,52 +798,46 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                 'riprap-group',
                 <g>
                 <rect
-                  x={ripRapSettings.x - 12}
-                  y={ripRapSettings.y - 16}
+                  x={Math.min(...profileGeometry.ripRapTopPoints.map((point) => point.x), ...profileGeometry.ripRapBottomPoints.map((point) => point.x)) - 18}
+                  y={Math.min(...profileGeometry.ripRapTopPoints.map((point) => point.y), ...profileGeometry.ripRapBottomPoints.map((point) => point.y)) - 18}
                   width={ripRapSettings.length + 30}
                   height={ripRapSettings.depth + 54}
                   fill="#ffffff"
                   opacity="0.01"
-                  transform={`rotate(${ripRapSettings.slopeDegrees} ${ripRapSettings.x} ${ripRapSettings.y})`}
                 />
-                <g transform={`translate(${ripRapSettings.x} ${ripRapSettings.y}) rotate(${ripRapSettings.slopeDegrees})`}>
+                <g>
                   <clipPath id="rip-rap-zone-clip">
-                    <polygon
-                      points={ripRapBoundaryPoints(
-                        profileGeometry.ripRapTopPoints.map((point) => ({ x: point.x - ripRapSettings.x, y: point.y - ripRapSettings.y })),
-                        profileGeometry.ripRapBottomPoints.map((point) => ({ x: point.x - ripRapSettings.x, y: point.y - ripRapSettings.y })),
-                      )}
-                    />
+                    <polygon points={ripRapBoundaryPoints(profileGeometry.ripRapTopPoints, profileGeometry.ripRapBottomPoints)} />
                   </clipPath>
                   <path
-                    d={`${pointsToPath(profileGeometry.ripRapTopPoints.map((point) => ({ x: point.x - ripRapSettings.x, y: point.y - ripRapSettings.y })))} L ${profileGeometry.ripRapBottomPoints
+                    d={`${pointsToPath(profileGeometry.ripRapTopPoints)} L ${profileGeometry.ripRapBottomPoints
                       .slice()
                       .reverse()
-                      .map((point) => `${point.x - ripRapSettings.x} ${point.y - ripRapSettings.y}`)
+                      .map((point) => `${point.x} ${point.y}`)
                       .join(' L ')} Z`}
                     fill="#f8fafc"
                     stroke={ink}
                     strokeWidth="1.2"
                   />
-                  <g clipPath="url(#rip-rap-zone-clip)">{ripRapStoneField(ripRapSettings)}</g>
+                  <g clipPath="url(#rip-rap-zone-clip)" transform={`translate(${ripRapSettings.x} ${ripRapSettings.y})`}>{ripRapStoneField(ripRapSettings)}</g>
                   {ripRapSettings.showFilterLayer && (
                     <>
                       <path
-                        d={`M${ripRapSettings.length * 0.04} ${ripRapSettings.depth + 10} C${ripRapSettings.length * 0.24} ${ripRapSettings.depth + 29}, ${ripRapSettings.length * 0.44} ${ripRapSettings.depth + 18}, ${ripRapSettings.length * 0.62} ${ripRapSettings.depth + 29} C${ripRapSettings.length * 0.78} ${ripRapSettings.depth + 38}, ${ripRapSettings.length * 0.92} ${ripRapSettings.depth + 20}, ${ripRapSettings.length * 0.98} ${ripRapSettings.depth + 15}`}
+                        d={pointsToPath(profileGeometry.ripRapBottomPoints)}
                         fill="none"
                         stroke={ink}
                         strokeWidth="1"
                         strokeDasharray="5 5"
                       />
-                      <text x={ripRapSettings.length * 0.36} y={ripRapSettings.depth + 42} fill={ink} fontSize="11" fontWeight="700">
+                      <text x={profileGeometry.ripRapBottomPoints[1]?.x ?? ripRapSettings.x + ripRapSettings.length * 0.36} y={(profileGeometry.ripRapBottomPoints[1]?.y ?? ripRapSettings.y + ripRapSettings.depth) + 34} fill={ink} fontSize="11" fontWeight="700">
                         CLEAR STONE / FILTER LAYER
                       </text>
-                      <line x1={ripRapSettings.length * 0.22} y1={ripRapSettings.depth + 30} x2={ripRapSettings.length * 0.46} y2={ripRapSettings.depth + 42} stroke={ink} strokeWidth="5" strokeLinecap="round" />
+                      <line x1={profileGeometry.ripRapBottomPoints[0]?.x ?? ripRapSettings.x} y1={(profileGeometry.ripRapBottomPoints[0]?.y ?? ripRapSettings.y + ripRapSettings.depth) + 24} x2={profileGeometry.ripRapBottomPoints[1]?.x ?? ripRapSettings.x + ripRapSettings.length * 0.35} y2={(profileGeometry.ripRapBottomPoints[1]?.y ?? ripRapSettings.y + ripRapSettings.depth) + 34} stroke={ink} strokeWidth="5" strokeLinecap="round" />
                       <line
-                        x1={ripRapSettings.length * 0.22}
-                        y1={ripRapSettings.depth + 30}
-                        x2={ripRapSettings.length * 0.46}
-                        y2={ripRapSettings.depth + 42}
+                        x1={profileGeometry.ripRapBottomPoints[0]?.x ?? ripRapSettings.x}
+                        y1={(profileGeometry.ripRapBottomPoints[0]?.y ?? ripRapSettings.y + ripRapSettings.depth) + 24}
+                        x2={profileGeometry.ripRapBottomPoints[1]?.x ?? ripRapSettings.x + ripRapSettings.length * 0.35}
+                        y2={(profileGeometry.ripRapBottomPoints[1]?.y ?? ripRapSettings.y + ripRapSettings.depth) + 34}
                         stroke="#ffffff"
                         strokeWidth="2"
                         strokeLinecap="round"
