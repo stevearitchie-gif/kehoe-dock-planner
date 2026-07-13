@@ -188,32 +188,55 @@ function ripRapStoneField(settings: SectionViewRipRapSettings, topPoints: Sectio
   const fieldHeight = Math.max(settings.stoneSize * 2, bounds.maxY - bounds.minY);
   const baseStoneRadius = clampNumber(settings.stoneSize, 8, 30);
   const density = clampNumber(settings.density, 0.5, 5);
-  const fieldArea = fieldWidth * fieldHeight;
-  const nominalStoneArea = Math.max(36, baseStoneRadius * baseStoneRadius * 3.1);
-  const stones = Math.max(10, Math.min(260, Math.round((fieldArea / nominalStoneArea) * density)));
+  const spacingMultiplier = density >= 5 ? 0.82 : density >= 3 ? 1.02 : density >= 1.4 ? 1.48 : 2.05;
+  const spacing = Math.max(7, baseStoneRadius * spacingMultiplier);
+  const columns = Math.max(3, Math.ceil(fieldWidth / spacing) + 1);
+  const rows = Math.max(2, Math.ceil(fieldHeight / spacing) + 1);
+  const coverage = density >= 5 ? 1 : density >= 3 ? 0.88 : density >= 1.4 ? 0.62 : 0.42;
 
-  return Array.from({ length: stones }, (_, index) => {
-    const edgePadding = baseStoneRadius * 0.7;
-    const x = bounds.minX + edgePadding + hashUnit(index + 3) * Math.max(1, fieldWidth - edgePadding * 2);
-    const y = bounds.minY + edgePadding + hashUnit(index + 17) * Math.max(1, fieldHeight - edgePadding * 2);
-    const stoneRadius = baseStoneRadius * (0.42 + hashUnit(index + 31) * 0.46);
-    const pointCount = 5 + Math.floor(hashUnit(index + 43) * 3);
+  const stonePolygon = (key: string, x: number, y: number, radiusBase: number, seed: number) => {
+    const stoneRadius = radiusBase * (0.52 + hashUnit(seed + 31) * 0.5);
+    const pointCount = 5 + Math.floor(hashUnit(seed + 43) * 3);
     const points = Array.from({ length: pointCount }, (_, pointIndex) => {
       const angle = (Math.PI * 2 * pointIndex) / pointCount;
-      const radius = stoneRadius * (0.72 + hashUnit(index * 11 + pointIndex + 59) * 0.42);
+      const radius = stoneRadius * (0.75 + hashUnit(seed * 11 + pointIndex + 59) * 0.44);
       return `${(x + Math.cos(angle) * radius).toFixed(1)},${(y + Math.sin(angle) * radius).toFixed(1)}`;
     }).join(' ');
 
     return (
       <polygon
-        key={index}
+        key={key}
         points={points}
-        fill={index % 3 === 0 ? '#cbd5e1' : '#e5e7eb'}
+        fill={seed % 3 === 0 ? '#cbd5e1' : '#e5e7eb'}
         stroke={ink}
         strokeWidth="1"
       />
     );
-  });
+  };
+
+  const stones: ReactNode[] = [];
+  for (let row = 0; row < rows; row += 1) {
+    for (let column = 0; column < columns; column += 1) {
+      const seed = row * columns + column;
+      if (hashUnit(seed + 101) > coverage) {
+        continue;
+      }
+
+      const jitterX = (hashUnit(seed + 3) - 0.5) * spacing * 0.38;
+      const jitterY = (hashUnit(seed + 17) - 0.5) * spacing * 0.38;
+      const x = bounds.minX + column * spacing + (row % 2) * spacing * 0.5 + jitterX;
+      const y = bounds.minY + row * spacing * 0.86 + jitterY;
+      stones.push(stonePolygon(`stone-${seed}`, x, y, baseStoneRadius, seed));
+
+      if (density >= 3 && hashUnit(seed + 211) < (density >= 5 ? 0.8 : 0.38)) {
+        const fillerX = x + spacing * (0.35 + hashUnit(seed + 307) * 0.35);
+        const fillerY = y + spacing * (0.24 + hashUnit(seed + 401) * 0.3);
+        stones.push(stonePolygon(`filler-${seed}`, fillerX, fillerY, baseStoneRadius * 0.62, seed + 5000));
+      }
+    }
+  }
+
+  return stones;
 }
 
 function titleBlock(projectName: string, title: string, drawingDate: string, titleBlock: SectionViewData['titleBlock']) {
