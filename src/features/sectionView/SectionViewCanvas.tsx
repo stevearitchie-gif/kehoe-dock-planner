@@ -1,4 +1,4 @@
-import type { ChangeEvent } from 'react';
+import type { ChangeEvent, ReactNode } from 'react';
 import { useMemo, useRef } from 'react';
 import { applySectionTemplate, sectionTemplates } from '@/features/sectionView/sectionTemplates';
 import type { SectionViewData, SectionViewTemplateId } from '@/features/sectionView/sectionTypes';
@@ -10,20 +10,17 @@ interface SectionViewCanvasProps {
   onGenerateFromBuildPlan: () => void;
 }
 
-const SVG_WIDTH = 960;
-const SVG_HEIGHT = 540;
-const drawingLeft = 70;
-const drawingRight = 870;
-const waterY = 275;
-const lowWaterY = 306;
-const gradeStart = { x: 110, y: 170 };
-const gradeEnd = { x: 515, y: 272 };
-const lakebedStart = { x: 105, y: 408 };
-const lakebedEnd = { x: 855, y: 356 };
-const red = '#dc2626';
-const blue = '#0f70b7';
+const SVG_WIDTH = 1100;
+const SVG_HEIGHT = 850;
 const ink = '#111827';
 const mutedInk = '#475569';
+const red = '#dc2626';
+const blue = '#0f70b7';
+const sheetMargin = 42;
+const drawingLeft = 92;
+const drawingRight = 1008;
+const baseHighWaterY = 365;
+const lowWaterOffset = 42;
 
 function clampNumber(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -46,27 +43,27 @@ function formatDate(date: Date) {
 
 function callout(label: string, labelX: number, labelY: number, targetX: number, targetY: number, key: string) {
   return (
-    <g key={key} stroke={red} fill="none" strokeWidth="1.6">
-      <line x1={labelX} y1={labelY + 5} x2={targetX} y2={targetY} markerEnd="url(#red-arrow)" />
-      <text x={labelX} y={labelY} fill={red} stroke="none" fontSize="12" fontWeight="700">
+    <g key={key} stroke={red} fill="none" strokeWidth="1.5">
+      <line x1={labelX} y1={labelY + 6} x2={targetX} y2={targetY} markerEnd="url(#red-arrow)" />
+      <text x={labelX} y={labelY} fill={red} stroke="none" fontSize="13" fontWeight="700">
         {label}
       </text>
     </g>
   );
 }
 
-function rockSymbols(startX: number, startY: number, count: number, slope = 0.42) {
+function rockSymbols(startX: number, startY: number, count: number, slope = 0.35) {
   return Array.from({ length: count }, (_, index) => {
-    const column = index % 10;
-    const row = Math.floor(index / 10);
-    const x = startX + column * 34 + row * 9;
-    const y = startY + column * slope * 12 + row * 26;
-    const size = 9 + (index % 4) * 2;
+    const column = index % 11;
+    const row = Math.floor(index / 11);
+    const x = startX + column * 36 + row * 12;
+    const y = startY + column * slope * 13 + row * 28;
+    const size = 8 + (index % 4) * 2;
     const points = [
       `${x - size},${y + 2}`,
-      `${x - size / 2},${y - size}`,
-      `${x + size * 0.7},${y - size * 0.5}`,
-      `${x + size},${y + size * 0.3}`,
+      `${x - size * 0.45},${y - size}`,
+      `${x + size * 0.7},${y - size * 0.55}`,
+      `${x + size},${y + size * 0.25}`,
       `${x + size * 0.15},${y + size}`,
     ].join(' ');
     return <polygon key={index} points={points} fill="none" stroke={ink} strokeWidth="1" />;
@@ -74,8 +71,8 @@ function rockSymbols(startX: number, startY: number, count: number, slope = 0.42
 }
 
 function titleBlock(projectName: string, title: string, drawingDate: string) {
-  const x = 610;
-  const y = 392;
+  const x = 728;
+  const y = 658;
   const rowHeight = 20;
   const rows = [
     ['CLIENT', projectName || 'Kehoe Dock Planner'],
@@ -90,27 +87,39 @@ function titleBlock(projectName: string, title: string, drawingDate: string) {
 
   return (
     <g>
-      <rect x={x} y={y} width="300" height="128" fill="#ffffff" stroke={ink} strokeWidth="1.4" />
-      <rect x={x} y={y} width="300" height="26" fill="#ffffff" stroke={ink} strokeWidth="1.2" />
-      <text x={x + 10} y={y + 18} fill={ink} fontSize="14" fontWeight="800">
+      <rect x={x} y={y} width="330" height="164" fill="#ffffff" stroke={ink} strokeWidth="1.5" />
+      <rect x={x} y={y} width="330" height="28" fill="#ffffff" stroke={ink} strokeWidth="1.2" />
+      <text x={x + 10} y={y + 19} fill={ink} fontSize="14" fontWeight="800">
         KEHOE SECTION VIEW
       </text>
+      <text x={x + 236} y={y + 19} fill={ink} fontSize="11" fontWeight="800">
+        NOT TO SCALE
+      </text>
       {rows.map(([label, value], index) => {
-        const rowY = y + 26 + index * rowHeight;
+        const rowY = y + 28 + index * rowHeight;
         return (
           <g key={label}>
-            <line x1={x} y1={rowY} x2={x + 300} y2={rowY} stroke={ink} strokeWidth="0.7" />
-            <line x1={x + 86} y1={rowY} x2={x + 86} y2={rowY + rowHeight} stroke={ink} strokeWidth="0.7" />
-            <text x={x + 7} y={rowY + 14} fill={mutedInk} fontSize="9" fontWeight="700">
+            <line x1={x} y1={rowY} x2={x + 330} y2={rowY} stroke={ink} strokeWidth="0.7" />
+            <line x1={x + 92} y1={rowY} x2={x + 92} y2={rowY + rowHeight} stroke={ink} strokeWidth="0.7" />
+            <text x={x + 8} y={rowY + 14} fill={mutedInk} fontSize="9" fontWeight="700">
               {label}
             </text>
-            <text x={x + 94} y={rowY + 14} fill={ink} fontSize="10">
-              {value.length > 34 ? `${value.slice(0, 31)}...` : value}
+            <text x={x + 102} y={rowY + 14} fill={ink} fontSize="10">
+              {value.length > 35 ? `${value.slice(0, 32)}...` : value}
             </text>
           </g>
         );
       })}
     </g>
+  );
+}
+
+function controlGroup(title: string, children: ReactNode) {
+  return (
+    <section className="rounded-md border border-slate-200 bg-white p-3">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</h3>
+      <div className="mt-3 space-y-3">{children}</div>
+    </section>
   );
 }
 
@@ -126,7 +135,10 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     });
   };
 
-  const updateNumberField = (field: 'shorelineHeightFt' | 'lakebedDropFt' | 'ripRapDepthFt' | 'armourStoneRows', value: string) => {
+  const updateNumberField = (
+    field: 'waterLevelFt' | 'shorelineHeightFt' | 'lakebedDropFt' | 'ripRapDepthFt' | 'armourStoneRows',
+    value: string,
+  ) => {
     const parsedValue = Number(value);
     if (!Number.isFinite(parsedValue)) {
       return;
@@ -134,6 +146,11 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
 
     if (field === 'armourStoneRows') {
       updateField(field, Math.round(clampNumber(parsedValue, 0, 6)));
+      return;
+    }
+
+    if (field === 'waterLevelFt') {
+      updateField(field, clampNumber(parsedValue, -6, 6));
       return;
     }
 
@@ -179,156 +196,168 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
   const lakebedDrop = clampNumber(sectionView.lakebedDropFt, 0, 10);
   const ripRapDepth = clampNumber(sectionView.ripRapDepthFt, 0, 4);
   const armourRows = Math.round(clampNumber(sectionView.armourStoneRows, 0, 6));
-  const adjustedGradeStartY = gradeStart.y - sectionHeight * 7;
-  const adjustedLakebedEndY = lakebedEnd.y + lakebedDrop * 6;
-  const ripRapTop = adjustedGradeStartY + 62;
-  const ripRapBottom = ripRapTop + Math.max(26, ripRapDepth * 18);
+  const highWaterY = baseHighWaterY - clampNumber(sectionView.waterLevelFt, -6, 6) * 4;
+  const lowWaterY = highWaterY + lowWaterOffset;
+  const gradeStartY = 218 - sectionHeight * 9;
+  const gradeMidY = gradeStartY + 40;
+  const shorelineToeY = highWaterY + 4;
+  const lakebedEndY = 495 + lakebedDrop * 7;
+  const ripRapTop = gradeMidY + 24;
+  const ripRapBottom = ripRapTop + Math.max(30, ripRapDepth * 19);
   const useArmourTemplate = sectionView.templateId === 'armour_stone' || sectionView.showArmourStone;
   const useDockTemplate = sectionView.templateId === 'floating_dock_shoreline' || sectionView.showDockReference;
 
   return (
-    <div className="grid h-full min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <section className="min-h-0 overflow-auto rounded-md border border-slate-200 bg-white p-3">
-        <svg
-          ref={svgRef}
-          viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
-          role="img"
-          aria-label="Section view drawing"
-          className="min-h-[360px] w-full rounded border border-slate-200 bg-white"
-        >
-          <rect width={SVG_WIDTH} height={SVG_HEIGHT} fill="#ffffff" />
+    <div className="grid h-full min-h-0 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <section className="flex min-h-0 items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-slate-100 p-4">
+        <div className="flex h-full w-full items-center justify-center">
+          <svg
+            ref={svgRef}
+            viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
+            role="img"
+            aria-label="Section view permit drawing sheet"
+            className="max-h-full max-w-full bg-white shadow-sm"
+            style={{ aspectRatio: '11 / 8.5' }}
+          >
+            <rect width={SVG_WIDTH} height={SVG_HEIGHT} fill="#ffffff" />
+            <rect x={sheetMargin} y={sheetMargin} width={SVG_WIDTH - sheetMargin * 2} height={SVG_HEIGHT - sheetMargin * 2} fill="none" stroke={ink} strokeWidth="1.2" />
 
-          <defs>
-            <marker id="red-arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto" markerUnits="strokeWidth">
-              <path d="M0,0 L9,4.5 L0,9 z" fill={red} />
-            </marker>
-            <marker id="black-arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto" markerUnits="strokeWidth">
-              <path d="M0,0 L8,4 L0,8 z" fill={ink} />
-            </marker>
-            <pattern id="clear-stone" width="18" height="18" patternUnits="userSpaceOnUse">
-              <circle cx="4" cy="5" r="1.3" fill={ink} />
-              <circle cx="13" cy="12" r="1" fill={ink} />
-              <circle cx="9" cy="3" r="0.9" fill={ink} />
-            </pattern>
-          </defs>
+            <defs>
+              <marker id="red-arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto" markerUnits="strokeWidth">
+                <path d="M0,0 L9,4.5 L0,9 z" fill={red} />
+              </marker>
+              <marker id="black-arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto" markerUnits="strokeWidth">
+                <path d="M0,0 L8,4 L0,8 z" fill={ink} />
+              </marker>
+              <pattern id="clear-stone" width="18" height="18" patternUnits="userSpaceOnUse">
+                <circle cx="4" cy="5" r="1.2" fill={ink} />
+                <circle cx="13" cy="12" r="1" fill={ink} />
+                <circle cx="9" cy="3" r="0.9" fill={ink} />
+              </pattern>
+            </defs>
 
-          <text x="42" y="42" fill={ink} fontSize="22" fontWeight="800">
-            {sectionView.title}
-          </text>
-          <text x="42" y="66" fill={mutedInk} fontSize="12">
-            Permit-support visual only - not an engineered stamped drawing
-          </text>
+            <text x="72" y="82" fill={ink} fontSize="24" fontWeight="800">
+              {sectionView.title}
+            </text>
+            <text x="72" y="108" fill={mutedInk} fontSize="12">
+              Permit-support visual only - not an engineered stamped drawing
+            </text>
 
-          <line x1={drawingLeft} y1={waterY} x2={drawingRight} y2={waterY} stroke={blue} strokeWidth="1.8" />
-          <text x={drawingLeft + 8} y={waterY - 8} fill={blue} fontSize="12" fontWeight="700">
-            HIGH WATER LEVEL
-          </text>
-          <line x1={drawingLeft} y1={lowWaterY} x2={drawingRight} y2={lowWaterY} stroke={blue} strokeWidth="1.4" strokeDasharray="10 7" />
-          <text x={drawingLeft + 8} y={lowWaterY + 18} fill={blue} fontSize="12" fontWeight="700">
-            LOW WATER LEVEL
-          </text>
+            <line x1={drawingLeft} y1={highWaterY} x2={drawingRight} y2={highWaterY} stroke={blue} strokeWidth="1.8" />
+            <text x={drawingLeft + 8} y={highWaterY - 10} fill={blue} fontSize="12" fontWeight="700">
+              HIGH WATER LEVEL
+            </text>
+            <line x1={drawingLeft} y1={lowWaterY} x2={drawingRight} y2={lowWaterY} stroke={blue} strokeWidth="1.4" strokeDasharray="10 7" />
+            <text x={drawingLeft + 8} y={lowWaterY + 18} fill={blue} fontSize="12" fontWeight="700">
+              LOW WATER LEVEL
+            </text>
 
-          <polyline
-            points={`${gradeStart.x},${adjustedGradeStartY} 250,${adjustedGradeStartY + 20} 370,${adjustedGradeStartY + 56} ${gradeEnd.x},${gradeEnd.y}`}
-            fill="none"
-            stroke={ink}
-            strokeWidth="2"
-          />
-          <polyline
-            points={`${lakebedStart.x},${lakebedStart.y} 315,${lakebedStart.y - 14} 560,${adjustedLakebedEndY - 20} ${lakebedEnd.x},${adjustedLakebedEndY}`}
-            fill="none"
-            stroke={ink}
-            strokeWidth="1.8"
-          />
+            <polyline
+              points={`120,${gradeStartY} 250,${gradeStartY + 12} 390,${gradeMidY} 540,${shorelineToeY}`}
+              fill="none"
+              stroke={ink}
+              strokeWidth="2"
+            />
+            <polyline
+              points={`120,${lakebedEndY + 30} 355,${lakebedEndY + 4} 630,${lakebedEndY - 46} 990,${lakebedEndY - 70}`}
+              fill="none"
+              stroke={ink}
+              strokeWidth="1.8"
+            />
 
-          {sectionView.showRipRap && !useArmourTemplate && (
-            <g>
-              <line x1="200" y1={ripRapTop} x2="545" y2={ripRapTop + 82} stroke={ink} strokeWidth="1.2" />
-              <line x1="190" y1={ripRapBottom} x2="548" y2={ripRapBottom + 72} stroke={ink} strokeWidth="1.2" strokeDasharray="5 5" />
-              {rockSymbols(230, ripRapTop + 14, 28)}
-              <path d={`M205 ${ripRapBottom + 16} C286 ${ripRapBottom + 34}, 385 ${ripRapBottom + 43}, 520 ${ripRapBottom + 74}`} fill="none" stroke={ink} strokeWidth="1" />
-              <text x="360" y={ripRapBottom + 82} fill={ink} fontSize="11" fontWeight="700">
-                CLEAR STONE / FILTER LAYER
-              </text>
-              <line x1="285" y1={ripRapBottom + 54} x2="372" y2={ripRapBottom + 72} stroke={ink} strokeWidth="5" strokeLinecap="round" />
-              <line x1="285" y1={ripRapBottom + 54} x2="372" y2={ripRapBottom + 72} stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeDasharray="3 5" />
-            </g>
-          )}
+            {sectionView.showRipRap && !useArmourTemplate && (
+              <g>
+                <line x1="236" y1={ripRapTop} x2="558" y2={shorelineToeY + 4} stroke={ink} strokeWidth="1.2" />
+                <line x1="222" y1={ripRapBottom} x2="570" y2={shorelineToeY + 58} stroke={ink} strokeWidth="1.2" strokeDasharray="5 5" />
+                {rockSymbols(260, ripRapTop + 14, 30)}
+                <path d={`M255 ${ripRapBottom + 38} C344 ${ripRapBottom + 62}, 445 ${ripRapBottom + 74}, 555 ${shorelineToeY + 78}`} fill="none" stroke={ink} strokeWidth="1" />
+                <text x="370" y={ripRapBottom + 78} fill={ink} fontSize="11" fontWeight="700">
+                  CLEAR STONE / FILTER LAYER
+                </text>
+                <line x1="318" y1={ripRapBottom + 54} x2="410" y2={ripRapBottom + 76} stroke={ink} strokeWidth="5" strokeLinecap="round" />
+                <line x1="318" y1={ripRapBottom + 54} x2="410" y2={ripRapBottom + 76} stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeDasharray="3 5" />
+              </g>
+            )}
 
-          {sectionView.showArmourStone && armourRows > 0 && (
-            <g>
-              <polygon
-                points={`470,${waterY - 10} 650,${waterY - 10} 650,${waterY + 42 + armourRows * 8} 470,${waterY + 42 + armourRows * 8}`}
-                fill="url(#clear-stone)"
-                stroke={ink}
-                strokeWidth="1"
-              />
-              {Array.from({ length: armourRows }, (_, row) =>
-                Array.from({ length: 2 }, (_, column) => (
-                  <rect
-                    key={`${row}-${column}`}
-                    x={500 + column * 74 + (row % 2) * 18}
-                    y={waterY - 38 - row * 29}
-                    width="72"
-                    height="25"
-                    fill="#ffffff"
-                    stroke={ink}
-                    strokeWidth="1.4"
-                  />
-                )),
-              )}
-            </g>
-          )}
+            {sectionView.showArmourStone && armourRows > 0 && (
+              <g>
+                <polygon
+                  points={`500,${highWaterY - 8} 686,${highWaterY - 8} 686,${highWaterY + 68 + armourRows * 7} 500,${highWaterY + 68 + armourRows * 7}`}
+                  fill="url(#clear-stone)"
+                  stroke={ink}
+                  strokeWidth="1"
+                />
+                {Array.from({ length: armourRows }, (_, row) =>
+                  Array.from({ length: 2 }, (_, column) => (
+                    <rect
+                      key={`${row}-${column}`}
+                      x={530 + column * 78 + (row % 2) * 19}
+                      y={highWaterY - 42 - row * 30}
+                      width="76"
+                      height="26"
+                      fill="#ffffff"
+                      stroke={ink}
+                      strokeWidth="1.4"
+                    />
+                  )),
+                )}
+              </g>
+            )}
 
-          {useDockTemplate && (
-            <g stroke={ink} fill="none">
-              <line x1="440" y1={waterY - 55} x2="568" y2={waterY - 36} strokeWidth="2.3" />
-              <line x1="440" y1={waterY - 49} x2="568" y2={waterY - 30} strokeWidth="1.2" />
-              <rect x="575" y={waterY - 45} width="166" height="14" strokeWidth="1.8" />
-              <line x1="590" y1={waterY - 31} x2="728" y2={waterY - 31} strokeWidth="1.2" />
-              <ellipse cx="628" cy={waterY - 13} rx="38" ry="11" strokeWidth="1.4" />
-              <ellipse cx="696" cy={waterY - 13} rx="38" ry="11" strokeWidth="1.4" />
-            </g>
-          )}
+            {useDockTemplate && (
+              <g stroke={ink} fill="none">
+                <line x1="470" y1={highWaterY - 76} x2="620" y2={highWaterY - 47} strokeWidth="2.2" />
+                <line x1="470" y1={highWaterY - 68} x2="620" y2={highWaterY - 39} strokeWidth="1.1" />
+                <line x1="472" y1={highWaterY - 78} x2="472" y2={highWaterY - 58} strokeWidth="1.1" />
+                <rect x="628" y={highWaterY - 58} width="186" height="16" strokeWidth="1.8" />
+                <line x1="646" y1={highWaterY - 42} x2="794" y2={highWaterY - 42} strokeWidth="1.1" />
+                <ellipse cx="688" cy={highWaterY - 23} rx="42" ry="12" strokeWidth="1.3" />
+                <ellipse cx="764" cy={highWaterY - 23} rx="42" ry="12" strokeWidth="1.3" />
+              </g>
+            )}
 
-          {sectionView.showDimensions && (
-            <g stroke={ink} strokeWidth="1.2" fill="none">
-              <line x1="90" y1={adjustedGradeStartY} x2="90" y2={waterY} markerStart="url(#black-arrow)" markerEnd="url(#black-arrow)" />
-              <text x="34" y={(adjustedGradeStartY + waterY) / 2} fill={ink} stroke="none" fontSize="11">
-                BANK {sectionHeight.toFixed(1)} ft
-              </text>
-              <line x1="838" y1={lowWaterY} x2="838" y2={adjustedLakebedEndY} markerStart="url(#black-arrow)" markerEnd="url(#black-arrow)" />
-              <text x="760" y={(lowWaterY + adjustedLakebedEndY) / 2} fill={ink} stroke="none" fontSize="11">
-                DROP {lakebedDrop.toFixed(1)} ft
-              </text>
-            </g>
-          )}
+            {sectionView.showDimensions && (
+              <g stroke={ink} strokeWidth="1.2" fill="none">
+                <line x1="92" y1={gradeStartY} x2="92" y2={highWaterY} markerStart="url(#black-arrow)" markerEnd="url(#black-arrow)" />
+                <text x="55" y={(gradeStartY + highWaterY) / 2} fill={ink} stroke="none" fontSize="11">
+                  BANK {sectionHeight.toFixed(1)} ft
+                </text>
+                <line x1="958" y1={lowWaterY} x2="958" y2={lakebedEndY - 70} markerStart="url(#black-arrow)" markerEnd="url(#black-arrow)" />
+                <text x="888" y={(lowWaterY + lakebedEndY - 70) / 2} fill={ink} stroke="none" fontSize="11">
+                  DROP {lakebedDrop.toFixed(1)} ft
+                </text>
+              </g>
+            )}
 
-          {[
-            callout('EXISTING GRADE', 120, 102, 248, adjustedGradeStartY + 20, 'grade'),
-            callout('LAKEBED PROFILE', 112, 452, 284, lakebedStart.y - 12, 'lakebed'),
-            sectionView.showRipRap && !useArmourTemplate ? callout('RIP RAP STONE', 566, 175, 420, ripRapTop + 62, 'riprap') : null,
-            useArmourTemplate ? callout('ARMOUR STONE WALL', 680, 170, 610, waterY - 54, 'armour') : null,
-            useDockTemplate ? callout('FLOATING DOCK / RAMP REF.', 610, 120, 604, waterY - 44, 'dock') : null,
-          ]}
+            {[
+              callout('EXISTING GRADE', 136, 150, 282, gradeStartY + 15, 'grade'),
+              callout('LAKEBED PROFILE', 132, 592, 390, lakebedEndY, 'lakebed'),
+              sectionView.showRipRap && !useArmourTemplate ? callout('RIP RAP STONE', 620, 236, 454, ripRapTop + 76, 'riprap') : null,
+              sectionView.showRipRap && !useArmourTemplate ? callout('PERFORATED PIPE', 208, 530, 360, ripRapBottom + 65, 'pipe') : null,
+              useArmourTemplate ? callout('ARMOUR STONE WALL', 736, 238, 632, highWaterY - 46, 'armour') : null,
+              useArmourTemplate ? callout('CLEAR STONE BASE', 724, 454, 616, highWaterY + 76, 'clear-stone') : null,
+              useDockTemplate ? callout('ACCESS RAMP', 486, 178, 535, highWaterY - 62, 'ramp') : null,
+              useDockTemplate ? callout('FLOATING DOCK', 786, 202, 716, highWaterY - 56, 'dock') : null,
+            ]}
 
-          <text x="42" y="492" fill={mutedInk} fontSize="11">
-            {sectionView.notes}
-          </text>
-          {titleBlock(projectName, sectionView.title, drawingDate)}
-        </svg>
+            <text x="72" y="742" fill={mutedInk} fontSize="11">
+              {sectionView.notes}
+            </text>
+            {titleBlock(projectName, sectionView.title, drawingDate)}
+          </svg>
+        </div>
       </section>
 
-      <aside className="min-h-0 overflow-y-auto rounded-md border border-slate-200 bg-white p-4">
+      <aside className="min-h-0 overflow-y-auto rounded-md border border-slate-200 bg-slate-50 p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Section View</p>
-            <p className="mt-1 text-sm text-slate-700">Permit-support cross-section visual.</p>
+            <p className="mt-1 text-sm text-slate-700">Permit sheet layout.</p>
           </div>
           <button
             type="button"
             onClick={handleExportPng}
-            className="min-h-11 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+            className="min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
           >
             Export PNG
           </button>
@@ -342,116 +371,192 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
           {buildPlanSummary ? 'Refresh from Build Plan' : 'Generate from Build Plan'}
         </button>
 
-        <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Build Plan Data</p>
-              <p className="mt-1 text-xs text-slate-500">
-                Imported fields are summarized only. Section geometry remains manually editable.
-              </p>
-            </div>
-            {buildPlanSummary && (
-              <span className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-slate-500">
-                {buildPlanSummary.hasProjectScale ? 'Scaled' : 'Approx'}
-              </span>
-            )}
-          </div>
-
-          {buildPlanSummary ? (
-            <div className="mt-3 space-y-2 text-sm text-slate-700">
-              <p className="text-xs text-slate-500">{buildPlanSummary.scaleLabel}</p>
-              <ul className="space-y-1">
-                {buildPlanSummary.detectedItems.map((item) => (
-                  <li key={item} className="rounded bg-white px-2 py-1">
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <p className="mt-3 text-sm text-slate-600">
-              No Build Plan data imported yet. Use Generate from Build Plan to pull reliable project dimensions and object summaries.
-            </p>
+        <div className="mt-4 space-y-4">
+          {controlGroup(
+            'Build Plan Data',
+            buildPlanSummary ? (
+              <div className="space-y-2 text-sm text-slate-700">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs text-slate-500">{buildPlanSummary.scaleLabel}</p>
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-500">
+                    {buildPlanSummary.hasProjectScale ? 'Scaled' : 'Approx'}
+                  </span>
+                </div>
+                <ul className="space-y-1">
+                  {buildPlanSummary.detectedItems.slice(0, 4).map((item) => (
+                    <li key={item} className="rounded bg-slate-50 px-2 py-1">
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-600">No Build Plan data imported yet.</p>
+            ),
           )}
-        </div>
 
-        <div className="mt-4 grid gap-2">
-          {(Object.keys(sectionTemplates) as SectionViewTemplateId[]).map((templateId) => (
-            <button
-              key={templateId}
-              type="button"
-              onClick={() => handleTemplateChange(templateId)}
-              className={`min-h-11 rounded-md border px-3 py-2 text-left text-sm ${
-                sectionView.templateId === templateId
-                  ? 'border-brand-600 bg-brand-50 text-brand-700'
-                  : 'border-slate-200 text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              {sectionTemplates[templateId].title}
-            </button>
-          ))}
-        </div>
+          {controlGroup(
+            'Template',
+            <div className="grid gap-2">
+              {(Object.keys(sectionTemplates) as SectionViewTemplateId[]).map((templateId) => (
+                <button
+                  key={templateId}
+                  type="button"
+                  onClick={() => handleTemplateChange(templateId)}
+                  className={`min-h-11 rounded-md border px-3 py-2 text-left text-sm ${
+                    sectionView.templateId === templateId
+                      ? 'border-brand-600 bg-brand-50 text-brand-700'
+                      : 'border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  {sectionTemplates[templateId].title}
+                </button>
+              ))}
+            </div>,
+          )}
 
-        <label className="mt-4 block">
-          <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Title</span>
-          <input
-            value={sectionView.title}
-            onChange={(event) => updateField('title', event.target.value)}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
-          />
-        </label>
-
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          {[
-            { label: 'Bank height', field: 'shorelineHeightFt', value: sectionView.shorelineHeightFt },
-            { label: 'Lakebed drop', field: 'lakebedDropFt', value: sectionView.lakebedDropFt },
-            { label: 'Rip rap depth', field: 'ripRapDepthFt', value: sectionView.ripRapDepthFt },
-            { label: 'Stone rows', field: 'armourStoneRows', value: sectionView.armourStoneRows },
-          ].map((control) => (
-            <label key={control.field} className="block">
-              <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">{control.label}</span>
+          {controlGroup(
+            'Project / Title Block',
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Description / Title</span>
               <input
-                type="number"
-                min={0}
-                step={control.field === 'armourStoneRows' ? 1 : 0.25}
-                value={control.value}
-                onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                  updateNumberField(control.field as 'shorelineHeightFt' | 'lakebedDropFt' | 'ripRapDepthFt' | 'armourStoneRows', event.target.value)
-                }
+                value={sectionView.title}
+                onChange={(event) => updateField('title', event.target.value)}
                 className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
               />
-            </label>
-          ))}
-        </div>
+            </label>,
+          )}
 
-        <div className="mt-4 space-y-3 rounded-md border border-slate-200 bg-slate-50 p-3">
-          {[
-            { label: 'Show rip rap stone', field: 'showRipRap' },
-            { label: 'Show armour stone wall', field: 'showArmourStone' },
-            { label: 'Show dock reference', field: 'showDockReference' },
-            { label: 'Show dimensions', field: 'showDimensions' },
-          ].map((control) => (
-            <label key={control.field} className="flex min-h-11 items-center justify-between gap-3 text-sm text-slate-700">
-              <span>{control.label}</span>
+          {controlGroup(
+            'Water Levels',
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Water line offset</span>
+              <input
+                type="number"
+                step={0.25}
+                value={sectionView.waterLevelFt}
+                onChange={(event: ChangeEvent<HTMLInputElement>) => updateNumberField('waterLevelFt', event.target.value)}
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+              />
+            </label>,
+          )}
+
+          {controlGroup(
+            'Shoreline / Lakebed',
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { label: 'Bank height', field: 'shorelineHeightFt', value: sectionView.shorelineHeightFt },
+                { label: 'Lakebed drop', field: 'lakebedDropFt', value: sectionView.lakebedDropFt },
+              ].map((control) => (
+                <label key={control.field} className="block">
+                  <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">{control.label}</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.25}
+                    value={control.value}
+                    onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                      updateNumberField(control.field as 'shorelineHeightFt' | 'lakebedDropFt', event.target.value)
+                    }
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                  />
+                </label>
+              ))}
+            </div>,
+          )}
+
+          {controlGroup(
+            'Materials',
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: 'Rip rap depth', field: 'ripRapDepthFt', value: sectionView.ripRapDepthFt },
+                  { label: 'Stone rows', field: 'armourStoneRows', value: sectionView.armourStoneRows },
+                ].map((control) => (
+                  <label key={control.field} className="block">
+                    <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">{control.label}</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={control.field === 'armourStoneRows' ? 1 : 0.25}
+                      value={control.value}
+                      onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                        updateNumberField(control.field as 'ripRapDepthFt' | 'armourStoneRows', event.target.value)
+                      }
+                      className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                    />
+                  </label>
+                ))}
+              </div>
+              <label className="flex min-h-11 items-center justify-between gap-3 text-sm text-slate-700">
+                <span>Show rip rap stone</span>
+                <input
+                  type="checkbox"
+                  checked={sectionView.showRipRap}
+                  onChange={(event) => updateField('showRipRap', event.target.checked)}
+                  className="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                />
+              </label>
+              <label className="flex min-h-11 items-center justify-between gap-3 text-sm text-slate-700">
+                <span>Show armour stone wall</span>
+                <input
+                  type="checkbox"
+                  checked={sectionView.showArmourStone}
+                  onChange={(event) => updateField('showArmourStone', event.target.checked)}
+                  className="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                />
+              </label>
+            </div>,
+          )}
+
+          {controlGroup(
+            'Dock / Ramp Reference',
+            <label className="flex min-h-11 items-center justify-between gap-3 text-sm text-slate-700">
+              <span>Show dock and ramp profile</span>
               <input
                 type="checkbox"
-                checked={Boolean(sectionView[control.field as keyof SectionViewData])}
-                onChange={(event) => updateField(control.field as 'showRipRap' | 'showArmourStone' | 'showDockReference' | 'showDimensions', event.target.checked)}
+                checked={sectionView.showDockReference}
+                onChange={(event) => updateField('showDockReference', event.target.checked)}
                 className="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
               />
-            </label>
-          ))}
-        </div>
+            </label>,
+          )}
 
-        <label className="mt-4 block">
-          <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Notes</span>
-          <textarea
-            value={sectionView.notes ?? ''}
-            onChange={(event) => updateField('notes', event.target.value)}
-            rows={4}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
-          />
-        </label>
+          {controlGroup(
+            'Labels / Notes',
+            <>
+              <label className="flex min-h-11 items-center justify-between gap-3 text-sm text-slate-700">
+                <span>Show dimensions</span>
+                <input
+                  type="checkbox"
+                  checked={sectionView.showDimensions}
+                  onChange={(event) => updateField('showDimensions', event.target.checked)}
+                  className="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Notes</span>
+                <textarea
+                  value={sectionView.notes ?? ''}
+                  onChange={(event) => updateField('notes', event.target.value)}
+                  rows={4}
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                />
+              </label>
+            </>,
+          )}
+
+          {controlGroup(
+            'Export',
+            <button
+              type="button"
+              onClick={handleExportPng}
+              className="min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+            >
+              Export Section PNG
+            </button>,
+          )}
+        </div>
       </aside>
     </div>
   );
