@@ -166,7 +166,8 @@ function ripRapStoneField(settings: SectionViewRipRapSettings, topPoints: Sectio
   const bounds = pointBounds([...topPoints, ...bottomPoints]);
   const fieldWidth = Math.max(settings.stoneSize * 2, bounds.maxX - bounds.minX);
   const fieldHeight = Math.max(settings.stoneSize * 2, bounds.maxY - bounds.minY);
-  const spacing = Math.max(10, settings.stoneSize * 1.18);
+  const baseStoneRadius = clampNumber(settings.stoneSize, 6, 34);
+  const spacing = Math.max(12, baseStoneRadius * 1.55);
   const columns = Math.max(4, Math.ceil(fieldWidth / spacing));
   const rows = Math.max(2, Math.ceil(fieldHeight / spacing));
   const stones = Math.max(8, Math.round(columns * rows * clampNumber(settings.density, 0.25, 2)));
@@ -176,13 +177,14 @@ function ripRapStoneField(settings: SectionViewRipRapSettings, topPoints: Sectio
     const row = Math.floor(index / columns) % rows;
     const jitterX = (hashUnit(index + 3) - 0.5) * spacing * 0.62;
     const jitterY = (hashUnit(index + 17) - 0.5) * spacing * 0.62;
-    const x = Math.min(bounds.maxX - settings.stoneSize * 0.55, Math.max(bounds.minX + settings.stoneSize * 0.55, bounds.minX + column * spacing + spacing * 0.5 + jitterX));
-    const y = Math.min(bounds.maxY - settings.stoneSize * 0.55, Math.max(bounds.minY + settings.stoneSize * 0.55, bounds.minY + row * spacing + spacing * 0.5 + jitterY));
-    const size = settings.stoneSize * (0.72 + hashUnit(index + 31) * 0.7);
+    const edgePadding = baseStoneRadius * 0.7;
+    const x = Math.min(bounds.maxX - edgePadding, Math.max(bounds.minX + edgePadding, bounds.minX + column * spacing + spacing * 0.5 + jitterX));
+    const y = Math.min(bounds.maxY - edgePadding, Math.max(bounds.minY + edgePadding, bounds.minY + row * spacing + spacing * 0.5 + jitterY));
+    const stoneRadius = baseStoneRadius * (0.42 + hashUnit(index + 31) * 0.46);
     const pointCount = 5 + Math.floor(hashUnit(index + 43) * 3);
     const points = Array.from({ length: pointCount }, (_, pointIndex) => {
       const angle = (Math.PI * 2 * pointIndex) / pointCount;
-      const radius = size * (0.62 + hashUnit(index * 11 + pointIndex + 59) * 0.48);
+      const radius = stoneRadius * (0.72 + hashUnit(index * 11 + pointIndex + 59) * 0.42);
       return `${(x + Math.cos(angle) * radius).toFixed(1)},${(y + Math.sin(angle) * radius).toFixed(1)}`;
     }).join(' ');
 
