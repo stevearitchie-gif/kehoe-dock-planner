@@ -35,10 +35,24 @@ const defaultRipRapSettings: SectionViewRipRapSettings = {
   length: 352,
   depth: 92,
   slopeDegrees: 15,
-  stoneSize: 16,
-  density: 1.05,
+  stoneSize: 20,
+  density: 1.4,
   showFilterLayer: true,
 };
+
+const ripRapStoneSizeOptions = [
+  { label: 'Small stone', value: 10 },
+  { label: 'Medium stone', value: 16 },
+  { label: '10" to 20" rip rap', value: 20 },
+  { label: 'Large stone', value: 26 },
+];
+
+const ripRapDensityOptions = [
+  { label: 'Sparse', value: 0.75 },
+  { label: 'Normal', value: 1.4 },
+  { label: 'Dense', value: 3 },
+  { label: 'Very dense', value: 5 },
+];
 
 const editableElementLabels: Record<string, string> = {
   'water-high-label': 'High water label',
@@ -86,6 +100,12 @@ const resizableElementIds = new Set(['armour-group', 'dock-profile', 'dimension-
 
 function clampNumber(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
+}
+
+function closestOptionValue(options: Array<{ value: number }>, value: number) {
+  return options.reduce((closest, option) =>
+    Math.abs(option.value - value) < Math.abs(closest.value - value) ? option : closest,
+  ).value;
 }
 
 function downloadDataUrl(dataUrl: string, filename: string) {
@@ -166,20 +186,16 @@ function ripRapStoneField(settings: SectionViewRipRapSettings, topPoints: Sectio
   const bounds = pointBounds([...topPoints, ...bottomPoints]);
   const fieldWidth = Math.max(settings.stoneSize * 2, bounds.maxX - bounds.minX);
   const fieldHeight = Math.max(settings.stoneSize * 2, bounds.maxY - bounds.minY);
-  const baseStoneRadius = clampNumber(settings.stoneSize, 6, 34);
-  const spacing = Math.max(12, baseStoneRadius * 1.55);
-  const columns = Math.max(4, Math.ceil(fieldWidth / spacing));
-  const rows = Math.max(2, Math.ceil(fieldHeight / spacing));
-  const stones = Math.max(8, Math.round(columns * rows * clampNumber(settings.density, 0.25, 2)));
+  const baseStoneRadius = clampNumber(settings.stoneSize, 8, 30);
+  const density = clampNumber(settings.density, 0.5, 5);
+  const fieldArea = fieldWidth * fieldHeight;
+  const nominalStoneArea = Math.max(36, baseStoneRadius * baseStoneRadius * 3.1);
+  const stones = Math.max(10, Math.min(260, Math.round((fieldArea / nominalStoneArea) * density)));
 
   return Array.from({ length: stones }, (_, index) => {
-    const column = index % columns;
-    const row = Math.floor(index / columns) % rows;
-    const jitterX = (hashUnit(index + 3) - 0.5) * spacing * 0.62;
-    const jitterY = (hashUnit(index + 17) - 0.5) * spacing * 0.62;
     const edgePadding = baseStoneRadius * 0.7;
-    const x = Math.min(bounds.maxX - edgePadding, Math.max(bounds.minX + edgePadding, bounds.minX + column * spacing + spacing * 0.5 + jitterX));
-    const y = Math.min(bounds.maxY - edgePadding, Math.max(bounds.minY + edgePadding, bounds.minY + row * spacing + spacing * 0.5 + jitterY));
+    const x = bounds.minX + edgePadding + hashUnit(index + 3) * Math.max(1, fieldWidth - edgePadding * 2);
+    const y = bounds.minY + edgePadding + hashUnit(index + 17) * Math.max(1, fieldHeight - edgePadding * 2);
     const stoneRadius = baseStoneRadius * (0.42 + hashUnit(index + 31) * 0.46);
     const pointCount = 5 + Math.floor(hashUnit(index + 43) * 3);
     const points = Array.from({ length: pointCount }, (_, pointIndex) => {
@@ -1140,8 +1156,6 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                           { label: 'Length', value: ripRapSettings.length, field: 'length', min: 80, max: 720, step: 10 },
                           { label: 'Depth', value: ripRapSettings.depth, field: 'depth', min: 24, max: 260, step: 5 },
                           { label: 'Slope', value: ripRapSettings.slopeDegrees, field: 'slopeDegrees', min: -35, max: 45, step: 1 },
-                          { label: 'Stone size', value: ripRapSettings.stoneSize, field: 'stoneSize', min: 6, max: 34, step: 1 },
-                          { label: 'Density', value: ripRapSettings.density, field: 'density', min: 0.25, max: 2, step: 0.05 },
                         ].map((control) => (
                           <label key={control.field} className="block">
                             <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">{control.label}</span>
@@ -1163,6 +1177,34 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                             />
                           </label>
                         ))}
+                        <label className="block">
+                          <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Stone Size</span>
+                          <select
+                            value={closestOptionValue(ripRapStoneSizeOptions, ripRapSettings.stoneSize)}
+                            onChange={(event) => updateRipRapSettings({ stoneSize: Number(event.target.value) })}
+                            className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-700"
+                          >
+                            {ripRapStoneSizeOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="block">
+                          <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Density</span>
+                          <select
+                            value={closestOptionValue(ripRapDensityOptions, ripRapSettings.density)}
+                            onChange={(event) => updateRipRapSettings({ density: Number(event.target.value) })}
+                            className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-700"
+                          >
+                            {ripRapDensityOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
                       </div>
                       <label className="mt-2 flex min-h-11 items-center justify-between gap-3 text-sm text-slate-700">
                         <span>Show filter layer</span>
