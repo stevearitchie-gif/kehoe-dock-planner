@@ -27,6 +27,106 @@ function formatDimension(object: DockObject, scale: ProjectScale) {
   return `${length.toFixed(1)} ft x ${width.toFixed(1)} ft`;
 }
 
+function formatObjectSize(object: DockObject, scale: ProjectScale) {
+  return formatDimension(object, scale);
+}
+
+function formatBoardDirection(object: DockObject) {
+  if (object.metadata?.boardDirection === 'vertical') {
+    return 'boards lengthwise';
+  }
+
+  if (object.metadata?.boardDirection === 'horizontal') {
+    return 'boards across';
+  }
+
+  if (object.metadata?.boardDirection === 'none') {
+    return 'boards hidden';
+  }
+
+  return undefined;
+}
+
+function formatRampType(type: DockObject['type']) {
+  if (type === 'ramp_with_rails') {
+    return 'ramp with rails';
+  }
+
+  if (type === 'ramp_without_rails') {
+    return 'ramp without rails';
+  }
+
+  return 'ramp';
+}
+
+function formatBoatPortDetails(object: DockObject) {
+  const details = [
+    object.metadata?.boatPortWallHeightFt ? `wall ${object.metadata.boatPortWallHeightFt} ft` : undefined,
+    object.metadata?.boatPortRoofRiseFt ? `roof rise ${object.metadata.boatPortRoofRiseFt} ft` : undefined,
+    object.metadata?.boatPortRoofType ? `${object.metadata.boatPortRoofType} roof` : undefined,
+  ].filter(Boolean);
+
+  return details.length > 0 ? details.join(', ') : undefined;
+}
+
+function formatBoathouseDetails(object: DockObject) {
+  const details = [
+    object.metadata?.boathouseWallHeightFt ? `wall ${object.metadata.boathouseWallHeightFt} ft` : undefined,
+    object.metadata?.boathouseRoofRiseFt ? `roof rise ${object.metadata.boathouseRoofRiseFt} ft` : undefined,
+    object.metadata?.boathouseRoofType ? `${object.metadata.boathouseRoofType} roof` : undefined,
+    object.metadata?.boathouseSlipCount ? `${object.metadata.boathouseSlipCount} slip${object.metadata.boathouseSlipCount === 1 ? '' : 's'}` : undefined,
+    object.metadata?.boathouseDoorStyle ? `door ${object.metadata.boathouseDoorStyle.replace(/_/g, ' ')}` : undefined,
+  ].filter(Boolean);
+
+  return details.length > 0 ? details.join(', ') : undefined;
+}
+
+function formatAccessoryType(type: string | undefined) {
+  return type ? type.replace(/_/g, ' ') : 'accessory';
+}
+
+function accessorySummary(project: DockProject) {
+  const counts = new Map<string, number>();
+  project.objects
+    .filter((object) => object.type === 'accessory')
+    .forEach((object) => {
+      const type = formatAccessoryType(object.metadata?.accessoryType);
+      counts.set(type, (counts.get(type) ?? 0) + 1);
+    });
+
+  return Array.from(counts.entries()).map(([type, count]) => `${count} ${type}${count === 1 ? '' : 's'}`);
+}
+
+function elementSummary(object: DockObject, scale: ProjectScale) {
+  const size = formatObjectSize(object, scale);
+  const sizeSuffix = size ? `, ${size}` : ', size not set';
+
+  if (object.type === 'floating_dock') {
+    const boardDirection = formatBoardDirection(object);
+    return `Floating dock${sizeSuffix}${boardDirection ? `, ${boardDirection}` : ''}`;
+  }
+
+  if (object.type === 'ramp_with_rails' || object.type === 'ramp_without_rails') {
+    return `${formatRampType(object.type)}${sizeSuffix}`;
+  }
+
+  if (object.type === 'boat_lift') {
+    return `Boat lift${sizeSuffix}`;
+  }
+
+  if (object.type === 'boat_port') {
+    const details = formatBoatPortDetails(object);
+    return `Boat port${sizeSuffix}${details ? `, ${details}` : ''}`;
+  }
+
+  if (object.type === 'boathouse') {
+    const details = formatBoathouseDetails(object);
+    return `Boathouse${sizeSuffix}${details ? `, ${details}` : ''}`;
+  }
+
+  return `${object.label || object.type}${sizeSuffix}`;
+}
+
 function firstOfType(project: DockProject, types: DockObject['type'][]): DockObject | undefined {
   return project.objects.find((object) => types.includes(object.type));
 }
@@ -48,14 +148,11 @@ export function generateSectionViewFromBuildPlan(
   const accessoryCount = countTypes(project, ['accessory']);
   const detectedItems: string[] = [];
   const structureSummary: string[] = [];
+  const supportedObjects = project.objects.filter((object) =>
+    ['floating_dock', 'ramp_with_rails', 'ramp_without_rails', 'boat_lift', 'boat_port', 'boathouse'].includes(object.type),
+  );
 
-  if (floatingDock) {
-    detectedItems.push(`Floating dock: ${formatDimension(floatingDock, currentScale)}`);
-  }
-
-  if (ramp) {
-    detectedItems.push(`Ramp: ${formatDimension(ramp, currentScale)}`);
-  }
+  detectedItems.push(...supportedObjects.map((object) => elementSummary(object, currentScale)));
 
   if (boatLiftCount > 0) {
     structureSummary.push(`${boatLiftCount} boat lift${boatLiftCount === 1 ? '' : 's'} present`);
@@ -70,7 +167,8 @@ export function generateSectionViewFromBuildPlan(
   }
 
   if (accessoryCount > 0) {
-    structureSummary.push(`${accessoryCount} accessory item${accessoryCount === 1 ? '' : 's'} present`);
+    const accessories = accessorySummary(project);
+    structureSummary.push(`Accessories: ${accessories.length > 0 ? accessories.join(', ') : `${accessoryCount} item${accessoryCount === 1 ? '' : 's'}`}`);
   }
 
   if (structureSummary.length > 0) {

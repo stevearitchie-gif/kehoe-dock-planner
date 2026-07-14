@@ -339,7 +339,9 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
   const manualElementOffsets = sectionView.manualElementOffsets ?? {};
   const manualElementTransforms = sectionView.manualElementTransforms ?? {};
   const hiddenElementIds = sectionView.hiddenElements ?? [];
+  const deletedElementIds = sectionView.deletedElements ?? [];
   const hiddenElementSet = useMemo(() => new Set(hiddenElementIds), [hiddenElementIds]);
+  const deletedElementSet = useMemo(() => new Set(deletedElementIds), [deletedElementIds]);
   const selectedTransform = selectedElementId ? manualElementTransforms[selectedElementId] : undefined;
   const selectedOffset = selectedElementId ? manualElementOffsets[selectedElementId] : undefined;
   const selectedX = selectedTransform?.x ?? selectedOffset?.x ?? 0;
@@ -679,7 +681,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
   };
 
   const editableElement = (elementId: string, children: ReactNode, handleX: number, handleY: number) => {
-    if (hiddenElementSet.has(elementId)) {
+    if (hiddenElementSet.has(elementId) || deletedElementSet.has(elementId)) {
       return null;
     }
 
@@ -900,11 +902,63 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
   };
 
   const hideSelectedElement = () => {
-    if (!selectedElementId || hiddenElementSet.has(selectedElementId)) {
+    if (!selectedElementId || hiddenElementSet.has(selectedElementId) || deletedElementSet.has(selectedElementId)) {
       return;
     }
 
     updateField('hiddenElements', Array.from(new Set([...hiddenElementIds, selectedElementId])));
+    setSelectedElementId(null);
+    setDragState(null);
+  };
+
+  const deleteSelectedElement = () => {
+    if (!selectedElementId) {
+      return;
+    }
+
+    const nextOffsets = { ...manualElementOffsets };
+    const nextTransforms = { ...manualElementTransforms };
+    const nextLabelOverrides = { ...labelOverrides };
+    delete nextOffsets[selectedElementId];
+    delete nextTransforms[selectedElementId];
+    delete nextLabelOverrides[selectedElementId];
+
+    const customMatch = selectedElementId.match(/^custom:(.+)$/);
+    if (customMatch) {
+      onChange({
+        ...sectionView,
+        customItems: customItems.filter((item) => item.id !== customMatch[1]),
+        manualElementOffsets: nextOffsets,
+        manualElementTransforms: nextTransforms,
+        labelOverrides: nextLabelOverrides,
+        hiddenElements: hiddenElementIds.filter((elementId) => elementId !== selectedElementId),
+      });
+      setSelectedElementId(null);
+      setDragState(null);
+      return;
+    }
+
+    const zoneMatch = selectedElementId.match(/^riprap-zone:(.+)$/);
+    if (zoneMatch) {
+      const zoneId = zoneMatch[1];
+      const isDuplicatedZone = zoneId !== 'riprap-main' || ripRapZones.length > 1;
+      if (isDuplicatedZone) {
+        const nextZones = ripRapZones.filter((zone) => zone.id !== zoneId);
+        updateRipRapZones(nextZones.length > 0 ? nextZones : ripRapZones);
+        setSelectedElementId(null);
+        setDragState(null);
+        return;
+      }
+    }
+
+    onChange({
+      ...sectionView,
+      manualElementOffsets: nextOffsets,
+      manualElementTransforms: nextTransforms,
+      labelOverrides: nextLabelOverrides,
+      hiddenElements: hiddenElementIds.filter((elementId) => elementId !== selectedElementId),
+      deletedElements: Array.from(new Set([...deletedElementIds, selectedElementId])),
+    });
     setSelectedElementId(null);
     setDragState(null);
   };
@@ -926,6 +980,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
       profileGeometry: undefined,
       labelOverrides: {},
       hiddenElements: [],
+      deletedElements: [],
     });
     setSelectedElementId(null);
     setDragState(null);
@@ -1333,7 +1388,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                   </span>
                 </div>
                 <ul className="space-y-1">
-                  {buildPlanSummary.detectedItems.slice(0, 4).map((item) => (
+                  {buildPlanSummary.detectedItems.slice(0, 12).map((item) => (
                     <li key={item} className="rounded bg-slate-50 px-2 py-1">
                       {item}
                     </li>
@@ -1596,6 +1651,14 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                   className="min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Hide selected
+                </button>
+                <button
+                  type="button"
+                  disabled={!selectedElementId || Boolean(selectedPoint)}
+                  onClick={deleteSelectedElement}
+                  className="min-h-11 rounded-md border border-red-200 bg-white px-3 py-2 text-sm text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Delete selected
                 </button>
                 <button
                   type="button"

@@ -84,6 +84,7 @@ export interface SectionViewData {
   labelOverrides?: Record<string, string>;
   titleBlock?: SectionViewTitleBlock;
   hiddenElements?: string[];
+  deletedElements?: string[];
   buildPlanSummary?: {
     generatedAt: string;
     hasProjectScale: boolean;
