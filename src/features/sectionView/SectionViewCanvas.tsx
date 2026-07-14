@@ -308,6 +308,65 @@ function titleBlock(projectName: string, title: string, drawingDate: string, tit
   );
 }
 
+function feetLabel(value: number | undefined, fallback: string) {
+  return Number.isFinite(value) && value !== undefined ? `${Math.round(value)}'` : fallback;
+}
+
+function dimensionLabel(lengthFt: number | undefined, widthFt: number | undefined, fallback: string) {
+  if (Number.isFinite(lengthFt) && Number.isFinite(widthFt) && lengthFt !== undefined && widthFt !== undefined) {
+    return `${Math.round(lengthFt)}' x ${Math.round(widthFt)}'`;
+  }
+
+  return fallback;
+}
+
+function dockRampProfile(highWaterY: number, reference: SectionViewData['dockRampReference'], dockLabel: string, rampLabel: string) {
+  const dockLengthPx = Math.max(150, Math.min(310, (reference?.dockLengthFt ?? 40) * 5.6));
+  const rampLengthPx = Math.max(95, Math.min(210, (reference?.rampLengthFt ?? 24) * 5.2));
+  const dockX = 625;
+  const dockY = highWaterY - 52;
+  const dockHeight = 22;
+  const rampStartX = dockX - rampLengthPx + 6;
+  const rampTopY = dockY + 5;
+  const rampBankY = dockY - 40;
+  const dockRightX = dockX + dockLengthPx;
+  const hasRails = reference?.rampType === 'with_rails';
+
+  return (
+    <g stroke={ink} fill="none">
+      <rect x={rampStartX - 28} y={rampBankY - 50} width={dockLengthPx + rampLengthPx + 82} height="150" fill="#ffffff" opacity="0.01" stroke="none" />
+      <polygon
+        points={`${rampStartX},${rampBankY} ${dockX},${rampTopY} ${dockX},${rampTopY + 8} ${rampStartX},${rampBankY + 8}`}
+        fill="#ffffff"
+        strokeWidth="1.8"
+      />
+      {hasRails && (
+        <>
+          <line x1={rampStartX + 8} y1={rampBankY - 20} x2={dockX - 8} y2={rampTopY - 18} strokeWidth="1.2" />
+          <line x1={rampStartX + 20} y1={rampBankY - 14} x2={rampStartX + 20} y2={rampBankY + 3} strokeWidth="1" />
+          <line x1={dockX - 20} y1={rampTopY - 18} x2={dockX - 20} y2={rampTopY + 2} strokeWidth="1" />
+        </>
+      )}
+      <rect x={dockX} y={dockY} width={dockLengthPx} height={dockHeight} fill="#ffffff" strokeWidth="2" />
+      <line x1={dockX + 12} y1={dockY + dockHeight} x2={dockRightX - 12} y2={dockY + dockHeight} strokeWidth="1" />
+      <ellipse cx={dockX + dockLengthPx * 0.32} cy={dockY + dockHeight + 21} rx="34" ry="10" strokeWidth="1.2" />
+      <ellipse cx={dockX + dockLengthPx * 0.68} cy={dockY + dockHeight + 21} rx="34" ry="10" strokeWidth="1.2" />
+      <line x1={dockX} y1={dockY - 22} x2={dockRightX} y2={dockY - 22} markerStart="url(#black-arrow)" markerEnd="url(#black-arrow)" strokeWidth="1.2" />
+      <line x1={dockX} y1={dockY - 27} x2={dockX} y2={dockY - 12} strokeWidth="1" />
+      <line x1={dockRightX} y1={dockY - 27} x2={dockRightX} y2={dockY - 12} strokeWidth="1" />
+      <text x={dockX + dockLengthPx / 2 - 16} y={dockY - 30} fill={ink} stroke="none" fontSize="12" fontWeight="700">
+        {feetLabel(reference?.dockLengthFt, 'DOCK LENGTH')}
+      </text>
+      <text x={dockX + 10} y={dockY - 5} fill={ink} stroke="none" fontSize="12" fontWeight="700">
+        {dockLabel}
+      </text>
+      <text x={rampStartX + 12} y={rampBankY - 18} fill={ink} stroke="none" fontSize="12" fontWeight="700">
+        {rampLabel}
+      </text>
+    </g>
+  );
+}
+
 function controlGroup(title: string, children: ReactNode) {
   return (
     <section className="rounded-md border border-slate-200 bg-white p-3">
@@ -1008,6 +1067,14 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     updateField(field, clampNumber(parsedValue, 0, 12));
   };
 
+  const updateDockRampReference = (field: keyof NonNullable<SectionViewData['dockRampReference']>, value: number | string) => {
+    updateField('dockRampReference', {
+      source: 'manual',
+      ...(sectionView.dockRampReference ?? {}),
+      [field]: value,
+    });
+  };
+
   const handleTemplateChange = (templateId: SectionViewTemplateId) => {
     onChange(applySectionTemplate(templateId));
   };
@@ -1115,6 +1182,8 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
   );
   const useArmourTemplate = sectionView.templateId === 'armour_stone' || sectionView.showArmourStone;
   const useDockTemplate = sectionView.templateId === 'floating_dock_shoreline' || sectionView.showDockReference;
+  const dockReferenceLabel = labelText('dock-profile', dimensionLabel(sectionView.dockRampReference?.dockLengthFt, sectionView.dockRampReference?.dockWidthFt, 'Floating Dock'));
+  const rampReferenceLabel = labelText('dock-profile-ramp', `${dimensionLabel(sectionView.dockRampReference?.rampLengthFt, sectionView.dockRampReference?.rampWidthFt, 'Access Ramp')} Access Ramp`);
 
   return (
     <div className="grid h-full min-h-0 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -1272,18 +1341,9 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
             {useDockTemplate &&
               editableElement(
                 'dock-profile',
-                <g stroke={ink} fill="none">
-                <rect x="455" y={highWaterY - 96} width="380" height="100" fill="#ffffff" opacity="0.01" stroke="none" />
-                <line x1="470" y1={highWaterY - 76} x2="620" y2={highWaterY - 47} strokeWidth="2.2" />
-                <line x1="470" y1={highWaterY - 68} x2="620" y2={highWaterY - 39} strokeWidth="1.1" />
-                <line x1="472" y1={highWaterY - 78} x2="472" y2={highWaterY - 58} strokeWidth="1.1" />
-                <rect x="628" y={highWaterY - 58} width="186" height="16" strokeWidth="1.8" />
-                <line x1="646" y1={highWaterY - 42} x2="794" y2={highWaterY - 42} strokeWidth="1.1" />
-                <ellipse cx="688" cy={highWaterY - 23} rx="42" ry="12" strokeWidth="1.3" />
-                <ellipse cx="764" cy={highWaterY - 23} rx="42" ry="12" strokeWidth="1.3" />
-                </g>,
-                470,
-                highWaterY - 86,
+                dockRampProfile(highWaterY, sectionView.dockRampReference, dockReferenceLabel, rampReferenceLabel),
+                500,
+                highWaterY - 118,
               )}
 
             {sectionView.showDimensions && (
@@ -1323,9 +1383,9 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
               editableElement('callout-armour', callout(labelText('callout-armour', 'ARMOUR STONE WALL'), 736, 238, 632, highWaterY - 46, 'armour'), 736, 226)}
             {useArmourTemplate &&
               editableElement('callout-clear-stone', callout(labelText('callout-clear-stone', 'CLEAR STONE BASE'), 724, 454, 616, highWaterY + 76, 'clear-stone'), 724, 442)}
-            {useDockTemplate && editableElement('callout-ramp', callout(labelText('callout-ramp', 'ACCESS RAMP'), 486, 178, 535, highWaterY - 62, 'ramp'), 486, 166)}
+            {useDockTemplate && editableElement('callout-ramp', callout(labelText('callout-ramp', rampReferenceLabel.toUpperCase()), 486, 178, 535, highWaterY - 62, 'ramp'), 486, 166)}
             {useDockTemplate &&
-              editableElement('callout-dock', callout(labelText('callout-dock', 'FLOATING DOCK'), 786, 202, 716, highWaterY - 56, 'dock'), 786, 190)}
+              editableElement('callout-dock', callout(labelText('callout-dock', `FLOATING DOCK ${feetLabel(sectionView.dockRampReference?.dockLengthFt, '')}`.trim()), 786, 202, 716, highWaterY - 56, 'dock'), 786, 190)}
 
             {editableElement(
               'notes',
@@ -1699,6 +1759,53 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                   {sectionTemplates[templateId].title}
                 </button>
               ))}
+            </div>,
+          )}
+
+          {controlGroup(
+            'Dock / Ramp Reference',
+            <div className="space-y-2">
+              <p className="text-xs text-slate-500">
+                Source: {sectionView.dockRampReference?.source === 'buildPlan' ? 'Build Plan' : sectionView.dockRampReference?.source === 'manual' ? 'Manual' : 'Default schematic'}
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: 'Dock length', field: 'dockLengthFt', value: sectionView.dockRampReference?.dockLengthFt },
+                  { label: 'Dock width', field: 'dockWidthFt', value: sectionView.dockRampReference?.dockWidthFt },
+                  { label: 'Ramp length', field: 'rampLengthFt', value: sectionView.dockRampReference?.rampLengthFt },
+                  { label: 'Ramp width', field: 'rampWidthFt', value: sectionView.dockRampReference?.rampWidthFt },
+                ].map((control) => (
+                  <label key={control.field} className="block">
+                    <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">{control.label}</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={control.value ?? ''}
+                      placeholder="Not set"
+                      onChange={(event) => {
+                        const parsedValue = Number(event.target.value);
+                        if (Number.isFinite(parsedValue)) {
+                          updateDockRampReference(control.field as keyof NonNullable<SectionViewData['dockRampReference']>, clampNumber(parsedValue, 0, 200));
+                        }
+                      }}
+                      className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                    />
+                  </label>
+                ))}
+              </div>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Ramp type</span>
+                <select
+                  value={sectionView.dockRampReference?.rampType ?? 'unknown'}
+                  onChange={(event) => updateDockRampReference('rampType', event.target.value)}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+                >
+                  <option value="unknown">Access ramp</option>
+                  <option value="with_rails">Ramp with rails</option>
+                  <option value="without_rails">Ramp without rails</option>
+                </select>
+              </label>
             </div>,
           )}
 

@@ -63,6 +63,15 @@ export interface SectionViewCustomItem {
   hidden?: boolean;
 }
 
+export interface SectionViewDockRampReference {
+  source: 'buildPlan' | 'manual';
+  dockLengthFt?: number;
+  dockWidthFt?: number;
+  rampLengthFt?: number;
+  rampWidthFt?: number;
+  rampType?: 'with_rails' | 'without_rails' | 'unknown';
+}
+
 export interface SectionViewData {
   templateId: SectionViewTemplateId;
   title: string;
@@ -80,6 +89,7 @@ export interface SectionViewData {
   ripRapSettings?: SectionViewRipRapSettings;
   ripRapZones?: SectionViewRipRapZone[];
   customItems?: SectionViewCustomItem[];
+  dockRampReference?: SectionViewDockRampReference;
   profileGeometry?: SectionViewProfileGeometry;
   labelOverrides?: Record<string, string>;
   titleBlock?: SectionViewTitleBlock;

@@ -16,6 +16,13 @@ function objectLengthFeet(object: DockObject, scale: ProjectScale, axis: 'width'
   return scale.unit === 'm' ? lengthInScaleUnits * FEET_PER_METER : lengthInScaleUnits;
 }
 
+function objectDimensionsFeet(object: DockObject, scale: ProjectScale) {
+  return {
+    lengthFt: objectLengthFeet(object, scale, 'width') ?? undefined,
+    widthFt: objectLengthFeet(object, scale, 'height') ?? undefined,
+  };
+}
+
 function formatDimension(object: DockObject, scale: ProjectScale) {
   const length = objectLengthFeet(object, scale, 'width');
   const width = objectLengthFeet(object, scale, 'height');
@@ -151,6 +158,8 @@ export function generateSectionViewFromBuildPlan(
   const supportedObjects = project.objects.filter((object) =>
     ['floating_dock', 'ramp_with_rails', 'ramp_without_rails', 'boat_lift', 'boat_port', 'boathouse'].includes(object.type),
   );
+  const floatingDockDimensions = floatingDock ? objectDimensionsFeet(floatingDock, currentScale) : undefined;
+  const rampDimensions = ramp ? objectDimensionsFeet(ramp, currentScale) : undefined;
 
   detectedItems.push(...supportedObjects.map((object) => elementSummary(object, currentScale)));
 
@@ -188,6 +197,22 @@ export function generateSectionViewFromBuildPlan(
     templateId: floatingDock ? 'floating_dock_shoreline' : currentSectionView.templateId,
     title: floatingDock && currentSectionView.title.trim().length === 0 ? 'Floating Dock / Shoreline Section' : currentSectionView.title,
     showDockReference: floatingDock ? true : currentSectionView.showDockReference,
+    dockRampReference: floatingDock || ramp
+      ? {
+        source: currentSectionView.dockRampReference?.source === 'manual' ? 'manual' : 'buildPlan',
+        dockLengthFt: currentSectionView.dockRampReference?.source === 'manual' ? currentSectionView.dockRampReference.dockLengthFt : floatingDockDimensions?.lengthFt,
+        dockWidthFt: currentSectionView.dockRampReference?.source === 'manual' ? currentSectionView.dockRampReference.dockWidthFt : floatingDockDimensions?.widthFt,
+        rampLengthFt: currentSectionView.dockRampReference?.source === 'manual' ? currentSectionView.dockRampReference.rampLengthFt : rampDimensions?.lengthFt,
+        rampWidthFt: currentSectionView.dockRampReference?.source === 'manual' ? currentSectionView.dockRampReference.rampWidthFt : rampDimensions?.widthFt,
+        rampType: currentSectionView.dockRampReference?.source === 'manual'
+          ? currentSectionView.dockRampReference.rampType
+          : ramp?.type === 'ramp_with_rails'
+            ? 'with_rails'
+            : ramp?.type === 'ramp_without_rails'
+              ? 'without_rails'
+              : 'unknown',
+      }
+      : currentSectionView.dockRampReference,
     labelOverrides: {
       ...(floatingDock && !currentSectionView.labelOverrides?.['callout-dock']
         ? { 'callout-dock': `FLOATING DOCK ${formatDimension(floatingDock, currentScale)}` }
