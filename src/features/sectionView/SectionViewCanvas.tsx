@@ -32,13 +32,13 @@ const drawingRight = 1008;
 const baseHighWaterY = 365;
 const lowWaterOffset = 42;
 const defaultRipRapSettings: SectionViewRipRapSettings = {
-  x: 238,
-  y: 274,
-  length: 352,
-  depth: 92,
-  slopeDegrees: 15,
-  stoneSize: 20,
-  density: 1.4,
+  x: 104,
+  y: 336,
+  length: 215,
+  depth: 66,
+  slopeDegrees: 5,
+  stoneSize: 22,
+  density: 3,
   showFilterLayer: true,
 };
 
@@ -158,16 +158,17 @@ function pointBounds(points: SectionViewPoint[]) {
 function buildRipRapBoundary(settings: SectionViewRipRapSettings) {
   const slopeRise = Math.tan((settings.slopeDegrees * Math.PI) / 180) * settings.length;
   const topPoints = [
-    { x: settings.x + 18, y: settings.y + 2 },
-    { x: settings.x + settings.length * 0.34, y: settings.y + slopeRise * 0.34 + 8 },
-    { x: settings.x + settings.length * 0.62, y: settings.y + slopeRise * 0.62 },
-    { x: settings.x + settings.length - 18, y: settings.y + slopeRise + 5 },
+    { x: settings.x + 3, y: settings.y + 8 },
+    { x: settings.x + settings.length * 0.2, y: settings.y + slopeRise * 0.2 - 2 },
+    { x: settings.x + settings.length * 0.48, y: settings.y + slopeRise * 0.48 + 12 },
+    { x: settings.x + settings.length * 0.72, y: settings.y + slopeRise * 0.72 + 2 },
+    { x: settings.x + settings.length - 12, y: settings.y + slopeRise + 14 },
   ];
   const bottomPoints = [
-    { x: settings.x + 12, y: settings.y + settings.depth - 2 },
-    { x: settings.x + settings.length * 0.35, y: settings.y + slopeRise * 0.35 + settings.depth + 16 },
-    { x: settings.x + settings.length * 0.68, y: settings.y + slopeRise * 0.68 + settings.depth + 8 },
-    { x: settings.x + settings.length - 10, y: settings.y + slopeRise + settings.depth - 4 },
+    { x: settings.x + 10, y: settings.y + settings.depth - 14 },
+    { x: settings.x + settings.length * 0.28, y: settings.y + slopeRise * 0.28 + settings.depth + 12 },
+    { x: settings.x + settings.length * 0.58, y: settings.y + slopeRise * 0.58 + settings.depth + 2 },
+    { x: settings.x + settings.length - 2, y: settings.y + slopeRise + settings.depth - 12 },
   ];
 
   return { topPoints, bottomPoints };
@@ -232,9 +233,9 @@ function ripRapStoneField(settings: SectionViewRipRapSettings, topPoints: Sectio
       <polygon
         key={key}
         points={points}
-        fill={seed % 3 === 0 ? '#cbd5e1' : '#e5e7eb'}
+        fill={seed % 3 === 0 ? '#6f8794' : seed % 3 === 1 ? '#8fa0a8' : '#b2bec5'}
         stroke={ink}
-        strokeWidth="1"
+        strokeWidth="1.4"
       />
     );
   };
@@ -265,40 +266,50 @@ function ripRapStoneField(settings: SectionViewRipRapSettings, topPoints: Sectio
 }
 
 function titleBlock(projectName: string, title: string, drawingDate: string, titleBlock: SectionViewData['titleBlock']) {
-  const x = 728;
-  const y = 658;
-  const rowHeight = 20;
+  const x = 682;
+  const y = 620;
+  const rowHeight = 22;
   const rows = [
+    ['DATE', titleBlock?.date || drawingDate],
     ['CLIENT', titleBlock?.client || projectName || 'Kehoe Dock Planner'],
     ['LOCATION', titleBlock?.location || 'Site visit / permit support'],
     ['DESCRIPTION', titleBlock?.description || title],
+    ['COMPLETED BY', titleBlock?.completedBy || 'Kehoe Marine'],
     ['DRAWING #', titleBlock?.drawingNumber || 'SV-1'],
     ['REV', titleBlock?.revision || 'A'],
-    ['COMPLETED BY', titleBlock?.completedBy || 'Kehoe Marine'],
-    ['DATE', titleBlock?.date || drawingDate],
-    ['SCALE', 'NOT TO SCALE'],
   ];
 
   return (
     <g>
-      <rect x={x} y={y} width="330" height="164" fill="#ffffff" stroke={ink} strokeWidth="1.5" />
-      <rect x={x} y={y} width="330" height="28" fill="#ffffff" stroke={ink} strokeWidth="1.2" />
-      <text x={x + 10} y={y + 19} fill={ink} fontSize="14" fontWeight="800">
-        KEHOE SECTION VIEW
+      <rect x={x} y={y} width="376" height="184" fill="#ffffff" stroke={ink} strokeWidth="1.2" />
+      <rect x={x} y={y} width="376" height="58" fill="#ffffff" stroke={ink} strokeWidth="1" />
+      <line x1={x + 96} y1={y} x2={x + 96} y2={y + 58} stroke={ink} strokeWidth="1" />
+      <text x={x + 20} y={y + 25} fill={ink} fontSize="16" fontWeight="800">
+        Not to
       </text>
-      <text x={x + 236} y={y + 19} fill={ink} fontSize="11" fontWeight="800">
-        NOT TO SCALE
+      <text x={x + 24} y={y + 47} fill={ink} fontSize="16" fontWeight="800">
+        Scale
+      </text>
+      <rect x={x + 112} y={y + 18} width="68" height="28" fill="#cf2e2e" stroke="none" />
+      <text x={x + 122} y={y + 37} fill="#ffffff" fontSize="14" fontStyle="italic" fontWeight="800">
+        Kehoe
+      </text>
+      <text x={x + 190} y={y + 31} fill={mutedInk} fontSize="7" fontWeight="700">
+        MARINE
+      </text>
+      <text x={x + 190} y={y + 41} fill={mutedInk} fontSize="7" fontWeight="700">
+        CONSTRUCTION
       </text>
       {rows.map(([label, value], index) => {
-        const rowY = y + 28 + index * rowHeight;
+        const rowY = y + 58 + index * rowHeight;
         return (
           <g key={label}>
-            <line x1={x} y1={rowY} x2={x + 330} y2={rowY} stroke={ink} strokeWidth="0.7" />
-            <line x1={x + 92} y1={rowY} x2={x + 92} y2={rowY + rowHeight} stroke={ink} strokeWidth="0.7" />
-            <text x={x + 8} y={rowY + 14} fill={mutedInk} fontSize="9" fontWeight="700">
+            <line x1={x} y1={rowY} x2={x + 376} y2={rowY} stroke={ink} strokeWidth="0.65" />
+            <line x1={x + 92} y1={rowY} x2={x + 92} y2={rowY + rowHeight} stroke={ink} strokeWidth="0.65" />
+            <text x={x + 8} y={rowY + 15} fill={mutedInk} fontSize="8.5" fontWeight="700">
               {label}
             </text>
-            <text x={x + 102} y={rowY + 14} fill={ink} fontSize="10">
+            <text x={x + 102} y={rowY + 15} fill={ink} fontSize="10">
               {value.length > 35 ? `${value.slice(0, 32)}...` : value}
             </text>
           </g>
@@ -321,46 +332,45 @@ function dimensionLabel(lengthFt: number | undefined, widthFt: number | undefine
 }
 
 function dockRampProfile(highWaterY: number, reference: SectionViewData['dockRampReference'], dockLabel: string, rampLabel: string) {
-  const dockLengthPx = Math.max(150, Math.min(310, (reference?.dockLengthFt ?? 40) * 5.6));
-  const rampLengthPx = Math.max(95, Math.min(210, (reference?.rampLengthFt ?? 24) * 5.2));
-  const dockX = 625;
-  const dockY = highWaterY - 52;
-  const dockHeight = 22;
-  const rampStartX = dockX - rampLengthPx + 6;
-  const rampTopY = dockY + 5;
-  const rampBankY = dockY - 40;
+  const dockLengthPx = Math.max(180, Math.min(370, (reference?.dockLengthFt ?? 40) * 6.6));
+  const rampLengthPx = Math.max(80, Math.min(150, (reference?.rampLengthFt ?? 12) * 6.2));
+  const dockX = 348;
+  const dockY = highWaterY - 32;
+  const dockHeight = 27;
+  const rampStartX = dockX - rampLengthPx + 8;
+  const rampTopY = dockY + 1;
+  const rampBankY = dockY - 7;
   const dockRightX = dockX + dockLengthPx;
   const hasRails = reference?.rampType === 'with_rails';
 
   return (
     <g stroke={ink} fill="none">
-      <rect x={rampStartX - 28} y={rampBankY - 50} width={dockLengthPx + rampLengthPx + 82} height="150" fill="#ffffff" opacity="0.01" stroke="none" />
-      <polygon
-        points={`${rampStartX},${rampBankY} ${dockX},${rampTopY} ${dockX},${rampTopY + 8} ${rampStartX},${rampBankY + 8}`}
-        fill="#ffffff"
-        strokeWidth="1.8"
-      />
+      <rect x={rampStartX - 24} y={dockY - 95} width={dockLengthPx + rampLengthPx + 78} height="150" fill="#ffffff" opacity="0.01" stroke="none" />
+      <rect x={rampStartX} y={rampBankY - 7} width={rampLengthPx} height="11" fill="#eef6fb" strokeWidth="1.4" />
       {hasRails && (
         <>
-          <line x1={rampStartX + 8} y1={rampBankY - 20} x2={dockX - 8} y2={rampTopY - 18} strokeWidth="1.2" />
-          <line x1={rampStartX + 20} y1={rampBankY - 14} x2={rampStartX + 20} y2={rampBankY + 3} strokeWidth="1" />
-          <line x1={dockX - 20} y1={rampTopY - 18} x2={dockX - 20} y2={rampTopY + 2} strokeWidth="1" />
+          <line x1={rampStartX + 4} y1={rampBankY - 19} x2={dockX - 8} y2={rampTopY - 18} strokeWidth="1" />
+          <line x1={rampStartX + 12} y1={rampBankY - 19} x2={rampStartX + 12} y2={rampBankY - 7} strokeWidth="0.9" />
+          <line x1={dockX - 18} y1={rampTopY - 18} x2={dockX - 18} y2={rampTopY - 7} strokeWidth="0.9" />
         </>
       )}
-      <rect x={dockX} y={dockY} width={dockLengthPx} height={dockHeight} fill="#ffffff" strokeWidth="2" />
-      <line x1={dockX + 12} y1={dockY + dockHeight} x2={dockRightX - 12} y2={dockY + dockHeight} strokeWidth="1" />
-      <ellipse cx={dockX + dockLengthPx * 0.32} cy={dockY + dockHeight + 21} rx="34" ry="10" strokeWidth="1.2" />
-      <ellipse cx={dockX + dockLengthPx * 0.68} cy={dockY + dockHeight + 21} rx="34" ry="10" strokeWidth="1.2" />
-      <line x1={dockX} y1={dockY - 22} x2={dockRightX} y2={dockY - 22} markerStart="url(#black-arrow)" markerEnd="url(#black-arrow)" strokeWidth="1.2" />
-      <line x1={dockX} y1={dockY - 27} x2={dockX} y2={dockY - 12} strokeWidth="1" />
-      <line x1={dockRightX} y1={dockY - 27} x2={dockRightX} y2={dockY - 12} strokeWidth="1" />
-      <text x={dockX + dockLengthPx / 2 - 16} y={dockY - 30} fill={ink} stroke="none" fontSize="12" fontWeight="700">
+      <rect x={dockX} y={dockY} width={dockLengthPx} height={dockHeight} fill="#f7fbfd" strokeWidth="1.5" />
+      {Array.from({ length: Math.max(12, Math.floor(dockLengthPx / 7)) }, (_, index) => (
+        <line key={index} x1={dockX + 5 + index * 7} y1={dockY + 2} x2={dockX + 5 + index * 7} y2={dockY + dockHeight - 2} stroke="#9a4f25" strokeWidth="1" />
+      ))}
+      <line x1={dockX + 12} y1={dockY + dockHeight + 7} x2={dockRightX - 12} y2={dockY + dockHeight + 7} strokeWidth="0.9" />
+      <path d={`M ${dockX + 12} ${dockY + dockHeight} q 0 18 5 18 L ${dockRightX - 15} ${dockY + dockHeight + 18} q 5 0 5 -18`} strokeWidth="1" />
+      <line x1={dockX} y1={dockY - 18} x2={dockRightX} y2={dockY - 18} markerStart="url(#red-arrow)" markerEnd="url(#red-arrow)" stroke={red} strokeWidth="1.2" />
+      <line x1={dockX} y1={dockY - 22} x2={dockX} y2={dockY - 5} stroke={red} strokeWidth="0.8" />
+      <line x1={dockRightX} y1={dockY - 22} x2={dockRightX} y2={dockY - 5} stroke={red} strokeWidth="0.8" />
+      <text x={dockX + dockLengthPx / 2 - 16} y={dockY - 26} fill={ink} stroke="none" fontSize="13">
         {feetLabel(reference?.dockLengthFt, 'DOCK LENGTH')}
       </text>
-      <text x={dockX + 10} y={dockY - 5} fill={ink} stroke="none" fontSize="12" fontWeight="700">
+      <text x={dockX + 10} y={dockY + dockHeight + 34} fill={ink} stroke="none" fontSize="11">
         {dockLabel}
       </text>
-      <text x={rampStartX + 12} y={rampBankY - 18} fill={ink} stroke="none" fontSize="12" fontWeight="700">
+      <line x1={rampStartX + rampLengthPx * 0.5} y1={dockY - 82} x2={rampStartX + rampLengthPx * 0.5} y2={rampBankY - 12} stroke={red} strokeWidth="1" markerEnd="url(#red-arrow)" />
+      <text x={rampStartX - 14} y={dockY - 88} fill={ink} stroke="none" fontSize="13">
         {rampLabel}
       </text>
     </g>
@@ -1132,15 +1142,16 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
   const defaultProfileGeometry: Required<SectionViewProfileGeometry> = {
     gradePoints: [
       { x: 120, y: gradeStartY },
-      { x: 250, y: gradeStartY + 12 },
-      { x: 390, y: gradeMidY },
-      { x: 540, y: shorelineToeY },
+      { x: 218, y: gradeStartY + 16 },
+      { x: 328, y: gradeMidY + 12 },
+      { x: 520, y: shorelineToeY + 14 },
     ],
     lakebedPoints: [
-      { x: 120, y: lakebedEndY + 30 },
-      { x: 355, y: lakebedEndY + 4 },
-      { x: 630, y: lakebedEndY - 46 },
-      { x: 990, y: lakebedEndY - 70 },
+      { x: 112, y: lakebedEndY - 22 },
+      { x: 300, y: lakebedEndY - 10 },
+      { x: 470, y: lakebedEndY + 28 },
+      { x: 720, y: lakebedEndY + 28 },
+      { x: 990, y: lakebedEndY + 16 },
     ],
     ripRapTopPoints: defaultRipRapBoundary.topPoints,
     ripRapBottomPoints: defaultRipRapBoundary.bottomPoints,
@@ -1224,23 +1235,23 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
               Permit-support visual only - not an engineered stamped drawing
             </text>
 
-            <line x1={drawingLeft} y1={highWaterY} x2={drawingRight} y2={highWaterY} stroke={blue} strokeWidth="1.8" />
+            <line x1={drawingLeft} y1={highWaterY} x2={drawingRight} y2={highWaterY} stroke={blue} strokeWidth="1.5" strokeDasharray="8 7" />
             {editableElement(
               'water-high-label',
-              <text x={drawingLeft + 8} y={highWaterY - 10} fill={blue} fontSize="12" fontWeight="700">
+              <text x={drawingRight - 162} y={highWaterY - 12} fill={blue} fontSize="12">
                 {labelText('water-high-label', 'HIGH WATER LEVEL')}
               </text>,
-              drawingLeft + 8,
-              highWaterY - 18,
+              drawingRight - 162,
+              highWaterY - 20,
             )}
-            <line x1={drawingLeft} y1={lowWaterY} x2={drawingRight} y2={lowWaterY} stroke={blue} strokeWidth="1.4" strokeDasharray="10 7" />
+            <line x1={drawingLeft} y1={lowWaterY} x2={drawingRight} y2={lowWaterY} stroke={blue} strokeWidth="1.3" strokeDasharray="8 8" />
             {editableElement(
               'water-low-label',
-              <text x={drawingLeft + 8} y={lowWaterY + 18} fill={blue} fontSize="12" fontWeight="700">
+              <text x={drawingRight - 158} y={lowWaterY + 22} fill={blue} fontSize="12">
                 {labelText('water-low-label', 'LOW WATER LEVEL')}
               </text>,
-              drawingLeft + 8,
-              lowWaterY + 10,
+              drawingRight - 158,
+              lowWaterY + 14,
             )}
 
             <polyline points={pointsToPolyline(profileGeometry.gradePoints)} fill="none" stroke={ink} strokeWidth="2" />
@@ -1271,9 +1282,10 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                           .reverse()
                           .map((point) => `${point.x} ${point.y}`)
                           .join(' L ')} Z`}
-                        fill="#f8fafc"
+                        fill="#ffffff"
+                        opacity="0.12"
                         stroke={ink}
-                        strokeWidth="1.2"
+                        strokeWidth="0.8"
                       />
                       <g clipPath={`url(#${clipId})`}>{ripRapStoneField(zone, zone.topPoints, zone.bottomPoints)}</g>
                       {zone.showFilterLayer && (
@@ -1285,7 +1297,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                             strokeWidth="1"
                             strokeDasharray="5 5"
                           />
-                          <text x={zone.bottomPoints[1]?.x ?? zone.x + zone.length * 0.36} y={(zone.bottomPoints[1]?.y ?? zone.y + zone.depth) + 34} fill={ink} fontSize="11" fontWeight="700">
+                          <text x={zone.bottomPoints[1]?.x ?? zone.x + zone.length * 0.36} y={(zone.bottomPoints[1]?.y ?? zone.y + zone.depth) + 34} fill={mutedInk} fontSize="10">
                             CLEAR STONE / FILTER LAYER
                           </text>
                           <line x1={zone.bottomPoints[0]?.x ?? zone.x} y1={(zone.bottomPoints[0]?.y ?? zone.y + zone.depth) + 24} x2={zone.bottomPoints[1]?.x ?? zone.x + zone.length * 0.35} y2={(zone.bottomPoints[1]?.y ?? zone.y + zone.depth) + 34} stroke={ink} strokeWidth="5" strokeLinecap="round" />
@@ -1373,12 +1385,12 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
               </g>
             )}
 
-            {editableElement('callout-grade', callout(labelText('callout-grade', 'EXISTING GRADE'), 136, 150, 282, gradeStartY + 15, 'grade'), 136, 138)}
-            {editableElement('callout-lakebed', callout(labelText('callout-lakebed', 'LAKEBED PROFILE'), 132, 592, 390, lakebedEndY, 'lakebed'), 132, 580)}
+            {editableElement('callout-grade', callout(labelText('callout-grade', 'EXISTING GRADE'), 126, 176, 285, gradeStartY + 18, 'grade'), 126, 164)}
+            {editableElement('callout-lakebed', callout(labelText('callout-lakebed', 'LAKEBED PROFILE'), 710, 488, 625, lakebedEndY - 44, 'lakebed'), 710, 476)}
             {sectionView.showRipRap && !useArmourTemplate &&
-              editableElement('callout-riprap', callout(labelText('callout-riprap', 'RIP RAP STONE'), 620, 236, 454, ripRapTop + 76, 'riprap'), 620, 224)}
+              editableElement('callout-riprap', callout(labelText('callout-riprap', 'BOULDERS / RIP RAP'), 612, 522, 265, ripRapBottom + 12, 'riprap'), 612, 510)}
             {sectionView.showRipRap && !useArmourTemplate &&
-              editableElement('callout-pipe', callout(labelText('callout-pipe', 'PERFORATED PIPE'), 208, 530, 360, ripRapBottom + 65, 'pipe'), 208, 518)}
+              editableElement('callout-pipe', callout(labelText('callout-pipe', 'FILTER LAYER'), 156, 496, 252, ripRapBottom + 35, 'pipe'), 156, 484)}
             {useArmourTemplate &&
               editableElement('callout-armour', callout(labelText('callout-armour', 'ARMOUR STONE WALL'), 736, 238, 632, highWaterY - 46, 'armour'), 736, 226)}
             {useArmourTemplate &&
