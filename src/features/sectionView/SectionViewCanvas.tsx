@@ -625,6 +625,18 @@ export function SectionViewCanvas({ sectionView, projectName, drawingInfo, onCha
     });
   };
 
+  const updateProfileVisibility = (field: 'showGradeProfile' | 'showLakebedProfile', value: boolean) => {
+    const nextShowGradeProfile = field === 'showGradeProfile' ? value : showGradeProfile;
+    const nextShowLakebedProfile = field === 'showLakebedProfile' ? value : showLakebedProfile;
+
+    onChange({
+      ...sectionView,
+      showGradeProfile: nextShowGradeProfile,
+      showLakebedProfile: nextShowLakebedProfile,
+      showProfileLines: nextShowGradeProfile || nextShowLakebedProfile,
+    });
+  };
+
   const getSvgPoint = (event: PointerEvent<SVGElement>): SectionViewManualOffset | null => {
     const svgElement = svgRef.current;
     const matrix = svgElement?.getScreenCTM();
@@ -1477,7 +1489,9 @@ export function SectionViewCanvas({ sectionView, projectName, drawingInfo, onCha
   const useArmourTemplate = sectionView.templateId === 'armour_stone' || sectionView.showArmourStone;
   const useDockTemplate = sectionView.templateId === 'floating_dock_shoreline' || sectionView.showDockReference;
   const showWaterLines = sectionView.showWaterLines ?? true;
-  const showProfileLines = sectionView.showProfileLines ?? true;
+  const showGradeProfile = sectionView.showGradeProfile ?? sectionView.showProfileLines ?? true;
+  const showLakebedProfile = sectionView.showLakebedProfile ?? sectionView.showProfileLines ?? true;
+  const primaryRipRapZone = ripRapZones[0] ?? legacyRipRapZone;
   const dockReferenceLabel = labelText('dock-profile', dimensionLabel(sectionView.dockRampReference?.dockLengthFt, sectionView.dockRampReference?.dockWidthFt, 'Floating Dock'));
   const rampReferenceLabel = labelText('dock-profile-ramp', `${dimensionLabel(sectionView.dockRampReference?.rampLengthFt, sectionView.dockRampReference?.rampWidthFt, 'Access Ramp')} Access Ramp`);
 
@@ -1542,24 +1556,22 @@ export function SectionViewCanvas({ sectionView, projectName, drawingInfo, onCha
               </>
             )}
 
-            {showProfileLines && (
-              <>
-                {selectableTemplateElement(
-                  'grade-profile',
-                  <>
-                    <polyline points={pointsToPolyline(profileGeometry.gradePoints)} fill="none" stroke="#ffffff" strokeWidth="16" opacity="0.01" />
-                    <polyline points={pointsToPolyline(profileGeometry.gradePoints)} fill="none" stroke={ink} strokeWidth="2" pointerEvents="none" />
-                  </>,
-                )}
-                {selectableTemplateElement(
-                  'lakebed-profile',
-                  <>
-                    <polyline points={pointsToPolyline(profileGeometry.lakebedPoints)} fill="none" stroke="#ffffff" strokeWidth="16" opacity="0.01" />
-                    <polyline points={pointsToPolyline(profileGeometry.lakebedPoints)} fill="none" stroke={ink} strokeWidth="1.8" pointerEvents="none" />
-                  </>,
-                )}
-              </>
-            )}
+            {showGradeProfile &&
+              selectableTemplateElement(
+                'grade-profile',
+                <>
+                  <polyline points={pointsToPolyline(profileGeometry.gradePoints)} fill="none" stroke="#ffffff" strokeWidth="16" opacity="0.01" />
+                  <polyline points={pointsToPolyline(profileGeometry.gradePoints)} fill="none" stroke={ink} strokeWidth="2" pointerEvents="none" />
+                </>,
+              )}
+            {showLakebedProfile &&
+              selectableTemplateElement(
+                'lakebed-profile',
+                <>
+                  <polyline points={pointsToPolyline(profileGeometry.lakebedPoints)} fill="none" stroke="#ffffff" strokeWidth="16" opacity="0.01" />
+                  <polyline points={pointsToPolyline(profileGeometry.lakebedPoints)} fill="none" stroke={ink} strokeWidth="1.8" pointerEvents="none" />
+                </>,
+              )}
 
             {sectionView.showRipRap && !useArmourTemplate &&
               ripRapZones.map((zone) => {
@@ -1689,11 +1701,11 @@ export function SectionViewCanvas({ sectionView, projectName, drawingInfo, onCha
               </g>
             )}
 
-            {showProfileLines && editableElement('callout-grade', callout(labelText('callout-grade', 'EXISTING GRADE'), 126, 176, 285, gradeStartY + 18, 'grade'), 126, 164)}
-            {showProfileLines && editableElement('callout-lakebed', callout(labelText('callout-lakebed', 'LAKEBED PROFILE'), 710, 488, 625, lakebedEndY - 44, 'lakebed'), 710, 476)}
+            {showGradeProfile && editableElement('callout-grade', callout(labelText('callout-grade', 'EXISTING GRADE'), 126, 176, 285, gradeStartY + 18, 'grade'), 126, 164)}
+            {showLakebedProfile && editableElement('callout-lakebed', callout(labelText('callout-lakebed', 'LAKEBED PROFILE'), 710, 488, 625, lakebedEndY - 44, 'lakebed'), 710, 476)}
             {sectionView.showRipRap && !useArmourTemplate &&
               editableElement('callout-riprap', callout(labelText('callout-riprap', 'BOULDERS / RIP RAP'), 612, 522, 265, ripRapBottom + 12, 'riprap'), 612, 510)}
-            {sectionView.showRipRap && !useArmourTemplate &&
+            {sectionView.showRipRap && !useArmourTemplate && primaryRipRapZone.showFilterLayer &&
               editableElement('callout-pipe', callout(labelText('callout-pipe', 'FILTER LAYER'), 156, 496, 252, ripRapBottom + 35, 'pipe'), 156, 484)}
             {useArmourTemplate &&
               editableElement('callout-armour', callout(labelText('callout-armour', 'ARMOUR STONE WALL'), 736, 238, 632, highWaterY - 46, 'armour'), 736, 226)}
@@ -1720,8 +1732,8 @@ export function SectionViewCanvas({ sectionView, projectName, drawingInfo, onCha
                 item.y - 12,
               ),
             )}
-            {showProfileLines && profilePointHandles('gradePoints', profileGeometry.gradePoints)}
-            {showProfileLines && profilePointHandles('lakebedPoints', profileGeometry.lakebedPoints)}
+            {showGradeProfile && profilePointHandles('gradePoints', profileGeometry.gradePoints)}
+            {showLakebedProfile && profilePointHandles('lakebedPoints', profileGeometry.lakebedPoints)}
             {sectionView.showRipRap && !useArmourTemplate && ripRapZones.map((zone) => ripRapZonePointHandles(zone))}
           </svg>
         </div>
@@ -2247,6 +2259,15 @@ export function SectionViewCanvas({ sectionView, projectName, drawingInfo, onCha
           )}
 
           {controlGroup(
+            'Site Conditions',
+            <div className="space-y-3">
+              <p className="text-xs text-slate-600">
+                Build Plan data does not define shoreline, water, stone, or lakebed conditions. Enable these only when they are known for the permit drawing.
+              </p>
+            </div>,
+          )}
+
+          {controlGroup(
             'Water Levels',
             <div className="space-y-3">
               <label className="flex min-h-11 items-center justify-between gap-3 text-sm text-slate-700">
@@ -2258,6 +2279,24 @@ export function SectionViewCanvas({ sectionView, projectName, drawingInfo, onCha
                   className="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                 />
               </label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">High water label</span>
+                  <input
+                    value={labelText('water-high-label', 'HIGH WATER LEVEL')}
+                    onChange={(event) => updateLabelOverride('water-high-label', event.target.value)}
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Low water label</span>
+                  <input
+                    value={labelText('water-low-label', 'LOW WATER LEVEL')}
+                    onChange={(event) => updateLabelOverride('water-low-label', event.target.value)}
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                  />
+                </label>
+              </div>
               <label className="block">
                 <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Water line offset</span>
                 <input
@@ -2275,11 +2314,20 @@ export function SectionViewCanvas({ sectionView, projectName, drawingInfo, onCha
             'Shoreline / Lakebed',
             <div className="space-y-3">
               <label className="flex min-h-11 items-center justify-between gap-3 text-sm text-slate-700">
-                <span>Show grade / lakebed profile</span>
+                <span>Show existing grade profile</span>
                 <input
                   type="checkbox"
-                  checked={showProfileLines}
-                  onChange={(event) => updateField('showProfileLines', event.target.checked)}
+                  checked={showGradeProfile}
+                  onChange={(event) => updateProfileVisibility('showGradeProfile', event.target.checked)}
+                  className="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                />
+              </label>
+              <label className="flex min-h-11 items-center justify-between gap-3 text-sm text-slate-700">
+                <span>Show lakebed profile</span>
+                <input
+                  type="checkbox"
+                  checked={showLakebedProfile}
+                  onChange={(event) => updateProfileVisibility('showLakebedProfile', event.target.checked)}
                   className="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                 />
               </label>
@@ -2307,30 +2355,10 @@ export function SectionViewCanvas({ sectionView, projectName, drawingInfo, onCha
           )}
 
           {controlGroup(
-            'Materials',
+            'Rip Rap',
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { label: 'Rip rap depth', field: 'ripRapDepthFt', value: sectionView.ripRapDepthFt },
-                  { label: 'Stone rows', field: 'armourStoneRows', value: sectionView.armourStoneRows },
-                ].map((control) => (
-                  <label key={control.field} className="block">
-                    <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">{control.label}</span>
-                    <input
-                      type="number"
-                      min={0}
-                      step={control.field === 'armourStoneRows' ? 1 : 0.25}
-                      value={control.value}
-                      onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                        updateNumberField(control.field as 'ripRapDepthFt' | 'armourStoneRows', event.target.value)
-                      }
-                      className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
-                    />
-                  </label>
-                ))}
-              </div>
               <label className="flex min-h-11 items-center justify-between gap-3 text-sm text-slate-700">
-                <span>Show rip rap stone</span>
+                <span>Enable rip rap stone</span>
                 <input
                   type="checkbox"
                   checked={sectionView.showRipRap}
@@ -2338,13 +2366,102 @@ export function SectionViewCanvas({ sectionView, projectName, drawingInfo, onCha
                   className="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                 />
               </label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: 'Length', value: primaryRipRapZone.length, field: 'length', min: 60, max: 520, step: 5 },
+                  { label: 'Depth', value: primaryRipRapZone.depth, field: 'depth', min: 24, max: 260, step: 5 },
+                  { label: 'Slope', value: primaryRipRapZone.slopeDegrees, field: 'slopeDegrees', min: -35, max: 45, step: 1 },
+                ].map((control) => (
+                  <label key={control.field} className="block">
+                    <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">{control.label}</span>
+                    <input
+                      type="number"
+                      min={control.min}
+                      max={control.max}
+                      step={control.step}
+                      value={control.value}
+                      onChange={(event) => {
+                        const parsedValue = Number(event.target.value);
+                        if (Number.isFinite(parsedValue)) {
+                          updateRipRapSettings(primaryRipRapZone.id, {
+                            [control.field]: clampNumber(parsedValue, control.min, control.max),
+                          });
+                        }
+                      }}
+                      className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                    />
+                  </label>
+                ))}
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Stone Size</span>
+                  <select
+                    value={closestOptionValue(ripRapStoneSizeOptions, primaryRipRapZone.stoneSize)}
+                    onChange={(event) => updateRipRapSettings(primaryRipRapZone.id, { stoneSize: Number(event.target.value) })}
+                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+                  >
+                    {ripRapStoneSizeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Density</span>
+                  <select
+                    value={closestOptionValue(ripRapDensityOptions, primaryRipRapZone.density)}
+                    onChange={(event) => updateRipRapSettings(primaryRipRapZone.id, { density: Number(event.target.value) })}
+                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+                  >
+                    {ripRapDensityOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
               <label className="flex min-h-11 items-center justify-between gap-3 text-sm text-slate-700">
-                <span>Show armour stone wall</span>
+                <span>Show filter layer</span>
+                <input
+                  type="checkbox"
+                  checked={primaryRipRapZone.showFilterLayer}
+                  onChange={(event) => updateRipRapSettings(primaryRipRapZone.id, { showFilterLayer: event.target.checked })}
+                  className="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                />
+              </label>
+            </div>,
+          )}
+
+          {controlGroup(
+            'Armour Stone',
+            <div className="space-y-3">
+              <label className="flex min-h-11 items-center justify-between gap-3 text-sm text-slate-700">
+                <span>Enable armour stone wall</span>
                 <input
                   type="checkbox"
                   checked={sectionView.showArmourStone}
                   onChange={(event) => updateField('showArmourStone', event.target.checked)}
                   className="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Stone rows</span>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={sectionView.armourStoneRows}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => updateNumberField('armourStoneRows', event.target.value)}
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Armour stone label</span>
+                <input
+                  value={labelText('callout-armour', 'ARMOUR STONE WALL')}
+                  onChange={(event) => updateLabelOverride('callout-armour', event.target.value)}
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
                 />
               </label>
             </div>,

@@ -94,6 +94,8 @@ export interface SectionViewData {
   showDimensions: boolean;
   showWaterLines?: boolean;
   showProfileLines?: boolean;
+  showGradeProfile?: boolean;
+  showLakebedProfile?: boolean;
   manualElementOffsets?: Record<string, SectionViewManualOffset>;
   manualElementTransforms?: Record<string, SectionViewManualTransform>;
   ripRapSettings?: SectionViewRipRapSettings;

@@ -15,6 +15,8 @@ export const sectionTemplates: Record<SectionViewTemplateId, SectionViewData> = 
     showDimensions: false,
     showWaterLines: false,
     showProfileLines: false,
+    showGradeProfile: false,
+    showLakebedProfile: false,
     notes: 'Build Plan data loaded where available. Shoreline profile, water levels, stone, rip rap, armour stone, and permit details remain manual.',
   },
   rip_rap: {
@@ -31,6 +33,8 @@ export const sectionTemplates: Record<SectionViewTemplateId, SectionViewData> = 
     showDimensions: true,
     showWaterLines: true,
     showProfileLines: true,
+    showGradeProfile: true,
+    showLakebedProfile: true,
     notes: 'Permit-support visual only. Final design subject to site conditions and approvals.',
   },
   armour_stone: {
@@ -47,6 +51,8 @@ export const sectionTemplates: Record<SectionViewTemplateId, SectionViewData> = 
     showDimensions: true,
     showWaterLines: true,
     showProfileLines: true,
+    showGradeProfile: true,
+    showLakebedProfile: true,
     notes: 'Armour stone layout is a visual placeholder for permit discussion.',
   },
   floating_dock_shoreline: {
@@ -63,6 +69,8 @@ export const sectionTemplates: Record<SectionViewTemplateId, SectionViewData> = 
     showDimensions: true,
     showWaterLines: true,
     showProfileLines: true,
+    showGradeProfile: true,
+    showLakebedProfile: true,
     notes: 'Floating dock reference is schematic and not to scale.',
   },
 };

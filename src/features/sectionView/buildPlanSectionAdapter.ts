@@ -269,6 +269,12 @@ export function generateSectionViewFromBuildPlan(
     showDimensions: hasManualShorelineTemplate ? currentSectionView.showDimensions : false,
     showWaterLines: hasManualShorelineTemplate ? currentSectionView.showWaterLines : false,
     showProfileLines: hasManualShorelineTemplate ? currentSectionView.showProfileLines : false,
+    showGradeProfile: hasManualShorelineTemplate
+      ? currentSectionView.showGradeProfile ?? currentSectionView.showProfileLines
+      : false,
+    showLakebedProfile: hasManualShorelineTemplate
+      ? currentSectionView.showLakebedProfile ?? currentSectionView.showProfileLines
+      : false,
     dockRampReference: floatingDock || ramp
       ? {
         source: currentSectionView.dockRampReference?.source === 'manual' ? 'manual' : 'buildPlan',
