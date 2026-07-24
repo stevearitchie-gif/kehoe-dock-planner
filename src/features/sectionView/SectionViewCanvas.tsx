@@ -59,6 +59,8 @@ const ripRapDensityOptions = [
 const editableElementLabels: Record<string, string> = {
   'water-high-label': 'High water label',
   'water-low-label': 'Low water label',
+  'grade-profile': 'Existing grade profile',
+  'lakebed-profile': 'Lakebed profile',
   'riprap-group': 'Rip rap stone group',
   'armour-group': 'Armour stone group',
   'dock-profile': 'Dock and ramp reference',
@@ -92,10 +94,15 @@ const defaultElementText: Record<string, string> = {
 };
 
 const profileLineLabels: Record<keyof SectionViewProfileGeometry, string> = {
-  gradePoints: 'Existing grade',
-  lakebedPoints: 'Lakebed',
+  gradePoints: 'Existing grade profile',
+  lakebedPoints: 'Lakebed profile',
   ripRapTopPoints: 'Rip rap top boundary',
   ripRapBottomPoints: 'Rip rap bottom boundary',
+};
+
+const profileElementIds: Partial<Record<keyof SectionViewProfileGeometry, string>> = {
+  gradePoints: 'grade-profile',
+  lakebedPoints: 'lakebed-profile',
 };
 
 const resizableElementIds = new Set(['armour-group', 'dock-profile', 'dimension-bank', 'dimension-drop']);
@@ -964,6 +971,33 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     setPointDragState(null);
   };
 
+  const selectableTemplateElement = (elementId: string, children: ReactNode) => {
+    if (hiddenElementSet.has(elementId) || deletedElementSet.has(elementId)) {
+      return null;
+    }
+
+    return (
+      <g
+        key={elementId}
+        onPointerDown={(event) => {
+          if (!manualEditMode) {
+            return;
+          }
+
+          event.preventDefault();
+          event.stopPropagation();
+          setSelectedElementId(elementId);
+          setDragState(null);
+          setPointDragState(null);
+        }}
+        data-section-editable-id={elementId}
+        style={{ cursor: manualEditMode ? 'pointer' : 'default', pointerEvents: 'all' }}
+      >
+        {children}
+      </g>
+    );
+  };
+
   const editableElement = (elementId: string, children: ReactNode, handleX: number, handleY: number) => {
     if (hiddenElementSet.has(elementId) || deletedElementSet.has(elementId)) {
       return null;
@@ -991,7 +1025,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
       >
         {children}
         {manualEditMode && (
-          <g pointerEvents="all">
+          <g pointerEvents="all" data-section-edit-handle="true">
             <circle cx={handleX} cy={handleY} r="18" fill="#ffffff" opacity="0.01" />
             <circle cx={handleX} cy={handleY} r={isSelected ? 7 : 5} fill="#ffffff" stroke={isSelected ? red : blue} strokeWidth="1.6" />
             {isSelected && (
@@ -1010,10 +1044,18 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
       return null;
     }
 
+    const ownerElementId = profileElementIds[lineId];
+    if (ownerElementId && (hiddenElementSet.has(ownerElementId) || deletedElementSet.has(ownerElementId))) {
+      return null;
+    }
+
     return (
-      <g>
+      <g data-section-edit-handle="true">
         {points.map((point, index) => {
           const elementId = `${lineId}:${index}`;
+          if (hiddenElementSet.has(elementId) || deletedElementSet.has(elementId)) {
+            return null;
+          }
           const isSelected = selectedElementId === elementId;
           return (
             <g key={elementId}>
@@ -1048,15 +1090,18 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
   };
 
   const ripRapZonePointHandles = (zone: SectionViewRipRapZone) => {
-    if (!manualEditMode) {
+    if (!manualEditMode || hiddenElementSet.has(`riprap-zone:${zone.id}`) || deletedElementSet.has(`riprap-zone:${zone.id}`)) {
       return null;
     }
 
     return (
-      <g>
+      <g data-section-edit-handle="true">
         {(['top', 'bottom'] as const).flatMap((boundary) =>
           zone[boundary === 'top' ? 'topPoints' : 'bottomPoints'].map((point, index) => {
             const elementId = `ripRapZone:${zone.id}:${boundary}:${index}`;
+            if (hiddenElementSet.has(elementId) || deletedElementSet.has(elementId)) {
+              return null;
+            }
             const isSelected = selectedElementId === elementId;
             return (
               <g key={elementId}>
@@ -1311,7 +1356,9 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
       return;
     }
 
-    const serializedSvg = new XMLSerializer().serializeToString(svgElement);
+    const exportSvg = svgElement.cloneNode(true) as SVGSVGElement;
+    exportSvg.querySelectorAll('[data-section-edit-handle="true"]').forEach((element) => element.remove());
+    const serializedSvg = new XMLSerializer().serializeToString(exportSvg);
     const svgBlob = new Blob([serializedSvg], { type: 'image/svg+xml;charset=utf-8' });
     const objectUrl = URL.createObjectURL(svgBlob);
     const image = new Image();
@@ -1472,8 +1519,20 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
               lowWaterY + 14,
             )}
 
-            <polyline points={pointsToPolyline(profileGeometry.gradePoints)} fill="none" stroke={ink} strokeWidth="2" />
-            <polyline points={pointsToPolyline(profileGeometry.lakebedPoints)} fill="none" stroke={ink} strokeWidth="1.8" />
+            {selectableTemplateElement(
+              'grade-profile',
+              <>
+                <polyline points={pointsToPolyline(profileGeometry.gradePoints)} fill="none" stroke="#ffffff" strokeWidth="16" opacity="0.01" />
+                <polyline points={pointsToPolyline(profileGeometry.gradePoints)} fill="none" stroke={ink} strokeWidth="2" pointerEvents="none" />
+              </>,
+            )}
+            {selectableTemplateElement(
+              'lakebed-profile',
+              <>
+                <polyline points={pointsToPolyline(profileGeometry.lakebedPoints)} fill="none" stroke="#ffffff" strokeWidth="16" opacity="0.01" />
+                <polyline points={pointsToPolyline(profileGeometry.lakebedPoints)} fill="none" stroke={ink} strokeWidth="1.8" pointerEvents="none" />
+              </>,
+            )}
 
             {sectionView.showRipRap && !useArmourTemplate &&
               ripRapZones.map((zone) => {
