@@ -552,10 +552,25 @@ function printImageInHiddenFrame(args: {
           }
           .section-view-image {
             width: 100%;
-            max-height: calc(100vh - 1.75in);
+            height: 100%;
             object-fit: contain;
-            object-position: top left;
+            object-position: center center;
             display: block;
+          }
+          .section-page {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .section-sheet {
+            position: relative;
+            width: min(100%, calc((100vh - 0.7in) * 11 / 8.5));
+            max-width: 100%;
+            aspect-ratio: 11 / 8.5;
+          }
+          .section-sheet .title-block {
+            right: 4.6%;
+            bottom: 4.8%;
           }
           .title-block {
             position: absolute;
@@ -687,9 +702,11 @@ function printImageInHiddenFrame(args: {
         ${
           args.sectionViewImageDataUrl
             ? `
-        <div class="page">
-          <img class="section-view-image" src="${args.sectionViewImageDataUrl}" alt="${args.projectName} Section View" />
-          ${args.sectionViewTitleBlockHtml ?? ''}
+        <div class="page section-page">
+          <div class="section-sheet">
+            <img class="section-view-image" src="${args.sectionViewImageDataUrl}" alt="${args.projectName} Section View" />
+            ${args.sectionViewTitleBlockHtml ?? ''}
+          </div>
         </div>
         `
             : ''
