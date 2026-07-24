@@ -266,22 +266,27 @@ function ripRapStoneField(settings: SectionViewRipRapSettings, topPoints: Sectio
 }
 
 function titleBlock(projectName: string, title: string, drawingDate: string, titleBlock: SectionViewData['titleBlock']) {
-  const x = 674;
-  const y = 688;
-  const width = 384;
-  const height = 120;
-  const colA = 162;
-  const colB = 316;
-  const row1 = y + 22;
-  const row2 = y + 45;
-  const row3 = y + 75;
-  const row4 = y + 97;
-  const row5 = y + height;
+  const width = 390;
+  const x = 1058 - width;
+  const y = 724;
+  const height = 84;
+  const colOneWidth = 164;
+  const colTwoWidth = 156;
+  const rowOneHeight = 17;
+  const rowTwoHeight = 15;
+  const rowThreeHeight = 18;
+  const rowFourHeight = 15;
+  const colOneX = x + colOneWidth;
+  const colTwoX = colOneX + colTwoWidth;
+  const rowOneY = y + rowOneHeight;
+  const rowTwoY = rowOneY + rowTwoHeight;
+  const rowThreeY = rowTwoY + rowThreeHeight;
+  const rowFourY = rowThreeY + rowFourHeight;
   const valueOrFallback = (value: string | undefined, fallback: string) => value || fallback;
-  const truncated = (value: string, maxLength = 30) => (value.length > maxLength ? `${value.slice(0, maxLength - 3)}...` : value);
+  const truncated = (value: string, maxLength = 28) => (value.length > maxLength ? `${value.slice(0, maxLength - 3)}...` : value);
   const fieldText = (label: string, value: string, tx: number, ty: number, maxLength = 30) => (
-    <text x={tx} y={ty} fill={ink} fontSize="8.2">
-      <tspan fill={mutedInk} fontSize="7.2" fontWeight="700">
+    <text x={tx} y={ty} fill={ink} fontSize="8">
+      <tspan fill={ink} fontSize="8" fontWeight="400">
         {label}:
       </tspan>{' '}
       <tspan fontWeight="600">{truncated(value, maxLength)}</tspan>
@@ -291,35 +296,34 @@ function titleBlock(projectName: string, title: string, drawingDate: string, tit
   return (
     <g>
       <rect x={x} y={y} width={width} height={height} fill="#ffffff" stroke={ink} strokeWidth="1.2" />
-      {[row1, row2, row3, row4].map((lineY) => (
-        <line key={lineY} x1={x} y1={lineY} x2={x + width} y2={lineY} stroke={ink} strokeWidth="0.7" />
+      {[rowOneY, rowTwoY, rowThreeY, rowFourY].map((lineY) => (
+        <line key={lineY} x1={x} y1={lineY} x2={x + width} y2={lineY} stroke={ink} strokeWidth="0.9" />
       ))}
-      <line x1={x + colA} y1={y} x2={x + colA} y2={row5} stroke={ink} strokeWidth="0.7" />
-      <line x1={x + colB} y1={y + 75} x2={x + colB} y2={row5} stroke={ink} strokeWidth="0.7" />
-      <line x1={x + 82} y1={row2} x2={x + 82} y2={row4} stroke={ink} strokeWidth="0.7" />
-      <text x={x + 22} y={row2 + 17} fill={ink} fontSize="14" fontWeight="800">
+      <line x1={colOneX} y1={y} x2={colOneX} y2={y + height} stroke={ink} strokeWidth="0.9" />
+      <line x1={colTwoX} y1={rowThreeY} x2={colTwoX} y2={rowFourY} stroke={ink} strokeWidth="0.9" />
+      <text x={x + 33} y={rowTwoY + 11} fill={ink} fontSize="10" fontWeight="800">
         Not to
       </text>
-      <text x={x + 24} y={row2 + 37} fill={ink} fontSize="14" fontWeight="800">
+      <text x={x + 37} y={rowTwoY + 24} fill={ink} fontSize="10" fontWeight="800">
         Scale
       </text>
-      <rect x={x + 94} y={row2 + 12} width="58" height="22" fill="#cf2e2e" stroke="none" />
-      <text x={x + 102} y={row2 + 27} fill="#ffffff" fontSize="12" fontStyle="italic" fontWeight="800">
+      <rect x={x + 64} y={rowTwoY + 5} width="68" height="24" fill="#cf2e2e" stroke="none" />
+      <text x={x + 75} y={rowTwoY + 21} fill="#ffffff" fontSize="14" fontStyle="italic" fontWeight="800">
         Kehoe
       </text>
-      <text x={x + 94} y={row2 + 45} fill={mutedInk} fontSize="6.2" fontWeight="700">
+      <text x={x + 136} y={rowTwoY + 15} fill={mutedInk} fontSize="7" fontWeight="700">
         MARINE
       </text>
-      <text x={x + 124} y={row2 + 45} fill={mutedInk} fontSize="6.2" fontWeight="700">
+      <text x={x + 136} y={rowTwoY + 24} fill={mutedInk} fontSize="7" fontWeight="700">
         CONSTRUCTION
       </text>
-      {fieldText('Date', valueOrFallback(titleBlock?.date, drawingDate), x + 6, y + 15, 18)}
-      {fieldText('Client', valueOrFallback(titleBlock?.client, projectName || 'Kehoe Dock Planner'), x + colA + 6, y + 15, 28)}
-      {fieldText('Location', valueOrFallback(titleBlock?.location, 'Site visit / permit support'), x + colA + 6, row1 + 15, 28)}
-      {fieldText('Description', valueOrFallback(titleBlock?.description, title), x + colA + 6, row2 + 18, 32)}
-      {fieldText('Drawing #', valueOrFallback(titleBlock?.drawingNumber, 'SV-1'), x + colA + 6, row3 + 15, 20)}
-      {fieldText('Rev', valueOrFallback(titleBlock?.revision, 'A'), x + colB + 8, row3 + 15, 6)}
-      {fieldText('Completed By', valueOrFallback(titleBlock?.completedBy, 'Kehoe Marine'), x + 6, row4 + 15, 24)}
+      {fieldText('Date', valueOrFallback(titleBlock?.date, drawingDate), x + 4, y + 11, 18)}
+      {fieldText('Client', valueOrFallback(titleBlock?.client, projectName || 'Kehoe Dock Planner'), colOneX + 4, y + 11, 25)}
+      {fieldText('Location', valueOrFallback(titleBlock?.location, 'Site visit / permit support'), colOneX + 4, rowOneY + 10, 25)}
+      {fieldText('Description', valueOrFallback(titleBlock?.description, title), colOneX + 4, rowTwoY + 12, 29)}
+      {fieldText('Drawing #', valueOrFallback(titleBlock?.drawingNumber, 'SV-1'), colOneX + 4, rowThreeY + 10, 19)}
+      {fieldText('Rev', valueOrFallback(titleBlock?.revision, 'A'), colTwoX + 4, rowThreeY + 10, 8)}
+      {fieldText('Completed By', valueOrFallback(titleBlock?.completedBy, 'Kehoe Marine'), x + 4, rowFourY + 10, 24)}
     </g>
   );
 }
