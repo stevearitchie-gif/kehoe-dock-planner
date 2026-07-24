@@ -4,6 +4,7 @@ import { applySectionTemplate, sectionTemplates } from '@/features/sectionView/s
 import type {
   SectionViewData,
   SectionViewCustomItem,
+  SectionViewCustomItemType,
   SectionViewManualOffset,
   SectionViewManualTransform,
   SectionViewPoint,
@@ -98,6 +99,13 @@ const profileLineLabels: Record<keyof SectionViewProfileGeometry, string> = {
 };
 
 const resizableElementIds = new Set(['armour-group', 'dock-profile', 'dimension-bank', 'dimension-drop']);
+const customItemTypes: Array<{ type: SectionViewCustomItemType; label: string }> = [
+  { type: 'label', label: 'Add Label' },
+  { type: 'arrow', label: 'Add Arrow' },
+  { type: 'line', label: 'Add Line' },
+  { type: 'rectangle', label: 'Add Rectangle / Block' },
+  { type: 'material_area', label: 'Add Material Area' },
+];
 
 function clampNumber(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -118,6 +126,66 @@ function downloadDataUrl(dataUrl: string, filename: string) {
 
 function toFilename(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'section-view';
+}
+
+function customItemText(item: SectionViewCustomItem) {
+  return item.text ?? item.label ?? '';
+}
+
+function defaultCustomItem(type: SectionViewCustomItemType): SectionViewCustomItem {
+  const id = `custom-${Date.now().toString(36)}`;
+  const base = {
+    id,
+    type,
+    x: 190,
+    y: 185,
+    rotation: 0,
+    strokeColor: type === 'arrow' ? red : ink,
+    fillColor: '#ffffff',
+  };
+
+  switch (type) {
+    case 'arrow':
+      return {
+        ...base,
+        text: 'New callout',
+        width: 115,
+        height: 60,
+        strokeColor: red,
+      };
+    case 'line':
+      return {
+        ...base,
+        width: 130,
+        height: 0,
+        strokeColor: ink,
+      };
+    case 'rectangle':
+      return {
+        ...base,
+        width: 120,
+        height: 45,
+        strokeColor: ink,
+      };
+    case 'material_area':
+      return {
+        ...base,
+        text: 'Material area',
+        width: 150,
+        height: 70,
+        strokeColor: ink,
+        fillColor: '#f1f5f9',
+      };
+    case 'label':
+    default:
+      return {
+        ...base,
+        text: 'New label',
+        width: 120,
+        height: 24,
+        strokeColor: red,
+      };
+  }
 }
 
 function formatDate(date: Date) {
@@ -325,6 +393,101 @@ function titleBlock(projectName: string, title: string, drawingDate: string, tit
       {fieldText('Completed By', valueOrFallback(titleBlock?.completedBy, 'Kehoe Marine'), x + 4, rowFourY + 10, 24)}
     </g>
   );
+}
+
+function renderCustomItem(item: SectionViewCustomItem) {
+  if (item.hidden) {
+    return null;
+  }
+
+  const strokeColor = item.strokeColor ?? (item.type === 'arrow' ? red : ink);
+  const fillColor = item.fillColor ?? (item.type === 'material_area' ? '#f1f5f9' : '#ffffff');
+  const width = item.width ?? 120;
+  const height = item.height ?? (item.type === 'label' ? 24 : 45);
+  const text = customItemText(item);
+  const rotation = item.rotation ?? 0;
+  const transform = rotation ? `rotate(${rotation} ${item.x} ${item.y})` : undefined;
+
+  switch (item.type) {
+    case 'arrow':
+      return (
+        <g transform={transform}>
+          <line
+            x1={item.x}
+            y1={item.y}
+            x2={item.x + width}
+            y2={item.y + height}
+            stroke={strokeColor}
+            strokeWidth="1.2"
+            markerEnd="url(#red-arrow)"
+          />
+          {text && (
+            <text x={item.x} y={item.y - 8} fill={strokeColor} fontSize="12" fontWeight="700">
+              {text}
+            </text>
+          )}
+        </g>
+      );
+    case 'line':
+      return (
+        <line
+          x1={item.x}
+          y1={item.y}
+          x2={item.x + width}
+          y2={item.y + height}
+          stroke={strokeColor}
+          strokeWidth="1.4"
+          transform={transform}
+        />
+      );
+    case 'rectangle':
+      return (
+        <rect
+          x={item.x}
+          y={item.y}
+          width={width}
+          height={Math.max(8, height)}
+          fill={fillColor}
+          stroke={strokeColor}
+          strokeWidth="1.2"
+          transform={transform}
+        />
+      );
+    case 'material_area':
+      return (
+        <g transform={transform}>
+          <rect
+            x={item.x}
+            y={item.y}
+            width={width}
+            height={Math.max(12, height)}
+            fill={fillColor}
+            stroke={strokeColor}
+            strokeWidth="1.2"
+            strokeDasharray="6 4"
+          />
+          <path
+            d={`M ${item.x + 12} ${item.y + height - 12} L ${item.x + width * 0.35} ${item.y + 12} L ${item.x + width * 0.66} ${item.y + height - 14} L ${item.x + width - 12} ${item.y + 16}`}
+            fill="none"
+            stroke={strokeColor}
+            strokeWidth="0.8"
+            opacity="0.55"
+          />
+          {text && (
+            <text x={item.x + 8} y={item.y + Math.max(22, height / 2)} fill={strokeColor} fontSize="11" fontWeight="700">
+              {text}
+            </text>
+          )}
+        </g>
+      );
+    case 'label':
+    default:
+      return (
+        <text x={item.x} y={item.y} fill={strokeColor} fontSize="13" fontWeight="700" transform={transform}>
+          {text || 'Custom label'}
+        </text>
+      );
+  }
 }
 
 function feetLabel(value: number | undefined, fallback: string) {
@@ -631,6 +794,17 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     });
   };
 
+  const addCustomItem = (type: SectionViewCustomItemType) => {
+    const item = defaultCustomItem(type);
+    updateField('customItems', [...customItems, item]);
+    setSelectedElementId(`custom:${item.id}`);
+    setManualEditMode(true);
+  };
+
+  const updateCustomItem = (itemId: string, updates: Partial<SectionViewCustomItem>) => {
+    updateField('customItems', customItems.map((item) => (item.id === itemId ? { ...item, ...updates } : item)));
+  };
+
   const resetElementOffset = (elementId: string) => {
     const pointMatch = elementId.match(/^(gradePoints|lakebedPoints|ripRapTopPoints|ripRapBottomPoints):(\d+)$/);
     const zonePointMatch = elementId.match(/^ripRapZone:(.+):(top|bottom):(\d+)$/);
@@ -658,6 +832,28 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     delete nextOffsets[elementId];
     delete nextTransforms[elementId];
     delete nextLabelOverrides[elementId];
+    const customMatch = elementId.match(/^custom:(.+)$/);
+    if (customMatch) {
+      const sourceCustom = customItems.find((item) => item.id === customMatch[1]);
+      if (sourceCustom) {
+        const defaults = defaultCustomItem(sourceCustom.type);
+        onChange({
+          ...sectionView,
+          customItems: customItems.map((item) => item.id === sourceCustom.id ? {
+            ...item,
+            width: defaults.width,
+            height: defaults.height,
+            rotation: defaults.rotation,
+            strokeColor: defaults.strokeColor,
+            fillColor: defaults.fillColor,
+          } : item),
+          manualElementOffsets: nextOffsets,
+          manualElementTransforms: nextTransforms,
+          labelOverrides: nextLabelOverrides,
+        });
+        return;
+      }
+    }
     const nextProfileGeometry = { ...(sectionView.profileGeometry ?? {}) };
     const zoneMatch = elementId.match(/^riprap-zone:(.+)$/);
     if (zoneMatch) {
@@ -703,12 +899,14 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     setSelectedElementId(elementId);
     const zoneMatch = elementId.match(/^riprap-zone:(.+)$/);
     const dragZone = zoneMatch ? ripRapZones.find((zone) => zone.id === zoneMatch[1]) : undefined;
+    const customMatch = elementId.match(/^custom:(.+)$/);
+    const dragCustom = customMatch ? customItems.find((item) => item.id === customMatch[1]) : undefined;
     setDragState({
       elementId,
       startPoint,
       startOffset: {
-        x: dragZone ? dragZone.x : manualElementTransforms[elementId]?.x ?? manualElementOffsets[elementId]?.x ?? 0,
-        y: dragZone ? dragZone.y : manualElementTransforms[elementId]?.y ?? manualElementOffsets[elementId]?.y ?? 0,
+        x: dragZone ? dragZone.x : dragCustom ? dragCustom.x : manualElementTransforms[elementId]?.x ?? manualElementOffsets[elementId]?.x ?? 0,
+        y: dragZone ? dragZone.y : dragCustom ? dragCustom.y : manualElementTransforms[elementId]?.y ?? manualElementOffsets[elementId]?.y ?? 0,
       },
       startRipRapTopPoints: dragZone ? dragZone.topPoints.map((point) => ({ ...point })) : undefined,
       startRipRapBottomPoints: dragZone ? dragZone.bottomPoints.map((point) => ({ ...point })) : undefined,
@@ -743,6 +941,15 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     const zoneMatch = dragState.elementId.match(/^riprap-zone:(.+)$/);
     if (zoneMatch && dragState.startRipRapTopPoints && dragState.startRipRapBottomPoints) {
       moveRipRapSystem(zoneMatch[1], nextX, nextY, dragState.startOffset.x, dragState.startOffset.y, dragState.startRipRapTopPoints, dragState.startRipRapBottomPoints);
+      return;
+    }
+
+    const customMatch = dragState.elementId.match(/^custom:(.+)$/);
+    if (customMatch) {
+      updateCustomItem(customMatch[1], {
+        x: Math.round(nextX),
+        y: Math.round(nextY),
+      });
       return;
     }
 
@@ -910,15 +1117,16 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
     const customMatch = selectedElementId.match(/^custom:(.+)$/);
     const sourceCustom = customMatch ? customItems.find((item) => item.id === customMatch[1]) : undefined;
     const duplicateCustomId = `custom-${Date.now().toString(36)}`;
-    const duplicateLabel = sourceCustom?.label ?? labelText(selectedElementId, defaultElementText[selectedElementId] ?? editableElementLabels[selectedElementId] ?? 'Custom label');
+    const duplicateLabel = sourceCustom ? customItemText(sourceCustom) : labelText(selectedElementId, defaultElementText[selectedElementId] ?? editableElementLabels[selectedElementId] ?? 'Custom label');
     const sourceTransform = {
       ...(manualElementOffsets[selectedElementId] ?? {}),
       ...(manualElementTransforms[selectedElementId] ?? {}),
     };
     const duplicateItem: SectionViewCustomItem = {
+      ...(sourceCustom ?? defaultCustomItem('label')),
       id: duplicateCustomId,
-      type: 'label',
-      label: `${duplicateLabel} copy`,
+      text: `${duplicateLabel} copy`,
+      label: undefined,
       x: (sourceCustom?.x ?? 170 + (sourceTransform.x ?? 0)) + 28,
       y: (sourceCustom?.y ?? 170 + (sourceTransform.y ?? 0)) + 28,
     };
@@ -1187,8 +1395,11 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
   const selectedZoneName = selectedElementId?.startsWith('riprap-zone:')
     ? ripRapZones.find((zone) => `riprap-zone:${zone.id}` === selectedElementId)?.label
     : undefined;
-  const selectedCustomName = selectedElementId?.startsWith('custom:')
-    ? customItems.find((item) => `custom:${item.id}` === selectedElementId)?.label
+  const selectedCustomItem = selectedElementId?.startsWith('custom:')
+    ? customItems.find((item) => `custom:${item.id}` === selectedElementId)
+    : undefined;
+  const selectedCustomName = selectedCustomItem
+    ? `${customItemTypes.find((itemType) => itemType.type === selectedCustomItem.type)?.label.replace(/^Add /, '') ?? 'Custom item'}${customItemText(selectedCustomItem) ? `: ${customItemText(selectedCustomItem)}` : ''}`
     : undefined;
   const selectedItemName = selectedZoneName ?? selectedCustomName ?? (
     selectedZonePointMatch
@@ -1418,9 +1629,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
             {customItems.map((item) =>
               editableElement(
                 `custom:${item.id}`,
-                <text x={item.x} y={item.y} fill={red} fontSize="13" fontWeight="700">
-                  {item.label}
-                </text>,
+                renderCustomItem(item),
                 item.x,
                 item.y - 12,
               ),
@@ -1480,6 +1689,22 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
           )}
 
           {controlGroup(
+            'Add Custom Item',
+            <div className="grid grid-cols-1 gap-2">
+              {customItemTypes.map((itemType) => (
+                <button
+                  key={itemType.type}
+                  type="button"
+                  onClick={() => addCustomItem(itemType.type)}
+                  className="min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+                >
+                  {itemType.label}
+                </button>
+              ))}
+            </div>,
+          )}
+
+          {controlGroup(
             'Manual Edit Mode',
             <div className="space-y-3">
               <label className="flex min-h-11 items-center justify-between gap-3 text-sm text-slate-700">
@@ -1536,19 +1761,93 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                     </div>
                   ) : (
                     <>
-                  {!selectedElementId.startsWith('riprap-zone:') && selectedElementId !== 'title-block' && selectedElementId !== 'notes' && (
+                  {selectedCustomItem && (
+                    <div className="mb-3 rounded-md border border-slate-200 bg-white p-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Custom Item</p>
+                      <label className="mt-2 block">
+                        <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Item type</span>
+                        <select
+                          value={selectedCustomItem.type}
+                          onChange={(event) => updateCustomItem(selectedCustomItem.id, {
+                            type: event.target.value as SectionViewCustomItemType,
+                            text: customItemText(selectedCustomItem) || defaultCustomItem(event.target.value as SectionViewCustomItemType).text,
+                          })}
+                          className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-700"
+                        >
+                          {customItemTypes.map((itemType) => (
+                            <option key={itemType.type} value={itemType.type}>
+                              {itemType.label.replace(/^Add /, '')}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      {selectedCustomItem.type !== 'line' && selectedCustomItem.type !== 'rectangle' && (
+                        <label className="mt-2 block">
+                          <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Text</span>
+                          <input
+                            value={customItemText(selectedCustomItem)}
+                            onChange={(event) => updateCustomItem(selectedCustomItem.id, { text: event.target.value, label: undefined })}
+                            className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-700"
+                          />
+                        </label>
+                      )}
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        {[
+                          { label: 'X position', value: selectedCustomItem.x, field: 'x', min: 0, max: SVG_WIDTH, step: 5 },
+                          { label: 'Y position', value: selectedCustomItem.y, field: 'y', min: 0, max: SVG_HEIGHT, step: 5 },
+                          { label: 'Width', value: selectedCustomItem.width ?? 120, field: 'width', min: 0, max: 800, step: 5 },
+                          { label: 'Height', value: selectedCustomItem.height ?? 40, field: 'height', min: -400, max: 400, step: 5 },
+                          { label: 'Rotation', value: selectedCustomItem.rotation ?? 0, field: 'rotation', min: -180, max: 180, step: 5 },
+                        ].map((control) => (
+                          <label key={control.field} className="block">
+                            <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">{control.label}</span>
+                            <input
+                              type="number"
+                              min={control.min}
+                              max={control.max}
+                              step={control.step}
+                              value={control.value}
+                              onChange={(event) => {
+                                const parsedValue = Number(event.target.value);
+                                if (Number.isFinite(parsedValue)) {
+                                  updateCustomItem(selectedCustomItem.id, {
+                                    [control.field]: clampNumber(parsedValue, control.min, control.max),
+                                  });
+                                }
+                              }}
+                              className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-700"
+                            />
+                          </label>
+                        ))}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <label className="block">
+                          <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Outline</span>
+                          <input
+                            type="color"
+                            value={selectedCustomItem.strokeColor ?? (selectedCustomItem.type === 'arrow' ? red : ink)}
+                            onChange={(event) => updateCustomItem(selectedCustomItem.id, { strokeColor: event.target.value })}
+                            className="h-11 w-full rounded-md border border-slate-300 bg-white px-2 py-1"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Fill</span>
+                          <input
+                            type="color"
+                            value={selectedCustomItem.fillColor ?? (selectedCustomItem.type === 'material_area' ? '#f1f5f9' : '#ffffff')}
+                            onChange={(event) => updateCustomItem(selectedCustomItem.id, { fillColor: event.target.value })}
+                            className="h-11 w-full rounded-md border border-slate-300 bg-white px-2 py-1"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  )}
+                  {!selectedElementId.startsWith('custom:') && !selectedElementId.startsWith('riprap-zone:') && selectedElementId !== 'title-block' && selectedElementId !== 'notes' && (
                     <label className="mb-2 block">
                       <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Label text</span>
                       <input
-                        value={selectedElementId.startsWith('custom:')
-                          ? customItems.find((item) => `custom:${item.id}` === selectedElementId)?.label ?? ''
-                          : labelText(selectedElementId, defaultElementText[selectedElementId] ?? editableElementLabels[selectedElementId] ?? '')}
+                        value={labelText(selectedElementId, defaultElementText[selectedElementId] ?? editableElementLabels[selectedElementId] ?? '')}
                         onChange={(event) => {
-                          const customMatch = selectedElementId.match(/^custom:(.+)$/);
-                          if (customMatch) {
-                            updateField('customItems', customItems.map((item) => item.id === customMatch[1] ? { ...item, label: event.target.value } : item));
-                            return;
-                          }
                           updateLabelOverride(selectedElementId, event.target.value);
                         }}
                         className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-700"

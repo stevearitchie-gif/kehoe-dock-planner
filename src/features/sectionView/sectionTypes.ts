@@ -52,12 +52,20 @@ export interface SectionViewTitleBlock {
   date?: string;
 }
 
+export type SectionViewCustomItemType = 'label' | 'arrow' | 'line' | 'rectangle' | 'material_area';
+
 export interface SectionViewCustomItem {
   id: string;
-  type: 'label';
-  label: string;
+  type: SectionViewCustomItemType;
+  text?: string;
+  label?: string;
   x: number;
   y: number;
+  width?: number;
+  height?: number;
+  rotation?: number;
+  strokeColor?: string;
+  fillColor?: string;
   scaleX?: number;
   scaleY?: number;
   hidden?: boolean;
