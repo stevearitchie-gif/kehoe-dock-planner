@@ -17,10 +17,17 @@ function objectLengthFeet(object: DockObject, scale: ProjectScale, axis: 'width'
   return scale.unit === 'm' ? lengthInScaleUnits * FEET_PER_METER : lengthInScaleUnits;
 }
 
-function objectDimensionsFeet(object: DockObject, scale: ProjectScale) {
+function objectProfileDimensionsFeet(object: DockObject, scale: ProjectScale) {
+  const widthFt = objectLengthFeet(object, scale, 'width');
+  const heightFt = objectLengthFeet(object, scale, 'height');
+
+  if (widthFt === null || heightFt === null) {
+    return undefined;
+  }
+
   return {
-    lengthFt: objectLengthFeet(object, scale, 'width') ?? undefined,
-    widthFt: objectLengthFeet(object, scale, 'height') ?? undefined,
+    lengthFt: Math.max(widthFt, heightFt),
+    widthFt: Math.min(widthFt, heightFt),
   };
 }
 
@@ -33,6 +40,16 @@ function formatDimension(object: DockObject, scale: ProjectScale) {
   }
 
   return `${length.toFixed(1)} ft x ${width.toFixed(1)} ft`;
+}
+
+function formatProfileDimension(object: DockObject, scale: ProjectScale) {
+  const dimensions = objectProfileDimensionsFeet(object, scale);
+
+  if (!dimensions) {
+    return formatDimension(object, scale);
+  }
+
+  return `${dimensions.lengthFt.toFixed(1)} ft x ${dimensions.widthFt.toFixed(1)} ft`;
 }
 
 function formatObjectSize(object: DockObject, scale: ProjectScale) {
@@ -143,6 +160,22 @@ function countTypes(project: DockProject, types: DockObject['type'][]): number {
   return project.objects.filter((object) => types.includes(object.type)).length;
 }
 
+function applyGeneratedLabel(
+  labelOverrides: Record<string, string>,
+  id: string,
+  nextValue: string | undefined,
+  previousGeneratedValues: string[],
+) {
+  if (!nextValue) {
+    return;
+  }
+
+  const currentValue = labelOverrides[id];
+  if (!currentValue || previousGeneratedValues.includes(currentValue)) {
+    labelOverrides[id] = nextValue;
+  }
+}
+
 export function generateSectionViewFromBuildPlan(
   project: DockProject,
   currentScale: ProjectScale,
@@ -159,8 +192,8 @@ export function generateSectionViewFromBuildPlan(
   const supportedObjects = project.objects.filter((object) =>
     ['floating_dock', 'ramp_with_rails', 'ramp_without_rails', 'boat_lift', 'boat_port', 'boathouse'].includes(object.type),
   );
-  const floatingDockDimensions = floatingDock ? objectDimensionsFeet(floatingDock, currentScale) : undefined;
-  const rampDimensions = ramp ? objectDimensionsFeet(ramp, currentScale) : undefined;
+  const floatingDockDimensions = floatingDock ? objectProfileDimensionsFeet(floatingDock, currentScale) : undefined;
+  const rampDimensions = ramp ? objectProfileDimensionsFeet(ramp, currentScale) : undefined;
 
   detectedItems.push(...supportedObjects.map((object) => elementSummary(object, currentScale)));
 
@@ -198,6 +231,30 @@ export function generateSectionViewFromBuildPlan(
     currentSectionView.templateId === 'armour_stone' ||
     currentSectionView.templateId === 'floating_dock_shoreline';
   const buildPlanReferenceTemplate = sectionTemplates.build_plan_reference;
+  const nextLabelOverrides = { ...(currentSectionView.labelOverrides ?? {}) };
+
+  applyGeneratedLabel(
+    nextLabelOverrides,
+    'callout-dock',
+    floatingDock ? `FLOATING DOCK ${formatProfileDimension(floatingDock, currentScale)}` : undefined,
+    floatingDock
+      ? [
+        `FLOATING DOCK ${formatDimension(floatingDock, currentScale)}`,
+        `FLOATING DOCK ${formatProfileDimension(floatingDock, currentScale)}`,
+      ]
+      : [],
+  );
+  applyGeneratedLabel(
+    nextLabelOverrides,
+    'callout-ramp',
+    ramp ? `${formatRampType(ramp.type).toUpperCase()} ${formatProfileDimension(ramp, currentScale)}` : undefined,
+    ramp
+      ? [
+        `${ramp.type.replace(/_/g, ' ').toUpperCase()} ${formatDimension(ramp, currentScale)}`,
+        `${formatRampType(ramp.type).toUpperCase()} ${formatProfileDimension(ramp, currentScale)}`,
+      ]
+      : [],
+  );
 
   return {
     ...currentSectionView,
@@ -228,13 +285,7 @@ export function generateSectionViewFromBuildPlan(
               : 'unknown',
       }
       : currentSectionView.dockRampReference,
-    labelOverrides: {
-      ...(floatingDock && !currentSectionView.labelOverrides?.['callout-dock']
-        ? { 'callout-dock': `FLOATING DOCK ${formatDimension(floatingDock, currentScale)}` }
-        : {}),
-      ...(ramp && !currentSectionView.labelOverrides?.['callout-ramp'] ? { 'callout-ramp': `${ramp.type.replace(/_/g, ' ').toUpperCase()} ${formatDimension(ramp, currentScale)}` } : {}),
-      ...(currentSectionView.labelOverrides ?? {}),
-    },
+    labelOverrides: nextLabelOverrides,
     buildPlanSummary: {
       generatedAt: new Date().toISOString(),
       hasProjectScale: hasScale(currentScale),
