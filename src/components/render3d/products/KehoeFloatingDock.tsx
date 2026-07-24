@@ -29,23 +29,23 @@ const DECK_LINE_OFFSET_FT = 0.045;
 function getMaterials(viewMode: RenderViewMode, deckFinish: FloatingDockDeckFinish, deckColorOverride?: string) {
   const isCustomer = viewMode === 'customer';
   const deckColors: Record<FloatingDockDeckFinish, string> = {
-    'pressure-treated': isCustomer ? '#b98654' : '#9a8f63',
-    cedar: '#b57943',
-    'composite-grey': isCustomer ? '#9ea4a1' : '#8d99a6',
-    'composite-brown': '#8a5f3d',
+    'pressure-treated': isCustomer ? '#ad7b4b' : '#9a8f63',
+    cedar: isCustomer ? '#b97743' : '#b57943',
+    'composite-grey': isCustomer ? '#a9afab' : '#8d99a6',
+    'composite-brown': isCustomer ? '#8e6545' : '#8a5f3d',
   };
   const isComposite = deckFinish === 'composite-grey' || deckFinish === 'composite-brown';
 
   return {
     deck: deckColorOverride || deckColors[deckFinish],
-    deckLine: isComposite ? '#858b88' : '#9b6f48',
-    fascia: isComposite ? (deckFinish === 'composite-grey' ? '#7f8582' : '#755033') : '#7c5534',
+    deckLine: isComposite ? '#7f8582' : '#8b603c',
+    fascia: isComposite ? (deckFinish === 'composite-grey' ? '#818986' : '#725239') : '#74502f',
     fasciaDark: '#1f2933',
     pontoon: isCustomer ? '#2c2119' : '#334155',
     pontoonEnd: isCustomer ? '#3a2b21' : '#475569',
     crossMember: isCustomer ? '#6b7280' : '#64748b',
-    metal: isCustomer ? '#cbd5d8' : '#d1d5db',
-    fastener: isCustomer ? '#d8dee2' : '#f8fafc',
+    metal: isCustomer ? '#d7dee0' : '#d1d5db',
+    fastener: isCustomer ? '#e3e8ea' : '#f8fafc',
   };
 }
 
@@ -110,12 +110,12 @@ function Pontoon({
     <group position={[x, y, 0]}>
       <mesh rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[radius, radius, length * 0.94, 24, 1]} />
-        <meshStandardMaterial color={color} roughness={0.62} metalness={0.04} />
+        <meshStandardMaterial color={color} roughness={0.48} metalness={0.16} />
       </mesh>
       {[-1, 1].map((sign) => (
         <mesh key={sign} position={[0, 0, sign * length * 0.47]} rotation={[Math.PI / 2, 0, 0]} castShadow>
           <cylinderGeometry args={[radius * 0.98, radius * 0.98, 0.06, 24, 1]} />
-          <meshStandardMaterial color={endColor} roughness={0.65} metalness={0.03} />
+          <meshStandardMaterial color={endColor} roughness={0.52} metalness={0.12} />
         </mesh>
       ))}
     </group>
@@ -143,7 +143,7 @@ function CrossMembers({
         return (
           <mesh key={index} position={[0, y, z]} castShadow receiveShadow>
             <boxGeometry args={[width * 0.86, 0.12, 0.12]} />
-            <meshStandardMaterial color={color} roughness={0.52} metalness={0.08} />
+            <meshStandardMaterial color={color} roughness={0.42} metalness={0.16} />
           </mesh>
         );
       })}
@@ -177,11 +177,11 @@ function Cleats({
         <group key={`${x}-${z}`} position={[x, y, z]}>
           <mesh castShadow>
             <boxGeometry args={[CLEAT_WIDTH_FT, 0.06, CLEAT_LENGTH_FT]} />
-            <meshStandardMaterial color={color} roughness={0.36} metalness={0.18} />
+            <meshStandardMaterial color={color} roughness={0.28} metalness={0.32} />
           </mesh>
           <mesh position={[0, 0.045, 0]} castShadow>
             <boxGeometry args={[CLEAT_WIDTH_FT * 1.35, 0.04, CLEAT_LENGTH_FT * 0.18]} />
-            <meshStandardMaterial color={color} roughness={0.34} metalness={0.22} />
+            <meshStandardMaterial color={color} roughness={0.26} metalness={0.36} />
           </mesh>
         </group>
       ))}
@@ -211,7 +211,7 @@ function SideFasteners({
           return (
             <mesh key={`${side}-${index}`} position={[side * (width / 2 + 0.012), y, z]} castShadow>
               <boxGeometry args={[0.025, 0.08, 0.12]} />
-              <meshStandardMaterial color={color} roughness={0.28} metalness={0.2} />
+            <meshStandardMaterial color={color} roughness={0.24} metalness={0.34} />
             </mesh>
           );
         }),
@@ -239,7 +239,7 @@ function ConnectionPlates({
         [-1, 1].map((xSide) => (
           <mesh key={`${xSide}-${zSide}`} position={[xSide * (width / 2 - plateWidth), y, zSide * (length / 2 + 0.02)]} castShadow>
             <boxGeometry args={[plateWidth, 0.045, 0.18]} />
-            <meshStandardMaterial color={color} roughness={0.38} metalness={0.16} />
+            <meshStandardMaterial color={color} roughness={0.28} metalness={0.3} />
           </mesh>
         )),
       )}
@@ -263,6 +263,7 @@ export function KehoeFloatingDock({
   }
 
   const materials = getMaterials(viewMode, deckFinish, deckColorOverride);
+  const isCompositeDeck = deckFinish === 'composite-grey' || deckFinish === 'composite-brown';
   const deckTopY = FASCIA_DEPTH_FT + DECK_THICKNESS_FT;
   const deckY = FASCIA_DEPTH_FT + DECK_THICKNESS_FT / 2;
   const fasciaY = FASCIA_DEPTH_FT / 2;
@@ -277,7 +278,7 @@ export function KehoeFloatingDock({
     <group>
       <mesh position={[0, deckY, 0]} castShadow receiveShadow>
         <boxGeometry args={[footprintWidthFt, DECK_THICKNESS_FT, footprintLengthFt]} />
-        <meshStandardMaterial color={materials.deck} roughness={0.78} transparent={opacity < 1} opacity={opacity} />
+        <meshStandardMaterial color={materials.deck} roughness={isCompositeDeck ? 0.54 : 0.82} metalness={isCompositeDeck ? 0.02 : 0} transparent={opacity < 1} opacity={opacity} />
       </mesh>
       <DeckBoardLines
         width={footprintWidthFt}
@@ -289,17 +290,17 @@ export function KehoeFloatingDock({
 
       <mesh position={[0, fasciaY, -footprintLengthFt / 2 + FASCIA_THICKNESS_FT / 2]} castShadow receiveShadow>
         <boxGeometry args={[footprintWidthFt, FASCIA_DEPTH_FT, FASCIA_THICKNESS_FT]} />
-        <meshStandardMaterial color={materials.fascia} roughness={0.72} transparent={opacity < 1} opacity={opacity} />
+        <meshStandardMaterial color={materials.fascia} roughness={isCompositeDeck ? 0.58 : 0.76} metalness={isCompositeDeck ? 0.02 : 0} transparent={opacity < 1} opacity={opacity} />
       </mesh>
       <mesh position={[0, fasciaY, footprintLengthFt / 2 - FASCIA_THICKNESS_FT / 2]} castShadow receiveShadow>
         <boxGeometry args={[footprintWidthFt, FASCIA_DEPTH_FT, FASCIA_THICKNESS_FT]} />
-        <meshStandardMaterial color={materials.fascia} roughness={0.72} transparent={opacity < 1} opacity={opacity} />
+        <meshStandardMaterial color={materials.fascia} roughness={isCompositeDeck ? 0.58 : 0.76} metalness={isCompositeDeck ? 0.02 : 0} transparent={opacity < 1} opacity={opacity} />
       </mesh>
       {[-1, 1].map((side) => (
         <group key={side}>
           <mesh position={[side * (footprintWidthFt / 2 - FASCIA_THICKNESS_FT / 2), fasciaY, 0]} castShadow receiveShadow>
             <boxGeometry args={[FASCIA_THICKNESS_FT, FASCIA_DEPTH_FT, footprintLengthFt]} />
-            <meshStandardMaterial color={materials.fascia} roughness={0.72} transparent={opacity < 1} opacity={opacity} />
+            <meshStandardMaterial color={materials.fascia} roughness={isCompositeDeck ? 0.58 : 0.76} metalness={isCompositeDeck ? 0.02 : 0} transparent={opacity < 1} opacity={opacity} />
           </mesh>
           <mesh position={[side * (footprintWidthFt / 2 + 0.012), rubY, 0]} castShadow>
             <boxGeometry args={[0.035, 0.09, footprintLengthFt * 0.96]} />

@@ -82,12 +82,12 @@ function getRampTopHeightAtZ(z: number, footprintLengthFt: number, slope: KehoeR
 function getMaterials(viewMode: RenderViewMode) {
   if (viewMode === 'customer') {
     return {
-      aluminum: '#d5dcde',
-      aluminumDark: '#a8b0b4',
-      deck: '#8f9290',
-      deckLine: '#7f8582',
-      plate: '#c9c2b4',
-      lowerPlate: '#b8c0c3',
+      aluminum: '#dce4e6',
+      aluminumDark: '#aab6ba',
+      deck: '#979b98',
+      deckLine: '#7d8582',
+      plate: '#d4c9b6',
+      lowerPlate: '#c5cfd2',
     };
   }
 
@@ -202,7 +202,7 @@ function RailRun({
   return (
     <mesh position={[x, (yA + yB) / 2, (zStart + zEnd) / 2]} rotation={[slopeAngle, 0, 0]} castShadow>
       <boxGeometry args={[radius, radius, beamLength]} />
-      <meshStandardMaterial color={color} roughness={0.42} metalness={0.08} />
+      <meshStandardMaterial color={color} roughness={0.32} metalness={0.28} />
     </mesh>
   );
 }
@@ -234,7 +234,7 @@ function RampDeckLines({
         return (
           <mesh key={index} position={[0, y, z]}>
             <boxGeometry args={[width * 0.92, 0.01, 0.01]} />
-            <meshStandardMaterial color={color} roughness={0.8} />
+            <meshStandardMaterial color={color} roughness={0.72} metalness={0.02} />
           </mesh>
         );
       })}
@@ -270,7 +270,7 @@ function CrossMembers({
         return (
           <mesh key={index} position={[0, y, z]} castShadow receiveShadow>
             <boxGeometry args={[width, 0.12, 0.11]} />
-            <meshStandardMaterial color={color} roughness={0.48} metalness={0.12} />
+            <meshStandardMaterial color={color} roughness={0.34} metalness={0.3} />
           </mesh>
         );
       })}
@@ -306,7 +306,7 @@ function RailPosts({
         return (
           <mesh key={index} position={[x, deckY + RAIL_HEIGHT_FT / 2, z]} castShadow>
             <boxGeometry args={[0.12, RAIL_HEIGHT_FT, 0.12]} />
-            <meshStandardMaterial color={color} roughness={0.42} metalness={0.08} />
+            <meshStandardMaterial color={color} roughness={0.32} metalness={0.3} />
           </mesh>
         );
       })}
@@ -341,7 +341,7 @@ function RailDiagonalBraces({
         return (
           <mesh key={position} position={[x, y, z]} rotation={[0.38 * (index % 2 === 0 ? 1 : -1), 0, 0]} castShadow>
             <boxGeometry args={[0.08, 0.08, 1.2]} />
-            <meshStandardMaterial color={color} roughness={0.48} metalness={0.08} />
+            <meshStandardMaterial color={color} roughness={0.36} metalness={0.28} />
           </mesh>
         );
       })}
@@ -369,7 +369,7 @@ function EndPlate({
   return (
     <mesh position={[0, y, z]} castShadow receiveShadow>
       <boxGeometry args={[width, 0.06, depth]} />
-      <meshStandardMaterial color={color} roughness={0.55} metalness={0.08} />
+      <meshStandardMaterial color={color} roughness={0.34} metalness={0.26} />
     </mesh>
   );
 }
@@ -396,7 +396,7 @@ function DockConnectionPlate({
   return (
     <mesh position={[0, y, z]} castShadow receiveShadow>
       <boxGeometry args={[width, 0.06, depth]} />
-      <meshStandardMaterial color={color} roughness={0.55} metalness={0.08} />
+      <meshStandardMaterial color={color} roughness={0.34} metalness={0.26} />
     </mesh>
   );
 }
@@ -423,7 +423,7 @@ function HingeBarrels({
       {xPositions.map((x) => (
         <mesh key={x} position={[x, y, z]} rotation={[0, 0, Math.PI / 2]} castShadow>
           <cylinderGeometry args={[0.08, 0.08, barrelWidth, 16, 1]} />
-          <meshStandardMaterial color={color} roughness={0.38} metalness={0.18} />
+          <meshStandardMaterial color={color} roughness={0.28} metalness={0.34} />
         </mesh>
       ))}
     </>
@@ -451,7 +451,7 @@ function LowerRollers({
       {xPositions.map((x) => (
         <mesh key={x} position={[x, y, z]} rotation={[0, 0, Math.PI / 2]} castShadow receiveShadow>
           <cylinderGeometry args={[0.11, 0.11, 0.42, 16, 1]} />
-          <meshStandardMaterial color={color} roughness={0.44} metalness={0.12} />
+          <meshStandardMaterial color={color} roughness={0.32} metalness={0.3} />
         </mesh>
       ))}
     </>
@@ -494,7 +494,8 @@ export function KehoeRampWithRails({
         thickness={DECK_THICKNESS_FT}
         color={materials.deck}
         opacity={opacity}
-        roughness={0.78}
+        roughness={0.64}
+        metalness={0.02}
       />
       {[-1, 1].map((sign) => (
         <SlopedBox
@@ -507,8 +508,8 @@ export function KehoeRampWithRails({
           thickness={FRAME_DEPTH_FT}
           color={materials.aluminum}
           opacity={opacity}
-          roughness={0.45}
-          metalness={0.12}
+          roughness={0.34}
+          metalness={0.3}
         />
       ))}
       <CrossMembers width={footprintWidthFt} zStart={zStart} zEnd={zEnd} footprintLengthFt={footprintLengthFt} slope={slope} color={materials.aluminumDark} />
