@@ -1,3 +1,4 @@
+import { getSalesMaterialPalette } from '@/components/render3d/salesMaterials';
 import type { BoatPortRoofType, RenderViewMode } from '@/components/render3d/types';
 
 export interface KehoeBoatPortProps {
@@ -20,12 +21,14 @@ const MIN_FLAT_ROOF_DEPTH_FT = 0.28;
 const MAX_FLAT_ROOF_DEPTH_FT = 0.65;
 
 function getMaterials(viewMode: RenderViewMode) {
+  const palette = getSalesMaterialPalette(viewMode);
+
   if (viewMode === 'customer') {
     return {
-      post: '#e2eaed',
-      frame: '#bccbd2',
-      roof: '#f1f5f6',
-      roofEdge: '#c8d5db',
+      post: palette.aluminum.color,
+      frame: palette.aluminum.darkColor,
+      roof: palette.roof.color,
+      roofEdge: palette.roof.edgeColor,
       base: '#d7e7f4',
     };
   }

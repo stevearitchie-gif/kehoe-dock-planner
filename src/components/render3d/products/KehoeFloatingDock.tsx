@@ -1,3 +1,4 @@
+import { getSalesMaterialPalette } from '@/components/render3d/salesMaterials';
 import type { FloatingDockBoardDirection, RenderViewMode } from '@/components/render3d/types';
 
 export type FloatingDockDeckFinish = 'pressure-treated' | 'cedar' | 'composite-grey' | 'composite-brown';
@@ -27,25 +28,22 @@ const CLEAT_LENGTH_FT = 0.8;
 const DECK_LINE_OFFSET_FT = 0.045;
 
 function getMaterials(viewMode: RenderViewMode, deckFinish: FloatingDockDeckFinish, deckColorOverride?: string) {
-  const isCustomer = viewMode === 'customer';
-  const deckColors: Record<FloatingDockDeckFinish, string> = {
-    'pressure-treated': isCustomer ? '#ad7b4b' : '#9a8f63',
-    cedar: isCustomer ? '#b97743' : '#b57943',
-    'composite-grey': isCustomer ? '#a9afab' : '#8d99a6',
-    'composite-brown': isCustomer ? '#8e6545' : '#8a5f3d',
-  };
+  const palette = getSalesMaterialPalette(viewMode);
   const isComposite = deckFinish === 'composite-grey' || deckFinish === 'composite-brown';
+  const deck = palette.deck[deckFinish];
 
   return {
-    deck: deckColorOverride || deckColors[deckFinish],
-    deckLine: isComposite ? '#7f8582' : '#8b603c',
+    deck: deckColorOverride || deck.color,
+    deckRoughness: deck.roughness,
+    deckMetalness: deck.metalness,
+    deckLine: isComposite ? '#7f8582' : palette.deck.seam,
     fascia: isComposite ? (deckFinish === 'composite-grey' ? '#818986' : '#725239') : '#74502f',
     fasciaDark: '#1f2933',
-    pontoon: isCustomer ? '#2c2119' : '#334155',
-    pontoonEnd: isCustomer ? '#3a2b21' : '#475569',
-    crossMember: isCustomer ? '#6b7280' : '#64748b',
-    metal: isCustomer ? '#d7dee0' : '#d1d5db',
-    fastener: isCustomer ? '#e3e8ea' : '#f8fafc',
+    pontoon: palette.float.color,
+    pontoonEnd: palette.float.endColor,
+    crossMember: palette.aluminum.darkColor,
+    metal: palette.aluminum.color,
+    fastener: palette.fastener.color,
   };
 }
 
@@ -281,8 +279,8 @@ export function KehoeFloatingDock({
         <boxGeometry args={[footprintWidthFt, DECK_THICKNESS_FT, footprintLengthFt]} />
         <meshStandardMaterial
           color={materials.deck}
-          roughness={isCompositeDeck ? 0.58 : 0.82}
-          metalness={isCompositeDeck ? 0.02 : 0}
+          roughness={materials.deckRoughness}
+          metalness={materials.deckMetalness}
           transparent={opacity < 1}
           opacity={opacity}
         />

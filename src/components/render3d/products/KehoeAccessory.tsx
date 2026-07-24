@@ -1,3 +1,4 @@
+import { getSalesMaterialPalette } from '@/components/render3d/salesMaterials';
 import type { AccessoryFinish, AccessoryType, RenderViewMode } from '@/components/render3d/types';
 
 export interface KehoeAccessoryProps {
@@ -18,6 +19,8 @@ function getPositiveValue(value: number, fallback: number) {
 }
 
 function getMaterialColor(type: AccessoryType, finish: AccessoryFinish, viewMode: RenderViewMode) {
+  const palette = getSalesMaterialPalette(viewMode);
+
   if (viewMode === 'internal') {
     return {
       primary: '#0f766e',
@@ -43,9 +46,9 @@ function getMaterialColor(type: AccessoryType, finish: AccessoryFinish, viewMode
   }
 
   return {
-    primary: finish === 'neutral' ? '#94a3b8' : '#cbd5e1',
+    primary: finish === 'neutral' ? '#94a3b8' : palette.aluminum.color,
     secondary: '#e2e8f0',
-    dark: '#64748b',
+    dark: palette.aluminum.darkColor,
   };
 }
 

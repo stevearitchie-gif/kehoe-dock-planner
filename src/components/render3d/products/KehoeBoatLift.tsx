@@ -1,3 +1,4 @@
+import { getSalesMaterialPalette } from '@/components/render3d/salesMaterials';
 import type { RenderViewMode } from '@/components/render3d/types';
 
 export interface KehoeBoatLiftProps {
@@ -16,15 +17,17 @@ const WINDER_RADIUS_FT = 0.085;
 const WINDER_LENGTH_FT = 0.46;
 
 function getMaterials(viewMode: RenderViewMode) {
+  const palette = getSalesMaterialPalette(viewMode);
+
   if (viewMode === 'customer') {
     return {
-      frame: '#e0e8eb',
-      frameDark: '#a9b7be',
+      frame: palette.aluminum.color,
+      frameDark: palette.aluminum.darkColor,
       cable: '#5f6f7a',
-      cradle: '#a5b3ba',
+      cradle: palette.aluminum.darkColor,
       bunk: '#6f6255',
       motor: '#c7d1d7',
-      hardware: '#a2aeb5',
+      hardware: palette.fastener.color,
       winder: '#c7d2d7',
     };
   }

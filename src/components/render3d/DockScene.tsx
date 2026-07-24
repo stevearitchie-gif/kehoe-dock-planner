@@ -1,10 +1,9 @@
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import { Canvas, useThree } from '@react-three/fiber';
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, type ElementRef } from 'react';
-// @ts-ignore -- three is provided by the existing React Three Fiber runtime dependency.
-import { CanvasTexture, RepeatWrapping, type Texture } from 'three';
+import { forwardRef, useEffect, useImperativeHandle, useRef, type ElementRef } from 'react';
 import { FloatingDockModel } from '@/components/render3d/FloatingDockModel';
 import { ProjectDockModel } from '@/components/render3d/ProjectDockModel';
+import { getSalesMaterialPalette } from '@/components/render3d/salesMaterials';
 import { WaterPlane } from '@/components/render3d/WaterPlane';
 import type {
   CameraPreset,
@@ -70,7 +69,6 @@ function ShorelineSegment({
   color,
   opacity,
   sideOffset = 0,
-  texture,
 }: {
   start: ProjectRenderShorelinePoint;
   end: ProjectRenderShorelinePoint;
@@ -79,7 +77,6 @@ function ShorelineSegment({
   color: string;
   opacity: number;
   sideOffset?: number;
-  texture?: Texture | null;
 }) {
   const dx = end.x - start.x;
   const dz = end.z - start.z;
@@ -98,56 +95,9 @@ function ShorelineSegment({
       rotation={[0, Math.atan2(-dz, dx), 0]}
     >
       <boxGeometry args={[length, 0.018, width]} />
-      <meshStandardMaterial color={color} map={texture ?? undefined} roughness={0.84} metalness={0} transparent opacity={opacity} />
+      <meshStandardMaterial color={color} roughness={0.84} metalness={0} transparent opacity={opacity} />
     </mesh>
   );
-}
-
-function createLandTexture(isCustomerView: boolean) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 192;
-  canvas.height = 192;
-  const context = canvas.getContext('2d');
-
-  if (!context) {
-    return null;
-  }
-
-  context.fillStyle = isCustomerView ? '#d3c196' : '#c6b27f';
-  context.fillRect(0, 0, canvas.width, canvas.height);
-
-  for (let index = 0; index < 900; index += 1) {
-    const x = (index * 37) % canvas.width;
-    const y = (index * 61) % canvas.height;
-    const radius = 0.7 + ((index * 17) % 7) * 0.18;
-    const hue = (index * 23) % 3;
-    context.fillStyle =
-      hue === 0
-        ? 'rgba(118, 137, 86, 0.16)'
-        : hue === 1
-          ? 'rgba(154, 124, 75, 0.12)'
-          : 'rgba(232, 217, 177, 0.13)';
-    context.beginPath();
-    context.arc(x, y, radius, 0, Math.PI * 2);
-    context.fill();
-  }
-
-  for (let y = 18; y < canvas.height; y += 22) {
-    context.beginPath();
-    context.moveTo(0, y);
-    for (let x = 0; x <= canvas.width; x += 16) {
-      context.lineTo(x, y + Math.sin((x + y) * 0.07) * 1.4);
-    }
-    context.strokeStyle = 'rgba(94, 111, 69, 0.08)';
-    context.lineWidth = 1;
-    context.stroke();
-  }
-
-  const texture = new CanvasTexture(canvas);
-  texture.wrapS = RepeatWrapping;
-  texture.wrapT = RepeatWrapping;
-  texture.repeat.set(6, 3);
-  return texture;
 }
 
 function isPrimaryWaterElement(element: ProjectRenderElement) {
@@ -207,16 +157,12 @@ function BuildPlanShoreline({
   elements: ProjectRenderElement[];
   viewMode: RenderViewMode;
 }) {
-  const isCustomerView = viewMode === 'customer';
-  const landTexture = useMemo(() => createLandTexture(isCustomerView), [isCustomerView]);
-
   if (points.length < 2) {
     return null;
   }
 
-  const edgeColor = isCustomerView ? '#2f5361' : '#0f766e';
-  const landColor = isCustomerView ? '#d4c19a' : '#c9b582';
-  const transitionColor = isCustomerView ? '#bba879' : '#a99767';
+  const isCustomerView = viewMode === 'customer';
+  const land = getSalesMaterialPalette(viewMode).land;
   const edgeWidth = isCustomerView ? 0.08 : 0.06;
   const landDepth = isCustomerView ? 8 : 6;
   const transitionWidth = isCustomerView ? 0.7 : 0.55;
@@ -235,10 +181,9 @@ function BuildPlanShoreline({
           end={points[index + 1]}
           y={0.016}
           width={landWidth}
-          color={landColor}
+          color={land.color}
           opacity={isCustomerView ? 0.82 : 0.66}
           sideOffset={landOffset}
-          texture={landTexture}
         />
       ))}
       {points.slice(0, -1).map((point, index) => (
@@ -248,7 +193,7 @@ function BuildPlanShoreline({
           end={points[index + 1]}
           y={0.034}
           width={transitionWidth}
-          color={transitionColor}
+          color={land.transitionColor}
           opacity={isCustomerView ? 0.54 : 0.44}
           sideOffset={transitionOffset}
         />
@@ -260,7 +205,7 @@ function BuildPlanShoreline({
           end={points[index + 1]}
           y={0.041}
           width={edgeWidth}
-          color={edgeColor}
+          color={land.edgeColor}
           opacity={isCustomerView ? 0.78 : 0.9}
         />
       ))}
