@@ -244,9 +244,19 @@ export function buildProjectRenderModel(project: DockProject): ProjectRenderMode
     };
   });
 
+  const shorelinePoints = project.shorelinePoints
+    .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
+    .map((point) => ({
+      x: (point.x - originX) * feetPerPixel,
+      z: (point.y - originY) * feetPerPixel,
+      sourceX: point.x,
+      sourceY: point.y,
+    }));
+
   return {
     projectName: project.name,
     elements,
+    shorelinePoints,
     sourceUnitLabel,
     hasProjectScale,
     scalePixels,

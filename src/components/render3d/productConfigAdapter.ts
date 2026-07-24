@@ -154,6 +154,7 @@ export function buildProductConfigurationRenderModel(configurations: ProductConf
   return {
     projectName: 'Quote Product Preview',
     elements,
+    shorelinePoints: [],
     sourceUnitLabel: 'quote ProductConfiguration dimensions (ft)',
     hasProjectScale: true,
     scalePixels: null,

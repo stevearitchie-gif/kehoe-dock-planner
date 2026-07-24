@@ -4,7 +4,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, type ElementRef } f
 import { FloatingDockModel } from '@/components/render3d/FloatingDockModel';
 import { ProjectDockModel } from '@/components/render3d/ProjectDockModel';
 import { WaterPlane } from '@/components/render3d/WaterPlane';
-import type { CameraPreset, DockRenderSettings, ProjectRenderModel, RenderViewMode } from '@/components/render3d/types';
+import type { CameraPreset, DockRenderSettings, ProjectRenderModel, ProjectRenderShorelinePoint, RenderViewMode } from '@/components/render3d/types';
 
 export interface DockSceneHandle {
   exportPng: () => void;
@@ -53,25 +53,72 @@ function CameraRig({ preset, viewMode }: { preset: CameraPreset; viewMode: Rende
   return <OrbitControls ref={controlsRef} makeDefault enableDamping dampingFactor={0.08} maxPolarAngle={Math.PI / 2.05} />;
 }
 
-function ShorelineReference({ viewMode }: { viewMode: RenderViewMode }) {
+function ShorelineSegment({
+  start,
+  end,
+  y,
+  width,
+  color,
+  opacity,
+}: {
+  start: ProjectRenderShorelinePoint;
+  end: ProjectRenderShorelinePoint;
+  y: number;
+  width: number;
+  color: string;
+  opacity: number;
+}) {
+  const dx = end.x - start.x;
+  const dz = end.z - start.z;
+  const length = Math.hypot(dx, dz);
+
+  if (length < 0.01) {
+    return null;
+  }
+
+  return (
+    <mesh position={[(start.x + end.x) / 2, y, (start.z + end.z) / 2]} rotation={[0, Math.atan2(-dz, dx), 0]}>
+      <boxGeometry args={[length, 0.018, width]} />
+      <meshStandardMaterial color={color} roughness={0.72} transparent opacity={opacity} />
+    </mesh>
+  );
+}
+
+function BuildPlanShoreline({ points, viewMode }: { points: ProjectRenderShorelinePoint[]; viewMode: RenderViewMode }) {
+  if (points.length < 2) {
+    return null;
+  }
+
   const isCustomerView = viewMode === 'customer';
-  const landColor = isCustomerView ? '#d8c9a8' : '#cbd5b1';
-  const shoreColor = isCustomerView ? '#b7a477' : '#94a36f';
+  const edgeColor = isCustomerView ? '#2f5361' : '#0f766e';
+  const shoreBandColor = isCustomerView ? '#d7c59d' : '#c9b582';
+  const edgeWidth = isCustomerView ? 0.08 : 0.06;
+  const bandWidth = isCustomerView ? 0.9 : 0.65;
 
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.012, -42]} receiveShadow>
-        <planeGeometry args={[150, 28, 1, 1]} />
-        <meshStandardMaterial color={landColor} roughness={0.92} metalness={0} />
-      </mesh>
-      <mesh position={[0, 0.018, -28.5]} receiveShadow>
-        <boxGeometry args={[150, 0.025, 0.16]} />
-        <meshStandardMaterial color={shoreColor} roughness={0.88} metalness={0} />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.004, -30.2]} receiveShadow>
-        <planeGeometry args={[150, 2.8, 1, 1]} />
-        <meshStandardMaterial color={isCustomerView ? '#c9b98c' : '#aab98c'} roughness={0.9} metalness={0} transparent opacity={0.46} />
-      </mesh>
+      {points.slice(0, -1).map((point, index) => (
+        <ShorelineSegment
+          key={`shore-band-${index}`}
+          start={point}
+          end={points[index + 1]}
+          y={0.024}
+          width={bandWidth}
+          color={shoreBandColor}
+          opacity={isCustomerView ? 0.34 : 0.28}
+        />
+      ))}
+      {points.slice(0, -1).map((point, index) => (
+        <ShorelineSegment
+          key={`shore-edge-${index}`}
+          start={point}
+          end={points[index + 1]}
+          y={0.041}
+          width={edgeWidth}
+          color={edgeColor}
+          opacity={isCustomerView ? 0.78 : 0.9}
+        />
+      ))}
     </group>
   );
 }
@@ -125,7 +172,7 @@ export const DockScene = forwardRef<DockSceneHandle, DockSceneProps>(({ settings
       <directionalLight color="#d9f4ff" position={[-16, 12, -24]} intensity={isCustomerView ? 0.42 : 0.28} />
       <hemisphereLight args={[isCustomerView ? '#dff7ff' : '#dbeafe', isCustomerView ? '#9b8a66' : '#6b7280', isCustomerView ? 0.64 : 0.55]} />
       <WaterPlane viewMode={viewMode} />
-      <ShorelineReference viewMode={viewMode} />
+      {projectModel?.shorelinePoints ? <BuildPlanShoreline points={projectModel.shorelinePoints} viewMode={viewMode} /> : null}
       {projectModel ? <ProjectDockModel model={projectModel} viewMode={viewMode} /> : showFallbackModel ? <FloatingDockModel settings={settings} /> : null}
       {!isCustomerView && (
         <gridHelper args={[80, 40, '#94a3b8', '#cbd5e1']} position={[0, 0.01, 0]} />

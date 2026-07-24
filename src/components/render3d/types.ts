@@ -77,9 +77,17 @@ export interface ProjectRenderElement {
   accessoryFinish?: AccessoryFinish;
 }
 
+export interface ProjectRenderShorelinePoint {
+  x: number;
+  z: number;
+  sourceX: number;
+  sourceY: number;
+}
+
 export interface ProjectRenderModel {
   projectName: string;
   elements: ProjectRenderElement[];
+  shorelinePoints: ProjectRenderShorelinePoint[];
   sourceUnitLabel: string;
   hasProjectScale: boolean;
   scalePixels: number | null;
