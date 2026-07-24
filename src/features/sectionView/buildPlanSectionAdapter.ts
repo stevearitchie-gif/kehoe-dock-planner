@@ -1,5 +1,6 @@
 import type { DockObject, DockProject, ProjectScale } from '@/types/dock';
 import type { SectionViewData } from '@/features/sectionView/sectionTypes';
+import { sectionTemplates } from '@/features/sectionView/sectionTemplates';
 
 const FEET_PER_METER = 3.28084;
 
@@ -192,11 +193,25 @@ export function generateSectionViewFromBuildPlan(
     detectedItems.push('No supported Build Plan objects detected yet');
   }
 
+  const hasManualShorelineTemplate =
+    currentSectionView.templateId === 'rip_rap' ||
+    currentSectionView.templateId === 'armour_stone' ||
+    currentSectionView.templateId === 'floating_dock_shoreline';
+  const buildPlanReferenceTemplate = sectionTemplates.build_plan_reference;
+
   return {
     ...currentSectionView,
-    templateId: floatingDock ? 'floating_dock_shoreline' : currentSectionView.templateId,
-    title: floatingDock && currentSectionView.title.trim().length === 0 ? 'Floating Dock / Shoreline Section' : currentSectionView.title,
-    showDockReference: floatingDock ? true : currentSectionView.showDockReference,
+    templateId: hasManualShorelineTemplate ? currentSectionView.templateId : 'build_plan_reference',
+    title:
+      currentSectionView.title.trim().length === 0 || currentSectionView.templateId === 'build_plan_reference'
+        ? buildPlanReferenceTemplate.title
+        : currentSectionView.title,
+    showDockReference: floatingDock || ramp ? true : currentSectionView.showDockReference,
+    showRipRap: hasManualShorelineTemplate ? currentSectionView.showRipRap : false,
+    showArmourStone: hasManualShorelineTemplate ? currentSectionView.showArmourStone : false,
+    showDimensions: hasManualShorelineTemplate ? currentSectionView.showDimensions : false,
+    showWaterLines: hasManualShorelineTemplate ? currentSectionView.showWaterLines : false,
+    showProfileLines: hasManualShorelineTemplate ? currentSectionView.showProfileLines : false,
     dockRampReference: floatingDock || ramp
       ? {
         source: currentSectionView.dockRampReference?.source === 'manual' ? 'manual' : 'buildPlan',
@@ -232,6 +247,6 @@ export function generateSectionViewFromBuildPlan(
     notes:
       currentSectionView.notes?.trim()
         ? currentSectionView.notes
-        : 'Build Plan data loaded where available. Shoreline profile, stone depth, slope, and permit labels remain manual.',
+        : buildPlanReferenceTemplate.notes,
   };
 }

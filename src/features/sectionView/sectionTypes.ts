@@ -1,4 +1,4 @@
-export type SectionViewTemplateId = 'rip_rap' | 'armour_stone' | 'floating_dock_shoreline';
+export type SectionViewTemplateId = 'rip_rap' | 'armour_stone' | 'floating_dock_shoreline' | 'build_plan_reference';
 
 export interface SectionViewManualOffset {
   x: number;
@@ -92,6 +92,8 @@ export interface SectionViewData {
   showArmourStone: boolean;
   showDockReference: boolean;
   showDimensions: boolean;
+  showWaterLines?: boolean;
+  showProfileLines?: boolean;
   manualElementOffsets?: Record<string, SectionViewManualOffset>;
   manualElementTransforms?: Record<string, SectionViewManualTransform>;
   ripRapSettings?: SectionViewRipRapSettings;

@@ -1,6 +1,22 @@
 import type { SectionViewData, SectionViewTemplateId } from '@/features/sectionView/sectionTypes';
 
 export const sectionTemplates: Record<SectionViewTemplateId, SectionViewData> = {
+  build_plan_reference: {
+    templateId: 'build_plan_reference',
+    title: 'Dock / Ramp Reference Section',
+    waterLevelFt: 0,
+    shorelineHeightFt: 0,
+    lakebedDropFt: 0,
+    ripRapDepthFt: 0,
+    armourStoneRows: 0,
+    showRipRap: false,
+    showArmourStone: false,
+    showDockReference: true,
+    showDimensions: false,
+    showWaterLines: false,
+    showProfileLines: false,
+    notes: 'Build Plan data loaded where available. Shoreline profile, water levels, stone, rip rap, armour stone, and permit details remain manual.',
+  },
   rip_rap: {
     templateId: 'rip_rap',
     title: 'Rip Rap Shoreline Section',
@@ -13,6 +29,8 @@ export const sectionTemplates: Record<SectionViewTemplateId, SectionViewData> = 
     showArmourStone: false,
     showDockReference: false,
     showDimensions: true,
+    showWaterLines: true,
+    showProfileLines: true,
     notes: 'Permit-support visual only. Final design subject to site conditions and approvals.',
   },
   armour_stone: {
@@ -27,6 +45,8 @@ export const sectionTemplates: Record<SectionViewTemplateId, SectionViewData> = 
     showArmourStone: true,
     showDockReference: false,
     showDimensions: true,
+    showWaterLines: true,
+    showProfileLines: true,
     notes: 'Armour stone layout is a visual placeholder for permit discussion.',
   },
   floating_dock_shoreline: {
@@ -41,15 +61,16 @@ export const sectionTemplates: Record<SectionViewTemplateId, SectionViewData> = 
     showArmourStone: false,
     showDockReference: true,
     showDimensions: true,
+    showWaterLines: true,
+    showProfileLines: true,
     notes: 'Floating dock reference is schematic and not to scale.',
   },
 };
 
 export function getDefaultSectionView(): SectionViewData {
-  return { ...sectionTemplates.rip_rap };
+  return { ...sectionTemplates.build_plan_reference };
 }
 
 export function applySectionTemplate(templateId: SectionViewTemplateId): SectionViewData {
   return { ...sectionTemplates[templateId] };
 }
-

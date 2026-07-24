@@ -1459,6 +1459,8 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
   );
   const useArmourTemplate = sectionView.templateId === 'armour_stone' || sectionView.showArmourStone;
   const useDockTemplate = sectionView.templateId === 'floating_dock_shoreline' || sectionView.showDockReference;
+  const showWaterLines = sectionView.showWaterLines ?? true;
+  const showProfileLines = sectionView.showProfileLines ?? true;
   const dockReferenceLabel = labelText('dock-profile', dimensionLabel(sectionView.dockRampReference?.dockLengthFt, sectionView.dockRampReference?.dockWidthFt, 'Floating Dock'));
   const rampReferenceLabel = labelText('dock-profile-ramp', `${dimensionLabel(sectionView.dockRampReference?.rampLengthFt, sectionView.dockRampReference?.rampWidthFt, 'Access Ramp')} Access Ramp`);
 
@@ -1500,38 +1502,46 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
               Permit-support visual only - not an engineered stamped drawing
             </text>
 
-            <line x1={drawingLeft} y1={highWaterY} x2={drawingRight} y2={highWaterY} stroke={blue} strokeWidth="1.5" strokeDasharray="8 7" />
-            {editableElement(
-              'water-high-label',
-              <text x={drawingRight - 162} y={highWaterY - 12} fill={blue} fontSize="12">
-                {labelText('water-high-label', 'HIGH WATER LEVEL')}
-              </text>,
-              drawingRight - 162,
-              highWaterY - 20,
-            )}
-            <line x1={drawingLeft} y1={lowWaterY} x2={drawingRight} y2={lowWaterY} stroke={blue} strokeWidth="1.3" strokeDasharray="8 8" />
-            {editableElement(
-              'water-low-label',
-              <text x={drawingRight - 158} y={lowWaterY + 22} fill={blue} fontSize="12">
-                {labelText('water-low-label', 'LOW WATER LEVEL')}
-              </text>,
-              drawingRight - 158,
-              lowWaterY + 14,
+            {showWaterLines && (
+              <>
+                <line x1={drawingLeft} y1={highWaterY} x2={drawingRight} y2={highWaterY} stroke={blue} strokeWidth="1.5" strokeDasharray="8 7" />
+                {editableElement(
+                  'water-high-label',
+                  <text x={drawingRight - 162} y={highWaterY - 12} fill={blue} fontSize="12">
+                    {labelText('water-high-label', 'HIGH WATER LEVEL')}
+                  </text>,
+                  drawingRight - 162,
+                  highWaterY - 20,
+                )}
+                <line x1={drawingLeft} y1={lowWaterY} x2={drawingRight} y2={lowWaterY} stroke={blue} strokeWidth="1.3" strokeDasharray="8 8" />
+                {editableElement(
+                  'water-low-label',
+                  <text x={drawingRight - 158} y={lowWaterY + 22} fill={blue} fontSize="12">
+                    {labelText('water-low-label', 'LOW WATER LEVEL')}
+                  </text>,
+                  drawingRight - 158,
+                  lowWaterY + 14,
+                )}
+              </>
             )}
 
-            {selectableTemplateElement(
-              'grade-profile',
+            {showProfileLines && (
               <>
-                <polyline points={pointsToPolyline(profileGeometry.gradePoints)} fill="none" stroke="#ffffff" strokeWidth="16" opacity="0.01" />
-                <polyline points={pointsToPolyline(profileGeometry.gradePoints)} fill="none" stroke={ink} strokeWidth="2" pointerEvents="none" />
-              </>,
-            )}
-            {selectableTemplateElement(
-              'lakebed-profile',
-              <>
-                <polyline points={pointsToPolyline(profileGeometry.lakebedPoints)} fill="none" stroke="#ffffff" strokeWidth="16" opacity="0.01" />
-                <polyline points={pointsToPolyline(profileGeometry.lakebedPoints)} fill="none" stroke={ink} strokeWidth="1.8" pointerEvents="none" />
-              </>,
+                {selectableTemplateElement(
+                  'grade-profile',
+                  <>
+                    <polyline points={pointsToPolyline(profileGeometry.gradePoints)} fill="none" stroke="#ffffff" strokeWidth="16" opacity="0.01" />
+                    <polyline points={pointsToPolyline(profileGeometry.gradePoints)} fill="none" stroke={ink} strokeWidth="2" pointerEvents="none" />
+                  </>,
+                )}
+                {selectableTemplateElement(
+                  'lakebed-profile',
+                  <>
+                    <polyline points={pointsToPolyline(profileGeometry.lakebedPoints)} fill="none" stroke="#ffffff" strokeWidth="16" opacity="0.01" />
+                    <polyline points={pointsToPolyline(profileGeometry.lakebedPoints)} fill="none" stroke={ink} strokeWidth="1.8" pointerEvents="none" />
+                  </>,
+                )}
+              </>
             )}
 
             {sectionView.showRipRap && !useArmourTemplate &&
@@ -1662,8 +1672,8 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
               </g>
             )}
 
-            {editableElement('callout-grade', callout(labelText('callout-grade', 'EXISTING GRADE'), 126, 176, 285, gradeStartY + 18, 'grade'), 126, 164)}
-            {editableElement('callout-lakebed', callout(labelText('callout-lakebed', 'LAKEBED PROFILE'), 710, 488, 625, lakebedEndY - 44, 'lakebed'), 710, 476)}
+            {showProfileLines && editableElement('callout-grade', callout(labelText('callout-grade', 'EXISTING GRADE'), 126, 176, 285, gradeStartY + 18, 'grade'), 126, 164)}
+            {showProfileLines && editableElement('callout-lakebed', callout(labelText('callout-lakebed', 'LAKEBED PROFILE'), 710, 488, 625, lakebedEndY - 44, 'lakebed'), 710, 476)}
             {sectionView.showRipRap && !useArmourTemplate &&
               editableElement('callout-riprap', callout(labelText('callout-riprap', 'BOULDERS / RIP RAP'), 612, 522, 265, ripRapBottom + 12, 'riprap'), 612, 510)}
             {sectionView.showRipRap && !useArmourTemplate &&
@@ -1693,8 +1703,8 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                 item.y - 12,
               ),
             )}
-            {profilePointHandles('gradePoints', profileGeometry.gradePoints)}
-            {profilePointHandles('lakebedPoints', profileGeometry.lakebedPoints)}
+            {showProfileLines && profilePointHandles('gradePoints', profileGeometry.gradePoints)}
+            {showProfileLines && profilePointHandles('lakebedPoints', profileGeometry.lakebedPoints)}
             {sectionView.showRipRap && !useArmourTemplate && ripRapZones.map((zone) => ripRapZonePointHandles(zone))}
           </svg>
         </div>
@@ -2221,39 +2231,61 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
 
           {controlGroup(
             'Water Levels',
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Water line offset</span>
-              <input
-                type="number"
-                step={0.25}
-                value={sectionView.waterLevelFt}
-                onChange={(event: ChangeEvent<HTMLInputElement>) => updateNumberField('waterLevelFt', event.target.value)}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
-              />
-            </label>,
+            <div className="space-y-3">
+              <label className="flex min-h-11 items-center justify-between gap-3 text-sm text-slate-700">
+                <span>Show high / low water lines</span>
+                <input
+                  type="checkbox"
+                  checked={showWaterLines}
+                  onChange={(event) => updateField('showWaterLines', event.target.checked)}
+                  className="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Water line offset</span>
+                <input
+                  type="number"
+                  step={0.25}
+                  value={sectionView.waterLevelFt}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => updateNumberField('waterLevelFt', event.target.value)}
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                />
+              </label>
+            </div>,
           )}
 
           {controlGroup(
             'Shoreline / Lakebed',
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { label: 'Bank height', field: 'shorelineHeightFt', value: sectionView.shorelineHeightFt },
-                { label: 'Lakebed drop', field: 'lakebedDropFt', value: sectionView.lakebedDropFt },
-              ].map((control) => (
-                <label key={control.field} className="block">
-                  <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">{control.label}</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.25}
-                    value={control.value}
-                    onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                      updateNumberField(control.field as 'shorelineHeightFt' | 'lakebedDropFt', event.target.value)
-                    }
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
-                  />
-                </label>
-              ))}
+            <div className="space-y-3">
+              <label className="flex min-h-11 items-center justify-between gap-3 text-sm text-slate-700">
+                <span>Show grade / lakebed profile</span>
+                <input
+                  type="checkbox"
+                  checked={showProfileLines}
+                  onChange={(event) => updateField('showProfileLines', event.target.checked)}
+                  className="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                />
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: 'Bank height', field: 'shorelineHeightFt', value: sectionView.shorelineHeightFt },
+                  { label: 'Lakebed drop', field: 'lakebedDropFt', value: sectionView.lakebedDropFt },
+                ].map((control) => (
+                  <label key={control.field} className="block">
+                    <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">{control.label}</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.25}
+                      value={control.value}
+                      onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                        updateNumberField(control.field as 'shorelineHeightFt' | 'lakebedDropFt', event.target.value)
+                      }
+                      className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                    />
+                  </label>
+                ))}
+              </div>
             </div>,
           )}
 
