@@ -9,6 +9,7 @@ export interface KehoeAccessoryProps {
   opacity?: number;
   mountStyle?: 'deck' | 'dock_ladder';
   viewMode: RenderViewMode;
+  colorOverride?: string;
 }
 
 const DEFAULT_LENGTH_FT = 3;
@@ -60,6 +61,7 @@ export function KehoeAccessory({
   opacity = 1,
   mountStyle = 'deck',
   viewMode,
+  colorOverride,
 }: KehoeAccessoryProps) {
   const length = getPositiveValue(footprintLengthFt, DEFAULT_LENGTH_FT);
   const width = getPositiveValue(footprintWidthFt, DEFAULT_WIDTH_FT);
@@ -73,7 +75,9 @@ export function KehoeAccessory({
       : 'cleat';
   const normalizedFinish: AccessoryFinish =
     finish === 'rubber' || finish === 'wood' || finish === 'neutral' ? finish : 'metal';
-  const colors = getMaterialColor(normalizedType, normalizedFinish, viewMode);
+  const materialColors = getMaterialColor(normalizedType, normalizedFinish, viewMode);
+  const primaryColor = colorOverride?.trim() || materialColors.primary;
+  const colors = { ...materialColors, primary: primaryColor };
   const materialProps = {
     roughness: normalizedFinish === 'metal' ? 0.28 : 0.46,
     metalness: normalizedFinish === 'metal' ? 0.36 : 0.04,

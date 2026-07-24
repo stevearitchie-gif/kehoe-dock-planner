@@ -9,6 +9,7 @@ export interface KehoeBoatPortProps {
   roofType?: BoatPortRoofType;
   opacity?: number;
   viewMode: RenderViewMode;
+  roofColorOverride?: string;
 }
 
 const DEFAULT_WALL_HEIGHT_FT = 7;
@@ -53,6 +54,7 @@ function PitchedRoof({
   roofRise,
   materials,
   opacity,
+  roofColor,
 }: {
   length: number;
   width: number;
@@ -60,6 +62,7 @@ function PitchedRoof({
   roofRise: number;
   materials: ReturnType<typeof getMaterials>;
   opacity: number;
+  roofColor: string;
 }) {
   const roofLength = length + ROOF_OVERHANG_FT * 2;
   const halfWidth = width / 2 + ROOF_OVERHANG_FT;
@@ -79,7 +82,7 @@ function PitchedRoof({
           receiveShadow
         >
           <boxGeometry args={[roofLength, PITCHED_ROOF_THICKNESS_FT, roofPlaneWidth]} />
-          <meshStandardMaterial color={materials.roof} roughness={0.36} metalness={0.08} transparent={opacity < 1} opacity={opacity} />
+          <meshStandardMaterial color={roofColor} roughness={0.36} metalness={0.08} transparent={opacity < 1} opacity={opacity} />
         </mesh>
       ))}
       <mesh position={[0, wallHeight + roofRise + 0.02, 0]} castShadow>
@@ -104,12 +107,14 @@ export function KehoeBoatPort({
   roofType = 'pitched',
   opacity = 1,
   viewMode,
+  roofColorOverride,
 }: KehoeBoatPortProps) {
   if (!Number.isFinite(footprintLengthFt) || !Number.isFinite(footprintWidthFt) || footprintLengthFt <= 0 || footprintWidthFt <= 0) {
     return null;
   }
 
   const materials = getMaterials(viewMode);
+  const roofColor = roofColorOverride?.trim() || materials.roof;
   const length = Math.max(2, footprintLengthFt);
   const width = Math.max(1.5, footprintWidthFt);
   const wallHeight = getPositiveValue(wallHeightFt, DEFAULT_WALL_HEIGHT_FT);
@@ -159,10 +164,10 @@ export function KehoeBoatPort({
       {normalizedRoofType === 'flat' ? (
         <mesh position={[0, flatRoofCenterY, 0]} castShadow receiveShadow>
           <boxGeometry args={[length + ROOF_OVERHANG_FT * 2, flatRoofDepth, width + ROOF_OVERHANG_FT * 2]} />
-          <meshStandardMaterial color={materials.roof} roughness={0.38} metalness={0.08} transparent={opacity < 1} opacity={opacity} />
+          <meshStandardMaterial color={roofColor} roughness={0.38} metalness={0.08} transparent={opacity < 1} opacity={opacity} />
         </mesh>
       ) : (
-        <PitchedRoof length={length} width={width} wallHeight={wallHeight} roofRise={roofRise} materials={materials} opacity={opacity} />
+        <PitchedRoof length={length} width={width} wallHeight={wallHeight} roofRise={roofRise} materials={materials} opacity={opacity} roofColor={roofColor} />
       )}
     </group>
   );

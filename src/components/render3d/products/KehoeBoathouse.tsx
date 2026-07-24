@@ -19,6 +19,7 @@ export interface KehoeBoathouseProps {
   roofFinish?: BoathouseRoofFinish;
   opacity?: number;
   viewMode: RenderViewMode;
+  roofColorOverride?: string;
 }
 
 const DEFAULT_WALL_HEIGHT_FT = 9;
@@ -78,6 +79,7 @@ function GableRoof({
   roofRise,
   materials,
   opacity,
+  roofColor,
 }: {
   length: number;
   width: number;
@@ -85,6 +87,7 @@ function GableRoof({
   roofRise: number;
   materials: ReturnType<typeof getMaterials>;
   opacity: number;
+  roofColor: string;
 }) {
   const roofLength = length + ROOF_OVERHANG_FT * 2;
   const halfWidth = width / 2 + ROOF_OVERHANG_FT;
@@ -98,7 +101,7 @@ function GableRoof({
       {[-1, 1].map((zSign) => (
         <mesh key={`gable-plane-${zSign}`} position={[0, centerY, zSign * centerZ]} rotation={[zSign * slopeAngle, 0, 0]} castShadow receiveShadow>
           <boxGeometry args={[roofLength, GABLE_ROOF_THICKNESS_FT, planeWidth]} />
-          <meshStandardMaterial color={materials.roof} roughness={0.48} metalness={0.05} transparent={opacity < 1} opacity={opacity} />
+          <meshStandardMaterial color={roofColor} roughness={0.48} metalness={0.05} transparent={opacity < 1} opacity={opacity} />
         </mesh>
       ))}
       <mesh position={[0, wallHeight + roofRise + 0.02, 0]} castShadow>
@@ -157,6 +160,7 @@ export function KehoeBoathouse({
   roofFinish = 'metal',
   opacity = 1,
   viewMode,
+  roofColorOverride,
 }: KehoeBoathouseProps) {
   if (!Number.isFinite(footprintLengthFt) || !Number.isFinite(footprintWidthFt) || footprintLengthFt <= 0 || footprintWidthFt <= 0) {
     return null;
@@ -173,6 +177,7 @@ export function KehoeBoathouse({
   const normalizedDoorStyle: BoathouseDoorStyle =
     doorStyle === 'single_door' || doorStyle === 'double_doors' || doorStyle === 'two_slip_doors' || doorStyle === 'none' ? doorStyle : 'open';
   const materials = getMaterials(viewMode, normalizedWallFinish, normalizedRoofFinish);
+  const roofColor = roofColorOverride?.trim() || materials.roof;
   const halfLength = length / 2;
   const halfWidth = width / 2;
   const postX = halfLength - POST_SIZE_FT / 2;
@@ -291,10 +296,10 @@ export function KehoeBoathouse({
       {normalizedRoofType === 'flat' ? (
         <mesh position={[0, wallHeight + flatRoofDepth / 2, 0]} castShadow receiveShadow>
           <boxGeometry args={[length + ROOF_OVERHANG_FT * 2, flatRoofDepth, width + ROOF_OVERHANG_FT * 2]} />
-          <meshStandardMaterial color={materials.roof} roughness={0.5} metalness={0.05} transparent={opacity < 1} opacity={opacity} />
+          <meshStandardMaterial color={roofColor} roughness={0.5} metalness={0.05} transparent={opacity < 1} opacity={opacity} />
         </mesh>
       ) : (
-        <GableRoof length={length} width={width} wallHeight={wallHeight} roofRise={roofRise} materials={materials} opacity={opacity} />
+        <GableRoof length={length} width={width} wallHeight={wallHeight} roofRise={roofRise} materials={materials} opacity={opacity} roofColor={roofColor} />
       )}
     </group>
   );

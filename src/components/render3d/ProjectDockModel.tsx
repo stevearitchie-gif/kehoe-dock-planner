@@ -61,6 +61,11 @@ function getDeckColor(element: ProjectRenderElement, viewMode: RenderViewMode) {
   return '#b08a5a';
 }
 
+function getElementColorOverride(element: ProjectRenderElement) {
+  const color = element.color?.trim();
+  return color ? color : undefined;
+}
+
 function getLocalRampTopHeight(z: number, width: number, elevationInfo: RampElevationInfo) {
   if (!elevationInfo.hasConnection) {
     return elevationInfo.deckTopHeight;
@@ -242,7 +247,7 @@ function KehoeFloatingDockElement({ element, viewMode }: { element: ProjectRende
         boardDirection={element.boardDirection}
         showStandardCleats={element.showStandardCleats ?? true}
         tubeDiameterFt={element.tubeDiameterFt}
-        deckColorOverride={viewMode === 'internal' ? element.color : undefined}
+        deckColorOverride={getElementColorOverride(element)}
       />
     </group>
   );
@@ -454,6 +459,7 @@ function KehoeRampWithRailsElement({
         footprintLengthFt={element.width}
         opacity={element.opacity}
         viewMode={viewMode}
+        deckColorOverride={getElementColorOverride(element)}
         slope={{
           hasConnection: elevationInfo.hasConnection,
           dockEndSign: elevationInfo.dockEndSign,
@@ -488,6 +494,7 @@ function KehoeRampWithoutRailsElement({
         footprintLengthFt={element.width}
         opacity={element.opacity}
         viewMode={viewMode}
+        deckColorOverride={getElementColorOverride(element)}
         slope={{
           hasConnection: elevationInfo.hasConnection,
           dockEndSign: elevationInfo.dockEndSign,
@@ -629,6 +636,7 @@ function BoatPortElement({ element, viewMode }: { element: ProjectRenderElement;
         roofType={element.boatPortRoofType}
         opacity={element.opacity}
         viewMode={viewMode}
+        roofColorOverride={getElementColorOverride(element)}
       />
     </group>
   );
@@ -685,6 +693,7 @@ function BoathouseElement({ element, viewMode }: { element: ProjectRenderElement
         roofFinish={element.boathouseRoofFinish}
         opacity={element.opacity}
         viewMode={viewMode}
+        roofColorOverride={getElementColorOverride(element)}
       />
     </group>
   );
@@ -738,6 +747,7 @@ function AccessoryElement({
         opacity={element.opacity}
         mountStyle={element.accessoryType === 'ladder' && mountInfo.isDockMounted ? 'dock_ladder' : 'deck'}
         viewMode={viewMode}
+        colorOverride={getElementColorOverride(element)}
       />
     </group>
   );

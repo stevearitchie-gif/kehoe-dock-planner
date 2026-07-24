@@ -14,6 +14,7 @@ export interface KehoeRampWithRailsProps {
   footprintLengthFt: number;
   opacity?: number;
   viewMode: RenderViewMode;
+  deckColorOverride?: string;
   slope: KehoeRampSlope;
 }
 
@@ -466,6 +467,7 @@ export function KehoeRampWithRails({
   footprintLengthFt,
   opacity = 1,
   viewMode,
+  deckColorOverride,
   slope,
 }: KehoeRampWithRailsProps) {
   if (
@@ -480,6 +482,7 @@ export function KehoeRampWithRails({
   }
 
   const materials = getMaterials(viewMode);
+  const deckColor = deckColorOverride?.trim() || materials.deck;
   const { zStart, zEnd, lowerEndZ, dockEndZ, bodyDockEndZ } = getRampBodySpan(footprintLengthFt, slope);
   const topHeightAtZ = (z: number) => getRampTopHeightAtZ(z, footprintLengthFt, slope);
   const deckWidth = Math.min(footprintWidthFt * DECK_WIDTH_RATIO, Math.max(0.5, footprintWidthFt - 0.28));
@@ -495,7 +498,7 @@ export function KehoeRampWithRails({
         zMax={zEnd}
         topHeightAtZ={topHeightAtZ}
         thickness={DECK_THICKNESS_FT}
-        color={materials.deck}
+        color={deckColor}
         opacity={opacity}
         roughness={0.72}
         metalness={0.02}
