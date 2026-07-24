@@ -4,6 +4,7 @@ import { applySectionTemplate, sectionTemplates } from '@/features/sectionView/s
 import type { DrawingInfo } from '@/types/dock';
 import type {
   SectionViewData,
+  SectionViewBuildPlanReference,
   SectionViewCustomItem,
   SectionViewCustomItemType,
   SectionViewManualOffset,
@@ -66,6 +67,7 @@ const editableElementLabels: Record<string, string> = {
   'riprap-group': 'Rip rap stone group',
   'armour-group': 'Armour stone group',
   'dock-profile': 'Dock and ramp reference',
+  'build-plan-context': 'Build Plan context references',
   'dimension-bank': 'Bank dimension',
   'dimension-drop': 'Lakebed drop dimension',
   'callout-grade': 'Existing grade callout',
@@ -568,6 +570,106 @@ function dockRampProfile(highWaterY: number, reference: SectionViewData['dockRam
       <text x={rampStartX - 14} y={dockY - 88} fill={ink} stroke="none" fontSize="13">
         {rampLabel}
       </text>
+    </g>
+  );
+}
+
+function buildPlanContextLabel(reference: SectionViewBuildPlanReference) {
+  const typeLabel = reference.type.replace(/_/g, ' ');
+  const sizeLabel = dimensionLabel(reference.lengthFt, reference.widthFt, typeLabel);
+  return `${reference.label || typeLabel}: ${sizeLabel}`;
+}
+
+function buildPlanContextSymbol(reference: SectionViewBuildPlanReference, x: number, y: number, index: number) {
+  const color = reference.color?.trim() || '#f8fafc';
+  const strokeColor = '#334155';
+  const label = buildPlanContextLabel(reference);
+  const detail = reference.details;
+
+  if (reference.type === 'boat_lift') {
+    return (
+      <g key={reference.id ?? `${reference.type}-${index}`} stroke={strokeColor} fill="none" strokeWidth="1.2">
+        <line x1={x + 6} y1={y + 37} x2={x + 76} y2={y + 37} />
+        <line x1={x + 16} y1={y + 22} x2={x + 66} y2={y + 22} />
+        {[12, 70].map((postX) => (
+          <line key={postX} x1={x + postX} y1={y + 12} x2={x + postX} y2={y + 44} />
+        ))}
+        <path d={`M ${x + 24} ${y + 36} L ${x + 38} ${y + 28} L ${x + 52} ${y + 36}`} />
+        <text x={x + 88} y={y + 22} fill={ink} stroke="none" fontSize="11" fontWeight="700">
+          {label}
+        </text>
+        {detail && <text x={x + 88} y={y + 38} fill={mutedInk} stroke="none" fontSize="10">{detail}</text>}
+      </g>
+    );
+  }
+
+  if (reference.type === 'boat_port' || reference.type === 'boathouse') {
+    const isBoathouse = reference.type === 'boathouse';
+    return (
+      <g key={reference.id ?? `${reference.type}-${index}`} stroke={strokeColor} fill="none" strokeWidth="1.2">
+        <rect x={x + 10} y={y + 22} width="64" height="28" fill={isBoathouse ? '#f8fafc' : 'none'} />
+        <path d={`M ${x + 6} ${y + 22} L ${x + 42} ${y + 6} L ${x + 78} ${y + 22}`} fill={isBoathouse ? '#f1f5f9' : 'none'} />
+        {!isBoathouse && [18, 66].map((postX) => <line key={postX} x1={x + postX} y1={y + 22} x2={x + postX} y2={y + 50} />)}
+        <text x={x + 88} y={y + 22} fill={ink} stroke="none" fontSize="11" fontWeight="700">
+          {label}
+        </text>
+        {detail && <text x={x + 88} y={y + 38} fill={mutedInk} stroke="none" fontSize="10">{detail}</text>}
+      </g>
+    );
+  }
+
+  if (reference.type === 'accessory') {
+    return (
+      <g key={reference.id ?? `${reference.type}-${index}`} stroke={strokeColor} fill="none" strokeWidth="1.2">
+        <circle cx={x + 34} cy={y + 28} r="16" fill="#f8fafc" />
+        <path d={`M ${x + 22} ${y + 28} H ${x + 46} M ${x + 34} ${y + 16} V ${y + 40}`} />
+        <text x={x + 88} y={y + 24} fill={ink} stroke="none" fontSize="11" fontWeight="700">
+          {label}
+        </text>
+        {detail && <text x={x + 88} y={y + 40} fill={mutedInk} stroke="none" fontSize="10">{detail}</text>}
+      </g>
+    );
+  }
+
+  return (
+    <g key={reference.id ?? `${reference.type}-${index}`} stroke={strokeColor} fill="none" strokeWidth="1.2">
+      <rect x={x + 8} y={y + 18} width="72" height="26" fill={color} opacity="0.7" />
+      {reference.boardDirection !== 'none' &&
+        Array.from({ length: 5 }, (_, lineIndex) => (
+          <line key={lineIndex} x1={x + 16 + lineIndex * 12} y1={y + 20} x2={x + 16 + lineIndex * 12} y2={y + 42} stroke="#8a5f3d" strokeWidth="0.8" />
+        ))}
+      <text x={x + 88} y={y + 24} fill={ink} stroke="none" fontSize="11" fontWeight="700">
+        {label}
+      </text>
+      {detail && <text x={x + 88} y={y + 40} fill={mutedInk} stroke="none" fontSize="10">{detail}</text>}
+    </g>
+  );
+}
+
+function buildPlanContextGroup(references: SectionViewBuildPlanReference[]) {
+  if (references.length === 0) {
+    return null;
+  }
+
+  const maxVisibleReferences = 4;
+  const visibleReferences = references.slice(0, maxVisibleReferences);
+  const extraCount = Math.max(0, references.length - visibleReferences.length);
+
+  return (
+    <g>
+      <rect x="76" y="586" width="580" height="128" fill="#ffffff" opacity="0.01" stroke="none" />
+      <text x="90" y="606" fill={ink} fontSize="12" fontWeight="800">
+        BUILD PLAN CONTEXT
+      </text>
+      <text x="90" y="624" fill={mutedInk} fontSize="10">
+        Additional Build Plan objects shown as visual context only. Final section details subject to site conditions and approvals.
+      </text>
+      {visibleReferences.map((reference, index) => buildPlanContextSymbol(reference, 92 + (index % 2) * 280, 642 + Math.floor(index / 2) * 52, index))}
+      {extraCount > 0 && (
+        <text x="372" y="704" fill={mutedInk} fontSize="10">
+          + {extraCount} more Build Plan item{extraCount === 1 ? '' : 's'} listed in the data panel
+        </text>
+      )}
     </g>
   );
 }
@@ -1477,6 +1579,7 @@ export function SectionViewCanvas({ sectionView, projectName, drawingInfo, onCha
   const selectedCustomName = selectedCustomItem
     ? `${customItemTypes.find((itemType) => itemType.type === selectedCustomItem.type)?.label.replace(/^Add /, '') ?? 'Custom item'}${customItemText(selectedCustomItem) ? `: ${customItemText(selectedCustomItem)}` : ''}`
     : undefined;
+  const buildPlanReferences = sectionView.buildPlanReferences ?? [];
   const selectedItemName = selectedZoneName ?? selectedCustomName ?? (
     selectedZonePointMatch
       ? `Rip rap ${selectedZonePointMatch[2]} boundary point ${Number(selectedZonePointMatch[3]) + 1}`
@@ -1714,6 +1817,9 @@ export function SectionViewCanvas({ sectionView, projectName, drawingInfo, onCha
             {useDockTemplate && editableElement('callout-ramp', callout(labelText('callout-ramp', rampReferenceLabel.toUpperCase()), 486, 178, 535, highWaterY - 62, 'ramp'), 486, 166)}
             {useDockTemplate &&
               editableElement('callout-dock', callout(labelText('callout-dock', `FLOATING DOCK ${feetLabel(sectionView.dockRampReference?.dockLengthFt, '')}`.trim()), 786, 202, 716, highWaterY - 56, 'dock'), 786, 190)}
+
+            {buildPlanReferences.length > 0 &&
+              editableElement('build-plan-context', buildPlanContextGroup(buildPlanReferences), 90, 606)}
 
             {editableElement(
               'notes',

@@ -80,6 +80,27 @@ export interface SectionViewDockRampReference {
   rampType?: 'with_rails' | 'without_rails' | 'unknown';
 }
 
+export type SectionViewBuildPlanReferenceType =
+  | 'floating_dock'
+  | 'ramp_with_rails'
+  | 'ramp_without_rails'
+  | 'boat_lift'
+  | 'boat_port'
+  | 'boathouse'
+  | 'accessory';
+
+export interface SectionViewBuildPlanReference {
+  id?: string;
+  type: SectionViewBuildPlanReferenceType;
+  label: string;
+  lengthFt?: number;
+  widthFt?: number;
+  color?: string;
+  boardDirection?: 'none' | 'horizontal' | 'vertical';
+  details?: string;
+  source: 'buildPlan';
+}
+
 export interface SectionViewData {
   templateId: SectionViewTemplateId;
   title: string;
@@ -102,6 +123,7 @@ export interface SectionViewData {
   ripRapZones?: SectionViewRipRapZone[];
   customItems?: SectionViewCustomItem[];
   dockRampReference?: SectionViewDockRampReference;
+  buildPlanReferences?: SectionViewBuildPlanReference[];
   profileGeometry?: SectionViewProfileGeometry;
   labelOverrides?: Record<string, string>;
   titleBlock?: SectionViewTitleBlock;

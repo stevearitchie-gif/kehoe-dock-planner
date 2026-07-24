@@ -1,5 +1,5 @@
 import type { DockObject, DockProject, ProjectScale } from '@/types/dock';
-import type { SectionViewData } from '@/features/sectionView/sectionTypes';
+import type { SectionViewBuildPlanReference, SectionViewData } from '@/features/sectionView/sectionTypes';
 import { sectionTemplates } from '@/features/sectionView/sectionTemplates';
 
 const FEET_PER_METER = 3.28084;
@@ -152,6 +152,57 @@ function elementSummary(object: DockObject, scale: ProjectScale) {
   return `${object.label || object.type}${sizeSuffix}`;
 }
 
+function objectReferenceDimensionsFeet(object: DockObject, scale: ProjectScale) {
+  const dimensions = objectProfileDimensionsFeet(object, scale);
+
+  if (dimensions) {
+    return dimensions;
+  }
+
+  return {
+    lengthFt: object.width,
+    widthFt: object.height,
+  };
+}
+
+function buildPlanReference(object: DockObject, scale: ProjectScale): SectionViewBuildPlanReference | null {
+  if (
+    object.type !== 'floating_dock' &&
+    object.type !== 'ramp_with_rails' &&
+    object.type !== 'ramp_without_rails' &&
+    object.type !== 'boat_lift' &&
+    object.type !== 'boat_port' &&
+    object.type !== 'boathouse' &&
+    object.type !== 'accessory'
+  ) {
+    return null;
+  }
+
+  const dimensions = objectReferenceDimensionsFeet(object, scale);
+  const details =
+    object.type === 'floating_dock'
+      ? formatBoardDirection(object)
+      : object.type === 'boat_port'
+        ? formatBoatPortDetails(object)
+        : object.type === 'boathouse'
+          ? formatBoathouseDetails(object)
+          : object.type === 'accessory'
+            ? formatAccessoryType(object.metadata?.accessoryType)
+            : undefined;
+
+  return {
+    id: object.id,
+    type: object.type,
+    label: object.label || object.type.replace(/_/g, ' '),
+    lengthFt: dimensions.lengthFt,
+    widthFt: dimensions.widthFt,
+    color: object.color,
+    boardDirection: object.metadata?.boardDirection,
+    details,
+    source: 'buildPlan',
+  };
+}
+
 function firstOfType(project: DockProject, types: DockObject['type'][]): DockObject | undefined {
   return project.objects.find((object) => types.includes(object.type));
 }
@@ -194,6 +245,11 @@ export function generateSectionViewFromBuildPlan(
   );
   const floatingDockDimensions = floatingDock ? objectProfileDimensionsFeet(floatingDock, currentScale) : undefined;
   const rampDimensions = ramp ? objectProfileDimensionsFeet(ramp, currentScale) : undefined;
+  const primaryReferenceIds = new Set([floatingDock?.id, ramp?.id].filter(Boolean));
+  const buildPlanReferences = project.objects
+    .filter((object) => !primaryReferenceIds.has(object.id))
+    .map((object) => buildPlanReference(object, currentScale))
+    .filter((reference): reference is SectionViewBuildPlanReference => Boolean(reference));
 
   detectedItems.push(...supportedObjects.map((object) => elementSummary(object, currentScale)));
 
@@ -291,6 +347,7 @@ export function generateSectionViewFromBuildPlan(
               : 'unknown',
       }
       : currentSectionView.dockRampReference,
+    buildPlanReferences,
     labelOverrides: nextLabelOverrides,
     buildPlanSummary: {
       generatedAt: new Date().toISOString(),
