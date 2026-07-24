@@ -18,7 +18,7 @@ import { SectionViewCanvas } from '@/features/sectionView/SectionViewCanvas';
 import { generateSectionViewFromBuildPlan } from '@/features/sectionView/buildPlanSectionAdapter';
 import { getDefaultSectionView } from '@/features/sectionView/sectionTemplates';
 import { storage } from '@/lib/firebase';
-import type { DockObject, DockProject, Point, ProjectScale, UnitType } from '@/types/dock';
+import type { DockObject, DockProject, DrawingInfo, Point, ProjectScale, UnitType } from '@/types/dock';
 import type { SectionViewData } from '@/features/sectionView/sectionTypes';
 
 const MIN_OBJECT_SIZE = 10;
@@ -477,6 +477,18 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
+function resolveDrawingInfo(project: DockProject): DrawingInfo {
+  return {
+    client: project.drawingInfo?.client ?? project.clientName ?? '',
+    location: project.drawingInfo?.location ?? project.projectLocation ?? '',
+    description: project.drawingInfo?.description ?? project.description ?? project.name,
+    drawingNumber: project.drawingInfo?.drawingNumber ?? project.drawingNumber ?? '',
+    revision: project.drawingInfo?.revision ?? project.revision ?? '0',
+    completedBy: project.drawingInfo?.completedBy ?? project.completedBy ?? '',
+    date: project.drawingInfo?.date ?? project.drawingDate ?? '',
+  };
+}
+
 function printImageInHiddenFrame(args: {
   imageDataUrl: string;
   sectionViewImageDataUrl?: string | null;
@@ -791,7 +803,7 @@ function svgElementToPngDataUrl(
   });
 }
 
-async function captureSectionViewForPdf(sectionView: SectionViewData, projectName: string): Promise<string | null> {
+async function captureSectionViewForPdf(sectionView: SectionViewData, projectName: string, drawingInfo?: DrawingInfo): Promise<string | null> {
   const container = document.createElement('div');
   container.style.position = 'fixed';
   container.style.left = '-10000px';
@@ -809,6 +821,7 @@ async function captureSectionViewForPdf(sectionView: SectionViewData, projectNam
       <SectionViewCanvas
         sectionView={sectionView}
         projectName={projectName}
+        drawingInfo={drawingInfo}
         onChange={() => undefined}
         onGenerateFromBuildPlan={() => undefined}
       />,
@@ -1001,6 +1014,7 @@ export function EditorPage() {
   }, [isDirty]);
 
   const projectName = project.name.trim() || 'Untitled Project';
+  const drawingInfo = useMemo(() => resolveDrawingInfo(project), [project]);
 
   const measuredPixels = useMemo(() => getPixelsFromPoints(scalePoints), [scalePoints]);
 
@@ -1180,9 +1194,23 @@ export function EditorPage() {
     field: 'clientName' | 'projectLocation' | 'description' | 'completedBy' | 'drawingNumber' | 'revision' | 'drawingDate',
     value: string,
   ) => {
+    const drawingInfoFieldByProjectField: Record<typeof field, keyof DrawingInfo> = {
+      clientName: 'client',
+      projectLocation: 'location',
+      description: 'description',
+      completedBy: 'completedBy',
+      drawingNumber: 'drawingNumber',
+      revision: 'revision',
+      drawingDate: 'date',
+    };
+
     setProject((prev) => ({
       ...prev,
       [field]: value,
+      drawingInfo: {
+        ...resolveDrawingInfo(prev),
+        [drawingInfoFieldByProjectField[field]]: value,
+      },
       updatedAt: new Date().toISOString(),
     }));
   };
@@ -2456,8 +2484,9 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
       return;
     }
 
-    const drawingDate = project.drawingDate
-      ? new Date(`${project.drawingDate}T00:00:00`).toLocaleDateString()
+    const drawingInfo = resolveDrawingInfo(project);
+    const drawingDate = drawingInfo.date
+      ? new Date(`${drawingInfo.date}T00:00:00`).toLocaleDateString()
       : new Date().toLocaleDateString();
 
     const titleBlockScaleLabel =
@@ -2486,11 +2515,11 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
           </colgroup>
           <tr class="info-row">
             <td><div class="title-field"><span class="title-label">Date:</span><span class="title-value">${escapeHtml(drawingDate)}</span></div></td>
-            <td colspan="2"><div class="title-field"><span class="title-label">Client:</span><span class="title-value">${escapeHtml(project.clientName ?? '')}</span></div></td>
+            <td colspan="2"><div class="title-field"><span class="title-label">Client:</span><span class="title-value">${escapeHtml(drawingInfo.client ?? '')}</span></div></td>
           </tr>
           <tr class="scale-row">
             <td class="scale-note">${titleBlockScaleHtml}</td>
-            <td colspan="2"><div class="title-field"><span class="title-label">Location:</span><span class="title-value">${escapeHtml(project.projectLocation ?? '')}</span></div></td>
+            <td colspan="2"><div class="title-field"><span class="title-label">Location:</span><span class="title-value">${escapeHtml(drawingInfo.location ?? '')}</span></div></td>
           </tr>
           <tr class="info-row">
             <td rowspan="2" class="logo-cell">
@@ -2499,14 +2528,14 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                 <span class="title-logo-text">Marine<br />Construction</span>
               </div>
             </td>
-            <td colspan="2"><div class="title-field"><span class="title-label">Description:</span><span class="title-value">${escapeHtml(project.description ?? project.name)}</span></div></td>
+            <td colspan="2"><div class="title-field"><span class="title-label">Description:</span><span class="title-value">${escapeHtml(drawingInfo.description ?? project.name)}</span></div></td>
           </tr>
           <tr class="drawing-row">
-            <td><div class="title-field"><span class="title-label">Drawing #:</span><span class="title-value">${escapeHtml(project.drawingNumber ?? '')}</span></div></td>
-            <td class="small-cell"><div class="title-field"><span class="title-label">Rev:</span><span class="title-value">${escapeHtml(project.revision ?? '0')}</span></div></td>
+            <td><div class="title-field"><span class="title-label">Drawing #:</span><span class="title-value">${escapeHtml(drawingInfo.drawingNumber ?? '')}</span></div></td>
+            <td class="small-cell"><div class="title-field"><span class="title-label">Rev:</span><span class="title-value">${escapeHtml(drawingInfo.revision ?? '0')}</span></div></td>
           </tr>
           <tr>
-            <td><div class="title-field"><span class="title-label">Completed By:</span><span class="title-value">${escapeHtml(project.completedBy ?? '')}</span></div></td>
+            <td><div class="title-field"><span class="title-label">Completed By:</span><span class="title-value">${escapeHtml(drawingInfo.completedBy ?? '')}</span></div></td>
             <td colspan="2"></td>
           </tr>
         </table>
@@ -2519,7 +2548,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
     if (includeSectionViewInPdf) {
       const sectionView = project.sectionView ?? getDefaultSectionView();
       const sectionTitleBlock = sectionView.titleBlock;
-      sectionViewImageDataUrl = await captureSectionViewForPdf(sectionView, projectName);
+      sectionViewImageDataUrl = await captureSectionViewForPdf(sectionView, projectName, drawingInfo);
       sectionViewTitleBlockHtml =
         titleBlockPosition === 'hidden'
           ? ''
@@ -2533,11 +2562,11 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
           </colgroup>
           <tr class="info-row">
             <td><div class="title-field"><span class="title-label">Date:</span><span class="title-value">${escapeHtml(sectionTitleBlock?.date || drawingDate)}</span></div></td>
-            <td colspan="2"><div class="title-field"><span class="title-label">Client:</span><span class="title-value">${escapeHtml(sectionTitleBlock?.client || project.clientName || projectName)}</span></div></td>
+            <td colspan="2"><div class="title-field"><span class="title-label">Client:</span><span class="title-value">${escapeHtml(sectionTitleBlock?.client || drawingInfo.client || projectName)}</span></div></td>
           </tr>
           <tr class="scale-row">
             <td class="scale-note">Not to<br />Scale</td>
-            <td colspan="2"><div class="title-field"><span class="title-label">Location:</span><span class="title-value">${escapeHtml(sectionTitleBlock?.location || project.projectLocation || '')}</span></div></td>
+            <td colspan="2"><div class="title-field"><span class="title-label">Location:</span><span class="title-value">${escapeHtml(sectionTitleBlock?.location || drawingInfo.location || '')}</span></div></td>
           </tr>
           <tr class="info-row">
             <td rowspan="2" class="logo-cell">
@@ -2546,14 +2575,14 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                 <span class="title-logo-text">Marine<br />Construction</span>
               </div>
             </td>
-            <td colspan="2"><div class="title-field"><span class="title-label">Description:</span><span class="title-value">${escapeHtml(sectionTitleBlock?.description || sectionView.title || project.description || project.name)}</span></div></td>
+            <td colspan="2"><div class="title-field"><span class="title-label">Description:</span><span class="title-value">${escapeHtml(sectionTitleBlock?.description || drawingInfo.description || sectionView.title || project.name)}</span></div></td>
           </tr>
           <tr class="drawing-row">
-            <td><div class="title-field"><span class="title-label">Drawing #:</span><span class="title-value">${escapeHtml(sectionTitleBlock?.drawingNumber || project.drawingNumber || 'SV-1')}</span></div></td>
-            <td class="small-cell"><div class="title-field"><span class="title-label">Rev:</span><span class="title-value">${escapeHtml(sectionTitleBlock?.revision || project.revision || '0')}</span></div></td>
+            <td><div class="title-field"><span class="title-label">Drawing #:</span><span class="title-value">${escapeHtml(sectionTitleBlock?.drawingNumber || drawingInfo.drawingNumber || 'SV-1')}</span></div></td>
+            <td class="small-cell"><div class="title-field"><span class="title-label">Rev:</span><span class="title-value">${escapeHtml(sectionTitleBlock?.revision || drawingInfo.revision || '0')}</span></div></td>
           </tr>
           <tr>
-            <td><div class="title-field"><span class="title-label">Completed By:</span><span class="title-value">${escapeHtml(sectionTitleBlock?.completedBy || project.completedBy || '')}</span></div></td>
+            <td><div class="title-field"><span class="title-label">Completed By:</span><span class="title-value">${escapeHtml(sectionTitleBlock?.completedBy || drawingInfo.completedBy || '')}</span></div></td>
             <td colspan="2"></td>
           </tr>
         </table>
@@ -2889,7 +2918,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
             <div className="mt-3 space-y-3 pb-6">
               <details className="rounded-md border border-slate-200 bg-white">
                 <summary className="flex cursor-pointer select-none items-center justify-between rounded-md px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50">
-                  <span>Project Details</span>
+                  <span>Drawing / Permit Info</span>
                   <span className="text-xs text-slate-400">open/close</span>
                 </summary>
                 <div className="border-t border-slate-100 p-3">
@@ -2913,7 +2942,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                     </span>
                     <input
                       type="date"
-                      value={project.drawingDate ?? ''}
+                      value={drawingInfo.date ?? ''}
                       onChange={(event) => handleProjectInfoChange('drawingDate', event.target.value)}
                       className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
                     />
@@ -2924,7 +2953,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                     </span>
                     <input
                       type="text"
-                      value={project.completedBy ?? ''}
+                      value={drawingInfo.completedBy ?? ''}
                       onChange={(event) => handleProjectInfoChange('completedBy', event.target.value)}
                       placeholder="AH"
                       className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
@@ -2938,7 +2967,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                   </span>
                   <input
                     type="text"
-                    value={project.clientName ?? ''}
+                    value={drawingInfo.client ?? ''}
                     onChange={(event) => handleProjectInfoChange('clientName', event.target.value)}
                     placeholder="Client name"
                     className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
@@ -2951,7 +2980,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                   </span>
                   <input
                     type="text"
-                    value={project.projectLocation ?? ''}
+                    value={drawingInfo.location ?? ''}
                     onChange={(event) => handleProjectInfoChange('projectLocation', event.target.value)}
                     placeholder="Project address"
                     className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
@@ -2964,7 +2993,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                   </span>
                   <input
                     type="text"
-                    value={project.description ?? ''}
+                    value={drawingInfo.description ?? ''}
                     onChange={(event) => handleProjectInfoChange('description', event.target.value)}
                     placeholder="Plan description"
                     className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
@@ -2978,7 +3007,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                     </span>
                     <input
                       type="text"
-                      value={project.drawingNumber ?? ''}
+                      value={drawingInfo.drawingNumber ?? ''}
                       onChange={(event) => handleProjectInfoChange('drawingNumber', event.target.value)}
                       placeholder="1"
                       className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
@@ -2990,7 +3019,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                     </span>
                     <input
                       type="text"
-                      value={project.revision ?? ''}
+                      value={drawingInfo.revision ?? ''}
                       onChange={(event) => handleProjectInfoChange('revision', event.target.value)}
                       placeholder="0"
                       className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
@@ -4280,6 +4309,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
             <SectionViewCanvas
               sectionView={project.sectionView ?? getDefaultSectionView()}
               projectName={projectName}
+              drawingInfo={drawingInfo}
               onChange={handleSectionViewChange}
               onGenerateFromBuildPlan={handleGenerateSectionViewFromBuildPlan}
             />

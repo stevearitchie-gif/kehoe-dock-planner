@@ -1,6 +1,7 @@
 import type { ChangeEvent, PointerEvent, ReactNode } from 'react';
 import { useMemo, useRef, useState } from 'react';
 import { applySectionTemplate, sectionTemplates } from '@/features/sectionView/sectionTemplates';
+import type { DrawingInfo } from '@/types/dock';
 import type {
   SectionViewData,
   SectionViewCustomItem,
@@ -17,6 +18,7 @@ import type {
 interface SectionViewCanvasProps {
   sectionView: SectionViewData;
   projectName: string;
+  drawingInfo?: DrawingInfo;
   onChange: (sectionView: SectionViewData) => void;
   onGenerateFromBuildPlan: () => void;
 }
@@ -199,6 +201,15 @@ function formatDate(date: Date) {
   return date.toLocaleDateString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit' });
 }
 
+function formatDrawingInfoDate(value: string | undefined, fallback: string) {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsedDate = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsedDate.getTime()) ? value : formatDate(parsedDate);
+}
+
 function hashUnit(seed: number) {
   const value = Math.sin(seed * 12.9898) * 43758.5453;
   return value - Math.floor(value);
@@ -339,7 +350,13 @@ function ripRapStoneField(settings: SectionViewRipRapSettings, topPoints: Sectio
   return stones;
 }
 
-function titleBlock(projectName: string, title: string, drawingDate: string, titleBlock: SectionViewData['titleBlock']) {
+function titleBlock(
+  projectName: string,
+  title: string,
+  drawingDate: string,
+  titleBlock: SectionViewData['titleBlock'],
+  drawingInfo?: DrawingInfo,
+) {
   const width = 390;
   const x = 1058 - width;
   const y = 724;
@@ -391,13 +408,13 @@ function titleBlock(projectName: string, title: string, drawingDate: string, tit
       <text x={x + 136} y={rowTwoY + 24} fill={mutedInk} fontSize="7" fontWeight="700">
         CONSTRUCTION
       </text>
-      {fieldText('Date', valueOrFallback(titleBlock?.date, drawingDate), x + 4, y + 11, 18)}
-      {fieldText('Client', valueOrFallback(titleBlock?.client, projectName || 'Kehoe Dock Planner'), colOneX + 4, y + 11, 25)}
-      {fieldText('Location', valueOrFallback(titleBlock?.location, 'Site visit / permit support'), colOneX + 4, rowOneY + 10, 25)}
-      {fieldText('Description', valueOrFallback(titleBlock?.description, title), colOneX + 4, rowTwoY + 12, 29)}
-      {fieldText('Drawing #', valueOrFallback(titleBlock?.drawingNumber, 'SV-1'), colOneX + 4, rowThreeY + 10, 19)}
-      {fieldText('Rev', valueOrFallback(titleBlock?.revision, 'A'), colTwoX + 4, rowThreeY + 10, 8)}
-      {fieldText('Completed By', valueOrFallback(titleBlock?.completedBy, 'Kehoe Marine'), x + 4, rowFourY + 10, 24)}
+      {fieldText('Date', formatDrawingInfoDate(titleBlock?.date || drawingInfo?.date, drawingDate), x + 4, y + 11, 18)}
+      {fieldText('Client', valueOrFallback(titleBlock?.client || drawingInfo?.client, projectName || 'Kehoe Dock Planner'), colOneX + 4, y + 11, 25)}
+      {fieldText('Location', valueOrFallback(titleBlock?.location || drawingInfo?.location, 'Site visit / permit support'), colOneX + 4, rowOneY + 10, 25)}
+      {fieldText('Description', valueOrFallback(titleBlock?.description || drawingInfo?.description, title), colOneX + 4, rowTwoY + 12, 29)}
+      {fieldText('Drawing #', valueOrFallback(titleBlock?.drawingNumber || drawingInfo?.drawingNumber, 'SV-1'), colOneX + 4, rowThreeY + 10, 19)}
+      {fieldText('Rev', valueOrFallback(titleBlock?.revision || drawingInfo?.revision, 'A'), colTwoX + 4, rowThreeY + 10, 8)}
+      {fieldText('Completed By', valueOrFallback(titleBlock?.completedBy || drawingInfo?.completedBy, 'Kehoe Marine'), x + 4, rowFourY + 10, 24)}
     </g>
   );
 }
@@ -564,7 +581,7 @@ function controlGroup(title: string, children: ReactNode) {
   );
 }
 
-export function SectionViewCanvas({ sectionView, projectName, onChange, onGenerateFromBuildPlan }: SectionViewCanvasProps) {
+export function SectionViewCanvas({ sectionView, projectName, drawingInfo, onChange, onGenerateFromBuildPlan }: SectionViewCanvasProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [manualEditMode, setManualEditMode] = useState(false);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
@@ -1694,7 +1711,7 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
               72,
               728,
             )}
-            {editableElement('title-block', titleBlock(projectName, sectionView.title, drawingDate, sectionView.titleBlock), 728, 646)}
+            {editableElement('title-block', titleBlock(projectName, sectionView.title, drawingDate, sectionView.titleBlock, drawingInfo), 728, 646)}
             {customItems.map((item) =>
               editableElement(
                 `custom:${item.id}`,
@@ -2208,20 +2225,20 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
                 />
               </label>
               {[
-                ['client', 'Client'],
-                ['location', 'Location'],
-                ['description', 'Description'],
-                ['drawingNumber', 'Drawing #'],
-                ['revision', 'Revision'],
-                ['completedBy', 'Completed by'],
-                ['date', 'Date'],
-              ].map(([field, label]) => (
+                ['client', 'Client', drawingInfo?.client],
+                ['location', 'Location', drawingInfo?.location],
+                ['description', 'Description', drawingInfo?.description],
+                ['drawingNumber', 'Drawing #', drawingInfo?.drawingNumber],
+                ['revision', 'Revision', drawingInfo?.revision],
+                ['completedBy', 'Completed by', drawingInfo?.completedBy],
+                ['date', 'Date', drawingInfo?.date],
+              ].map(([field, label, sharedValue]) => (
                 <label key={field} className="block">
                   <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">{label}</span>
                   <input
                     value={sectionView.titleBlock?.[field as keyof NonNullable<SectionViewData['titleBlock']>] ?? ''}
                     onChange={(event) => updateTitleBlockField(field as keyof NonNullable<SectionViewData['titleBlock']>, event.target.value)}
-                    placeholder={field === 'client' ? projectName : undefined}
+                    placeholder={sharedValue || (field === 'client' ? projectName : undefined)}
                     className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
                   />
                 </label>

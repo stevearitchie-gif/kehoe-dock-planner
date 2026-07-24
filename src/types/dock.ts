@@ -110,6 +110,16 @@ export interface ProjectScale {
   unit: UnitType;
 }
 
+export interface DrawingInfo {
+  client?: string;
+  location?: string;
+  description?: string;
+  drawingNumber?: string;
+  revision?: string;
+  completedBy?: string;
+  date?: string;
+}
+
 export interface DockProject {
   id: string;
   name: string;
@@ -126,6 +136,7 @@ export interface DockProject {
   objects: DockObject[];
   sectionView?: SectionViewData;
   notes?: string;
+  drawingInfo?: DrawingInfo;
   clientName?: string;
   projectLocation?: string;
   description?: string;
