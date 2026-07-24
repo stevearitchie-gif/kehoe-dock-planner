@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { createRoot } from 'react-dom/client';
 import { deleteObject, getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '@/components/auth/useAuth';
@@ -478,6 +479,7 @@ function escapeHtml(value: string): string {
 
 function printImageInHiddenFrame(args: {
   imageDataUrl: string;
+  sectionViewImageDataUrl?: string | null;
   projectName: string;
   titleBlockHtml: string;
 }): boolean {
@@ -536,11 +538,22 @@ function printImageInHiddenFrame(args: {
             width: 100%;
             min-height: calc(100vh - 0.7in);
           }
+          .page + .page {
+            break-before: page;
+            page-break-before: always;
+          }
           .canvas-image {
             width: 100%;
             max-height: calc(100vh - 1.75in);
             object-fit: contain;
             object-position: top left;
+            display: block;
+          }
+          .section-view-image {
+            width: 100%;
+            height: calc(100vh - 0.7in);
+            object-fit: contain;
+            object-position: center center;
             display: block;
           }
           .title-block {
@@ -649,6 +662,15 @@ function printImageInHiddenFrame(args: {
           <img id="export-image" class="canvas-image" src="${args.imageDataUrl}" alt="${args.projectName}" />
           ${args.titleBlockHtml}
         </div>
+        ${
+          args.sectionViewImageDataUrl
+            ? `
+        <div class="page">
+          <img class="section-view-image" src="${args.sectionViewImageDataUrl}" alt="${args.projectName} Section View" />
+        </div>
+        `
+            : ''
+        }
         <script>
           const images = Array.from(document.images);
           const startPrint = () => {
@@ -685,6 +707,82 @@ function printImageInHiddenFrame(args: {
   return true;
 }
 
+function svgElementToPngDataUrl(svgElement: SVGSVGElement, width: number, height: number): Promise<string | null> {
+  return new Promise((resolve) => {
+    const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
+    svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    const serializedSvg = new XMLSerializer().serializeToString(svgClone);
+    const svgBlob = new Blob([serializedSvg], { type: 'image/svg+xml;charset=utf-8' });
+    const objectUrl = URL.createObjectURL(svgBlob);
+    const image = new Image();
+
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d');
+      if (!context) {
+        URL.revokeObjectURL(objectUrl);
+        resolve(null);
+        return;
+      }
+
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(objectUrl);
+      resolve(canvas.toDataURL('image/png'));
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(null);
+    };
+
+    image.src = objectUrl;
+  });
+}
+
+async function captureSectionViewForPdf(sectionView: SectionViewData, projectName: string): Promise<string | null> {
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.left = '-10000px';
+  container.style.top = '0';
+  container.style.width = '1400px';
+  container.style.height = '1000px';
+  container.style.pointerEvents = 'none';
+  container.style.opacity = '0';
+  document.body.appendChild(container);
+
+  const root = createRoot(container);
+
+  try {
+    root.render(
+      <SectionViewCanvas
+        sectionView={sectionView}
+        projectName={projectName}
+        onChange={() => undefined}
+        onGenerateFromBuildPlan={() => undefined}
+      />,
+    );
+
+    await waitForNextPaint();
+
+    const svgElement = container.querySelector(
+      'svg[aria-label="Section view permit drawing sheet"]',
+    ) as SVGSVGElement | null;
+
+    if (!svgElement) {
+      return null;
+    }
+
+    return await svgElementToPngDataUrl(svgElement, 2200, 1700);
+  } finally {
+    root.unmount();
+    container.remove();
+  }
+}
+
 export function EditorPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const { user } = useAuth();
@@ -702,6 +800,7 @@ export function EditorPage() {
   const [isDeleteConfirmationVisible, setIsDeleteConfirmationVisible] = useState(false);
   const [isToolsPanelVisible, setIsToolsPanelVisible] = useState(true);
   const [isDetailsPanelVisible, setIsDetailsPanelVisible] = useState(true);
+  const [includeSectionViewInPdf, setIncludeSectionViewInPdf] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingSiteImage, setIsUploadingSiteImage] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -2361,8 +2460,15 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
       </div>
     `;
 
+    let sectionViewImageDataUrl: string | null = null;
+
+    if (includeSectionViewInPdf) {
+      sectionViewImageDataUrl = await captureSectionViewForPdf(project.sectionView ?? getDefaultSectionView(), projectName);
+    }
+
     const printed = printImageInHiddenFrame({
       imageDataUrl,
+      sectionViewImageDataUrl,
       projectName: escapeHtml(projectName),
       titleBlockHtml,
     });
@@ -2443,6 +2549,15 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
             >
               Export PDF
             </button>
+            <label className="flex min-h-11 items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={includeSectionViewInPdf}
+                onChange={(event) => setIncludeSectionViewInPdf(event.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+              />
+              Include Section View
+            </label>
             <Link
               to={`/render3d/${projectId ?? project.id}`}
               className="min-h-11 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
