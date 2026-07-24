@@ -480,6 +480,7 @@ function escapeHtml(value: string): string {
 function printImageInHiddenFrame(args: {
   imageDataUrl: string;
   sectionViewImageDataUrl?: string | null;
+  sectionViewTitleBlockHtml?: string;
   projectName: string;
   titleBlockHtml: string;
 }): boolean {
@@ -551,9 +552,9 @@ function printImageInHiddenFrame(args: {
           }
           .section-view-image {
             width: 100%;
-            height: calc(100vh - 0.7in);
+            max-height: calc(100vh - 1.75in);
             object-fit: contain;
-            object-position: center center;
+            object-position: top left;
             display: block;
           }
           .title-block {
@@ -688,6 +689,7 @@ function printImageInHiddenFrame(args: {
             ? `
         <div class="page">
           <img class="section-view-image" src="${args.sectionViewImageDataUrl}" alt="${args.projectName} Section View" />
+          ${args.sectionViewTitleBlockHtml ?? ''}
         </div>
         `
             : ''
@@ -728,10 +730,18 @@ function printImageInHiddenFrame(args: {
   return true;
 }
 
-function svgElementToPngDataUrl(svgElement: SVGSVGElement, width: number, height: number): Promise<string | null> {
+function svgElementToPngDataUrl(
+  svgElement: SVGSVGElement,
+  width: number,
+  height: number,
+  options: { hideTitleBlock?: boolean } = {},
+): Promise<string | null> {
   return new Promise((resolve) => {
     const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
     svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    if (options.hideTitleBlock) {
+      svgClone.querySelector('[data-section-editable-id="title-block"]')?.remove();
+    }
     const serializedSvg = new XMLSerializer().serializeToString(svgClone);
     const svgBlob = new Blob([serializedSvg], { type: 'image/svg+xml;charset=utf-8' });
     const objectUrl = URL.createObjectURL(svgBlob);
@@ -797,7 +807,7 @@ async function captureSectionViewForPdf(sectionView: SectionViewData, projectNam
       return null;
     }
 
-    return await svgElementToPngDataUrl(svgElement, 2200, 1700);
+    return await svgElementToPngDataUrl(svgElement, 2200, 1700, { hideTitleBlock: true });
   } finally {
     root.unmount();
     container.remove();
@@ -2487,14 +2497,57 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
     `;
 
     let sectionViewImageDataUrl: string | null = null;
+    let sectionViewTitleBlockHtml = '';
 
     if (includeSectionViewInPdf) {
-      sectionViewImageDataUrl = await captureSectionViewForPdf(project.sectionView ?? getDefaultSectionView(), projectName);
+      const sectionView = project.sectionView ?? getDefaultSectionView();
+      const sectionTitleBlock = sectionView.titleBlock;
+      sectionViewImageDataUrl = await captureSectionViewForPdf(sectionView, projectName);
+      sectionViewTitleBlockHtml =
+        titleBlockPosition === 'hidden'
+          ? ''
+          : `
+      <div class="title-block title-block-${titleBlockPosition}" style="${titleBlockOffsetStyle}">
+        <table>
+          <colgroup>
+            <col style="width: 42%;" />
+            <col style="width: 40%;" />
+            <col style="width: 18%;" />
+          </colgroup>
+          <tr class="info-row">
+            <td><div class="title-field"><span class="title-label">Date:</span><span class="title-value">${escapeHtml(sectionTitleBlock?.date || drawingDate)}</span></div></td>
+            <td colspan="2"><div class="title-field"><span class="title-label">Client:</span><span class="title-value">${escapeHtml(sectionTitleBlock?.client || project.clientName || projectName)}</span></div></td>
+          </tr>
+          <tr class="scale-row">
+            <td class="scale-note">Not to<br />Scale</td>
+            <td colspan="2"><div class="title-field"><span class="title-label">Location:</span><span class="title-value">${escapeHtml(sectionTitleBlock?.location || project.projectLocation || '')}</span></div></td>
+          </tr>
+          <tr class="info-row">
+            <td rowspan="2" class="logo-cell">
+              <div class="title-logo" aria-label="Kehoe Marine Construction">
+                <span class="title-logo-mark">Kehoe</span>
+                <span class="title-logo-text">Marine<br />Construction</span>
+              </div>
+            </td>
+            <td colspan="2"><div class="title-field"><span class="title-label">Description:</span><span class="title-value">${escapeHtml(sectionTitleBlock?.description || sectionView.title || project.description || project.name)}</span></div></td>
+          </tr>
+          <tr class="drawing-row">
+            <td><div class="title-field"><span class="title-label">Drawing #:</span><span class="title-value">${escapeHtml(sectionTitleBlock?.drawingNumber || project.drawingNumber || 'SV-1')}</span></div></td>
+            <td class="small-cell"><div class="title-field"><span class="title-label">Rev:</span><span class="title-value">${escapeHtml(sectionTitleBlock?.revision || project.revision || '0')}</span></div></td>
+          </tr>
+          <tr>
+            <td><div class="title-field"><span class="title-label">Completed By:</span><span class="title-value">${escapeHtml(sectionTitleBlock?.completedBy || project.completedBy || '')}</span></div></td>
+            <td colspan="2"></td>
+          </tr>
+        </table>
+      </div>
+    `;
     }
 
     const printed = printImageInHiddenFrame({
       imageDataUrl,
       sectionViewImageDataUrl,
+      sectionViewTitleBlockHtml,
       projectName: escapeHtml(projectName),
       titleBlockHtml,
     });
