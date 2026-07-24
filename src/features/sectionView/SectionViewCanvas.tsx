@@ -26,7 +26,6 @@ const ink = '#111827';
 const mutedInk = '#475569';
 const red = '#dc2626';
 const blue = '#0f70b7';
-const sheetMargin = 42;
 const drawingLeft = 92;
 const drawingRight = 1008;
 const baseHighWaterY = 365;
@@ -1221,7 +1220,6 @@ export function SectionViewCanvas({ sectionView, projectName, onChange, onGenera
             onPointerLeave={handleSvgPointerUp}
           >
             <rect width={SVG_WIDTH} height={SVG_HEIGHT} fill="#ffffff" />
-            <rect x={sheetMargin} y={sheetMargin} width={SVG_WIDTH - sheetMargin * 2} height={SVG_HEIGHT - sheetMargin * 2} fill="none" stroke={ink} strokeWidth="1.2" />
 
             <defs>
               <marker id="red-arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto" markerUnits="strokeWidth">
