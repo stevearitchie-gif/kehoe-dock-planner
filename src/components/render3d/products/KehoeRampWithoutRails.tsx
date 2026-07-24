@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+// @ts-ignore -- three is provided by the existing React Three Fiber runtime dependency.
+import { CanvasTexture, RepeatWrapping, type Texture } from 'three';
 import type { KehoeRampSlope } from '@/components/render3d/products/KehoeRampWithRails';
 import type { RenderViewMode } from '@/components/render3d/types';
 
@@ -71,10 +74,10 @@ function getRampTopHeightAtZ(z: number, footprintLengthFt: number, slope: KehoeR
 function getMaterials(viewMode: RenderViewMode) {
   if (viewMode === 'customer') {
     return {
-      aluminum: '#dce4e6',
-      aluminumDark: '#aab6ba',
-      deck: '#979b98',
-      deckLine: '#7d8582',
+      aluminum: '#e5ecee',
+      aluminumDark: '#b4c0c4',
+      deck: '#9a9f9b',
+      deckLine: '#707a77',
       plate: '#d4c9b6',
       lowerPlate: '#c5cfd2',
     };
@@ -101,6 +104,7 @@ function SlopedBox({
   opacity,
   roughness = 0.62,
   metalness = 0,
+  texture,
 }: {
   xMin: number;
   xMax: number;
@@ -112,6 +116,7 @@ function SlopedBox({
   opacity: number;
   roughness?: number;
   metalness?: number;
+  texture?: Texture | null;
 }) {
   const topA = topHeightAtZ(zMin);
   const topB = topHeightAtZ(zMax);
@@ -158,9 +163,46 @@ function SlopedBox({
         <bufferAttribute attach="attributes-position" args={[vertices, 3]} />
         <bufferAttribute attach="index" args={[indices, 1]} />
       </bufferGeometry>
-      <meshStandardMaterial color={color} roughness={roughness} metalness={metalness} transparent={opacity < 1} opacity={opacity} />
+      <meshStandardMaterial color={texture ? '#ffffff' : color} map={texture ?? undefined} roughness={roughness} metalness={metalness} transparent={opacity < 1} opacity={opacity} />
     </mesh>
   );
+}
+
+function createRampDeckTexture(isCustomerView: boolean) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 192;
+  canvas.height = 192;
+  const context = canvas.getContext('2d');
+
+  if (!context) {
+    return null;
+  }
+
+  context.fillStyle = isCustomerView ? '#989f9a' : '#9ca3af';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  for (let y = 0; y < canvas.height; y += 16) {
+    context.fillStyle = y % 32 === 0 ? 'rgba(255, 255, 255, 0.08)' : 'rgba(66, 76, 73, 0.08)';
+    context.fillRect(0, y, canvas.width, 8);
+  }
+
+  for (let line = 0; line < 28; line += 1) {
+    const y = (line * 13) % canvas.height;
+    context.beginPath();
+    context.moveTo(0, y);
+    for (let x = 0; x <= canvas.width; x += 16) {
+      context.lineTo(x, y + Math.sin((x + line * 9) * 0.06) * 0.9);
+    }
+    context.strokeStyle = line % 2 === 0 ? 'rgba(235, 241, 239, 0.12)' : 'rgba(53, 63, 61, 0.12)';
+    context.lineWidth = 0.8;
+    context.stroke();
+  }
+
+  const texture = new CanvasTexture(canvas);
+  texture.wrapS = RepeatWrapping;
+  texture.wrapT = RepeatWrapping;
+  texture.repeat.set(2, 7);
+  return texture;
 }
 
 function RampDeckLines({
@@ -350,6 +392,8 @@ export function KehoeRampWithoutRails({
   viewMode,
   slope,
 }: KehoeRampWithoutRailsProps) {
+  const deckTexture = useMemo(() => createRampDeckTexture(viewMode === 'customer'), [viewMode]);
+
   if (
     !Number.isFinite(footprintWidthFt) ||
     !Number.isFinite(footprintLengthFt) ||
@@ -378,8 +422,9 @@ export function KehoeRampWithoutRails({
         thickness={DECK_THICKNESS_FT}
         color={materials.deck}
         opacity={opacity}
-        roughness={0.64}
+        roughness={0.72}
         metalness={0.02}
+        texture={deckTexture}
       />
       {[-1, 1].map((sign) => (
         <SlopedBox
@@ -392,8 +437,8 @@ export function KehoeRampWithoutRails({
           thickness={FRAME_DEPTH_FT}
           color={materials.aluminum}
           opacity={opacity}
-          roughness={0.34}
-          metalness={0.3}
+          roughness={0.24}
+          metalness={0.46}
         />
       ))}
       <CrossMembers width={footprintWidthFt} zStart={zStart} zEnd={zEnd} footprintLengthFt={footprintLengthFt} slope={slope} color={materials.aluminumDark} />

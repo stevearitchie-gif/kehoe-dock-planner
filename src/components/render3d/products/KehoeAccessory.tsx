@@ -72,8 +72,8 @@ export function KehoeAccessory({
     finish === 'rubber' || finish === 'wood' || finish === 'neutral' ? finish : 'metal';
   const colors = getMaterialColor(normalizedType, normalizedFinish, viewMode);
   const materialProps = {
-    roughness: 0.42,
-    metalness: normalizedFinish === 'metal' ? 0.18 : 0.04,
+    roughness: normalizedFinish === 'metal' ? 0.28 : 0.46,
+    metalness: normalizedFinish === 'metal' ? 0.36 : 0.04,
     transparent: opacity < 1,
     opacity,
   };

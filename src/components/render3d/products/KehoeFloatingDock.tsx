@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+// @ts-ignore -- three is provided by the existing React Three Fiber runtime dependency.
+import { CanvasTexture, RepeatWrapping } from 'three';
 import type { FloatingDockBoardDirection, RenderViewMode } from '@/components/render3d/types';
 
 export type FloatingDockDeckFinish = 'pressure-treated' | 'cedar' | 'composite-grey' | 'composite-brown';
@@ -47,6 +50,64 @@ function getMaterials(viewMode: RenderViewMode, deckFinish: FloatingDockDeckFini
     metal: isCustomer ? '#d7dee0' : '#d1d5db',
     fastener: isCustomer ? '#e3e8ea' : '#f8fafc',
   };
+}
+
+function createDeckTexture(deckFinish: FloatingDockDeckFinish, isCustomer: boolean) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const context = canvas.getContext('2d');
+
+  if (!context) {
+    return null;
+  }
+
+  const baseColors: Record<FloatingDockDeckFinish, string> = {
+    'pressure-treated': isCustomer ? '#a97647' : '#91875d',
+    cedar: isCustomer ? '#b2703d' : '#a66d3f',
+    'composite-grey': isCustomer ? '#a7afad' : '#8d99a6',
+    'composite-brown': isCustomer ? '#876143' : '#80583d',
+  };
+  const highlightColors: Record<FloatingDockDeckFinish, string> = {
+    'pressure-treated': 'rgba(221, 170, 111, 0.22)',
+    cedar: 'rgba(225, 157, 92, 0.2)',
+    'composite-grey': 'rgba(224, 231, 229, 0.18)',
+    'composite-brown': 'rgba(190, 139, 91, 0.18)',
+  };
+  const shadowColors: Record<FloatingDockDeckFinish, string> = {
+    'pressure-treated': 'rgba(91, 57, 31, 0.2)',
+    cedar: 'rgba(95, 50, 24, 0.18)',
+    'composite-grey': 'rgba(72, 82, 83, 0.15)',
+    'composite-brown': 'rgba(55, 36, 25, 0.17)',
+  };
+
+  context.fillStyle = baseColors[deckFinish];
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  for (let board = 0; board < 12; board += 1) {
+    const y = (board * canvas.height) / 12;
+    const tone = board % 3 === 0 ? highlightColors[deckFinish] : board % 3 === 1 ? shadowColors[deckFinish] : 'rgba(255, 255, 255, 0.04)';
+    context.fillStyle = tone;
+    context.fillRect(0, y, canvas.width, canvas.height / 12);
+  }
+
+  for (let line = 0; line < 34; line += 1) {
+    const y = (line * 19) % canvas.height;
+    context.beginPath();
+    context.moveTo(0, y);
+    for (let x = 0; x <= canvas.width; x += 14) {
+      context.lineTo(x, y + Math.sin((x + line * 11) * 0.045) * 1.2);
+    }
+    context.strokeStyle = line % 2 === 0 ? highlightColors[deckFinish] : shadowColors[deckFinish];
+    context.lineWidth = 0.8;
+    context.stroke();
+  }
+
+  const texture = new CanvasTexture(canvas);
+  texture.wrapS = RepeatWrapping;
+  texture.wrapT = RepeatWrapping;
+  texture.repeat.set(2.4, 5.5);
+  return texture;
 }
 
 function DeckBoardLines({
@@ -258,11 +319,13 @@ export function KehoeFloatingDock({
   deckColorOverride,
   tubeDiameterFt = DEFAULT_TUBE_DIAMETER_FT,
 }: KehoeFloatingDockProps) {
+  const materials = getMaterials(viewMode, deckFinish, deckColorOverride);
+  const deckTexture = useMemo(() => createDeckTexture(deckFinish, viewMode === 'customer'), [deckFinish, viewMode]);
+
   if (!Number.isFinite(footprintWidthFt) || !Number.isFinite(footprintLengthFt) || footprintWidthFt <= 0 || footprintLengthFt <= 0) {
     return null;
   }
 
-  const materials = getMaterials(viewMode, deckFinish, deckColorOverride);
   const isCompositeDeck = deckFinish === 'composite-grey' || deckFinish === 'composite-brown';
   const deckTopY = FASCIA_DEPTH_FT + DECK_THICKNESS_FT;
   const deckY = FASCIA_DEPTH_FT + DECK_THICKNESS_FT / 2;
@@ -278,7 +341,14 @@ export function KehoeFloatingDock({
     <group>
       <mesh position={[0, deckY, 0]} castShadow receiveShadow>
         <boxGeometry args={[footprintWidthFt, DECK_THICKNESS_FT, footprintLengthFt]} />
-        <meshStandardMaterial color={materials.deck} roughness={isCompositeDeck ? 0.54 : 0.82} metalness={isCompositeDeck ? 0.02 : 0} transparent={opacity < 1} opacity={opacity} />
+        <meshStandardMaterial
+          color={deckTexture ? '#ffffff' : materials.deck}
+          map={deckTexture ?? undefined}
+          roughness={isCompositeDeck ? 0.58 : 0.88}
+          metalness={isCompositeDeck ? 0.02 : 0}
+          transparent={opacity < 1}
+          opacity={opacity}
+        />
       </mesh>
       <DeckBoardLines
         width={footprintWidthFt}

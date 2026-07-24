@@ -22,10 +22,10 @@ const MAX_FLAT_ROOF_DEPTH_FT = 0.65;
 function getMaterials(viewMode: RenderViewMode) {
   if (viewMode === 'customer') {
     return {
-      post: '#d8e1e6',
-      frame: '#b9c7cf',
-      roof: '#eef4f7',
-      roofEdge: '#cbd7dd',
+      post: '#e2eaed',
+      frame: '#bccbd2',
+      roof: '#f1f5f6',
+      roofEdge: '#c8d5db',
       base: '#d7e7f4',
     };
   }
@@ -76,17 +76,17 @@ function PitchedRoof({
           receiveShadow
         >
           <boxGeometry args={[roofLength, PITCHED_ROOF_THICKNESS_FT, roofPlaneWidth]} />
-          <meshStandardMaterial color={materials.roof} roughness={0.44} metalness={0.04} transparent={opacity < 1} opacity={opacity} />
+          <meshStandardMaterial color={materials.roof} roughness={0.36} metalness={0.08} transparent={opacity < 1} opacity={opacity} />
         </mesh>
       ))}
       <mesh position={[0, wallHeight + roofRise + 0.02, 0]} castShadow>
         <boxGeometry args={[roofLength, 0.08, 0.12]} />
-        <meshStandardMaterial color={materials.roofEdge} roughness={0.42} metalness={0.08} transparent={opacity < 1} opacity={opacity} />
+        <meshStandardMaterial color={materials.roofEdge} roughness={0.32} metalness={0.14} transparent={opacity < 1} opacity={opacity} />
       </mesh>
       {[-1, 1].map((zSign) => (
         <mesh key={`eave-fascia-${zSign}`} position={[0, wallHeight - 0.02, zSign * halfWidth]} castShadow>
           <boxGeometry args={[roofLength, 0.12, 0.1]} />
-          <meshStandardMaterial color={materials.roofEdge} roughness={0.44} metalness={0.06} transparent={opacity < 1} opacity={opacity} />
+          <meshStandardMaterial color={materials.roofEdge} roughness={0.34} metalness={0.12} transparent={opacity < 1} opacity={opacity} />
         </mesh>
       ))}
     </>
@@ -136,27 +136,27 @@ export function KehoeBoatPort({
       {postPositions.map(([x, z]) => (
         <mesh key={`post-${x}-${z}`} position={[x, wallHeight / 2, z]} castShadow receiveShadow>
           <boxGeometry args={[POST_SIZE_FT, wallHeight, POST_SIZE_FT]} />
-          <meshStandardMaterial color={materials.post} roughness={0.36} metalness={0.12} transparent={opacity < 1} opacity={opacity} />
+          <meshStandardMaterial color={materials.post} roughness={0.28} metalness={0.34} transparent={opacity < 1} opacity={opacity} />
         </mesh>
       ))}
 
       {[-1, 1].map((zSign) => (
         <mesh key={`side-frame-${zSign}`} position={[0, frameY, zSign * postZ]} castShadow receiveShadow>
           <boxGeometry args={[length, 0.12, 0.12]} />
-          <meshStandardMaterial color={materials.frame} roughness={0.4} metalness={0.1} transparent={opacity < 1} opacity={opacity} />
+          <meshStandardMaterial color={materials.frame} roughness={0.3} metalness={0.3} transparent={opacity < 1} opacity={opacity} />
         </mesh>
       ))}
       {[-1, 1].map((xSign) => (
         <mesh key={`end-frame-${xSign}`} position={[xSign * postX, frameY, 0]} castShadow receiveShadow>
           <boxGeometry args={[0.12, 0.12, width]} />
-          <meshStandardMaterial color={materials.frame} roughness={0.4} metalness={0.1} transparent={opacity < 1} opacity={opacity} />
+          <meshStandardMaterial color={materials.frame} roughness={0.3} metalness={0.3} transparent={opacity < 1} opacity={opacity} />
         </mesh>
       ))}
 
       {normalizedRoofType === 'flat' ? (
         <mesh position={[0, flatRoofCenterY, 0]} castShadow receiveShadow>
           <boxGeometry args={[length + ROOF_OVERHANG_FT * 2, flatRoofDepth, width + ROOF_OVERHANG_FT * 2]} />
-          <meshStandardMaterial color={materials.roof} roughness={0.44} metalness={0.04} transparent={opacity < 1} opacity={opacity} />
+          <meshStandardMaterial color={materials.roof} roughness={0.38} metalness={0.08} transparent={opacity < 1} opacity={opacity} />
         </mesh>
       ) : (
         <PitchedRoof length={length} width={width} wallHeight={wallHeight} roofRise={roofRise} materials={materials} opacity={opacity} />

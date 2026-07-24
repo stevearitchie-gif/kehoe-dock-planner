@@ -18,14 +18,14 @@ const WINDER_LENGTH_FT = 0.46;
 function getMaterials(viewMode: RenderViewMode) {
   if (viewMode === 'customer') {
     return {
-      frame: '#d8e1e6',
-      frameDark: '#aebbc2',
+      frame: '#e0e8eb',
+      frameDark: '#a9b7be',
       cable: '#5f6f7a',
-      cradle: '#9aa8af',
+      cradle: '#a5b3ba',
       bunk: '#6f6255',
       motor: '#c7d1d7',
-      hardware: '#8f9ba3',
-      winder: '#b9c4ca',
+      hardware: '#a2aeb5',
+      winder: '#c7d2d7',
     };
   }
 
@@ -85,8 +85,8 @@ export function KehoeBoatLift({
             <boxGeometry args={[postMarkerSize, postMarkerHeight, postMarkerSize]} />
             <meshStandardMaterial
               color={viewMode === 'customer' ? materials.frame : materials.frameDark}
-              roughness={0.42}
-              metalness={0.14}
+              roughness={0.3}
+              metalness={0.36}
               transparent={opacity < 1 || viewMode === 'internal'}
               opacity={viewMode === 'internal' ? 0.82 : opacity}
             />
@@ -95,8 +95,8 @@ export function KehoeBoatLift({
             <boxGeometry args={[postCapSize, POST_CAP_HEIGHT_FT, postCapSize]} />
             <meshStandardMaterial
               color={viewMode === 'customer' ? materials.hardware : materials.frameDark}
-              roughness={0.4}
-              metalness={0.16}
+              roughness={0.28}
+              metalness={0.38}
               transparent={opacity < 1 || viewMode === 'internal'}
               opacity={viewMode === 'internal' ? 0.84 : opacity}
             />
@@ -108,7 +108,7 @@ export function KehoeBoatLift({
         [-winderX, winderX].map((x) => (
           <mesh key={`winder-${x}-${z}`} position={[x, CRADLE_HEIGHT_FT + 0.28, z]} rotation={[0, 0, Math.PI / 2]} castShadow>
             <cylinderGeometry args={[WINDER_RADIUS_FT, WINDER_RADIUS_FT, WINDER_LENGTH_FT, 16]} />
-            <meshStandardMaterial color={materials.winder} roughness={0.32} metalness={0.24} transparent={opacity < 1} opacity={opacity} />
+            <meshStandardMaterial color={materials.winder} roughness={0.24} metalness={0.42} transparent={opacity < 1} opacity={opacity} />
           </mesh>
         )),
       )}
@@ -116,19 +116,19 @@ export function KehoeBoatLift({
       {[-bunkOffsetZ, bunkOffsetZ].map((z) => (
         <mesh key={`cradle-side-${z}`} position={[0, CRADLE_HEIGHT_FT, z]} castShadow receiveShadow>
           <boxGeometry args={[cradleLength, CRADLE_BEAM_SIZE_FT, CRADLE_BEAM_SIZE_FT]} />
-          <meshStandardMaterial color={materials.cradle} roughness={0.48} metalness={0.1} />
+          <meshStandardMaterial color={materials.cradle} roughness={0.3} metalness={0.32} />
         </mesh>
       ))}
       {[-cradleLength * 0.34, cradleLength * 0.34].map((x) => (
         <mesh key={`cradle-cross-${x}`} position={[x, CRADLE_HEIGHT_FT, 0]} castShadow receiveShadow>
           <boxGeometry args={[CRADLE_BEAM_SIZE_FT, CRADLE_BEAM_SIZE_FT, cradleWidth]} />
-          <meshStandardMaterial color={materials.cradle} roughness={0.48} metalness={0.1} />
+          <meshStandardMaterial color={materials.cradle} roughness={0.3} metalness={0.32} />
         </mesh>
       ))}
       {[-cradleLength * 0.18, cradleLength * 0.18].map((x) => (
         <mesh key={`cradle-mid-cross-${x}`} position={[x, CRADLE_HEIGHT_FT - 0.03, 0]} castShadow receiveShadow>
           <boxGeometry args={[CRADLE_BEAM_SIZE_FT * 0.72, CRADLE_BEAM_SIZE_FT * 0.72, cradleWidth * 0.82]} />
-          <meshStandardMaterial color={materials.frameDark} roughness={0.5} metalness={0.08} />
+          <meshStandardMaterial color={materials.frameDark} roughness={0.34} metalness={0.26} />
         </mesh>
       ))}
       {[-bunkOffsetZ, bunkOffsetZ].map((z) => (
@@ -142,7 +142,7 @@ export function KehoeBoatLift({
         [-bunkOffsetZ, bunkOffsetZ].map((z) => (
           <mesh key={`cable-${x}-${z}`} position={[x, CRADLE_HEIGHT_FT + 0.2 + lowCableHeight / 2, z]} castShadow>
             <boxGeometry args={[CABLE_SIZE_FT, lowCableHeight, CABLE_SIZE_FT]} />
-            <meshStandardMaterial color={materials.cable} roughness={0.46} metalness={0.2} />
+            <meshStandardMaterial color={materials.cable} roughness={0.32} metalness={0.34} />
           </mesh>
         )),
       )}
@@ -150,17 +150,17 @@ export function KehoeBoatLift({
       {postPositions.map(([x, z]) => (
         <mesh key={`cable-keeper-${x}-${z}`} position={[x * 0.88, CRADLE_HEIGHT_FT + 0.42, z * 0.88]} castShadow>
           <boxGeometry args={[0.045, 0.34, 0.045]} />
-          <meshStandardMaterial color={materials.cable} roughness={0.44} metalness={0.18} />
+          <meshStandardMaterial color={materials.cable} roughness={0.32} metalness={0.32} />
         </mesh>
       ))}
 
       <mesh position={[driveX, CRADLE_HEIGHT_FT + 0.44, driveZ]} castShadow>
         <boxGeometry args={[0.48, 0.26, 0.34]} />
-        <meshStandardMaterial color={materials.motor} roughness={0.42} metalness={0.12} />
+        <meshStandardMaterial color={materials.motor} roughness={0.3} metalness={0.28} />
       </mesh>
       <mesh position={[driveX - 0.34, CRADLE_HEIGHT_FT + 0.4, -bunkOffsetZ]} rotation={[0, 0, Math.PI / 2]} castShadow>
         <cylinderGeometry args={[0.12, 0.12, 0.28, 16]} />
-        <meshStandardMaterial color={materials.hardware} roughness={0.36} metalness={0.2} />
+        <meshStandardMaterial color={materials.hardware} roughness={0.26} metalness={0.4} />
       </mesh>
     </group>
   );
