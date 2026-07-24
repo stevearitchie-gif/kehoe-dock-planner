@@ -1,53 +1,5 @@
-import { useMemo } from 'react';
-// @ts-ignore -- three is provided by the existing React Three Fiber runtime dependency.
-import { CanvasTexture, RepeatWrapping } from 'three';
-
 interface WaterPlaneProps {
   viewMode?: 'customer' | 'internal';
-}
-
-function createWaterTexture(isCustomerView: boolean) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 256;
-  const context = canvas.getContext('2d');
-
-  if (!context) {
-    return null;
-  }
-
-  const gradient = context.createLinearGradient(0, 0, 256, 256);
-  gradient.addColorStop(0, isCustomerView ? '#73bdca' : '#4b9cad');
-  gradient.addColorStop(0.48, isCustomerView ? '#82cbd5' : '#59aebe');
-  gradient.addColorStop(1, isCustomerView ? '#6fb8c5' : '#438fa0');
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, 256, 256);
-
-  for (let y = 14; y < 256; y += 17) {
-    const offset = Math.sin(y * 0.11) * 12;
-    context.beginPath();
-    context.moveTo(-20, y + offset * 0.08);
-    for (let x = -20; x <= 276; x += 18) {
-      context.lineTo(x, y + Math.sin((x + y) * 0.045) * 1.8 + offset * 0.05);
-    }
-    context.strokeStyle = isCustomerView ? 'rgba(189, 226, 232, 0.16)' : 'rgba(170, 214, 224, 0.12)';
-    context.lineWidth = 1;
-    context.stroke();
-  }
-
-  for (let index = 0; index < 420; index += 1) {
-    const x = (index * 47) % 256;
-    const y = (index * 83) % 256;
-    const opacity = 0.035 + ((index * 13) % 9) / 1000;
-    context.fillStyle = `rgba(255, 255, 255, ${opacity})`;
-    context.fillRect(x, y, 1, 1);
-  }
-
-  const texture = new CanvasTexture(canvas);
-  texture.wrapS = RepeatWrapping;
-  texture.wrapT = RepeatWrapping;
-  texture.repeat.set(8, 6);
-  return texture;
 }
 
 function WaveSurface({ isCustomerView }: { isCustomerView: boolean }) {
@@ -93,8 +45,8 @@ function WaveSurface({ isCustomerView }: { isCustomerView: boolean }) {
 }
 
 function RippleBands({ isCustomerView }: { isCustomerView: boolean }) {
-  const bandColor = isCustomerView ? '#b9e3ea' : '#a8d5df';
-  const bandOpacity = isCustomerView ? 0.16 : 0.11;
+  const bandColor = isCustomerView ? '#9fcfd8' : '#8cc6d2';
+  const bandOpacity = isCustomerView ? 0.09 : 0.07;
   const bands = [
     { x: -42, z: -36, width: 18, rotation: -0.04 },
     { x: -5, z: -30, width: 24, rotation: 0.03 },
@@ -121,21 +73,17 @@ function RippleBands({ isCustomerView }: { isCustomerView: boolean }) {
 
 export function WaterPlane({ viewMode = 'internal' }: WaterPlaneProps) {
   const isCustomerView = viewMode === 'customer';
-  const waterTexture = useMemo(() => createWaterTexture(isCustomerView), [isCustomerView]);
 
   return (
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.06, 0]} receiveShadow>
         <planeGeometry args={[146, 102, 1, 1]} />
         <meshStandardMaterial
-          color={isCustomerView ? '#7fc7d3' : '#5db4c3'}
-          map={waterTexture ?? undefined}
-          bumpMap={waterTexture ?? undefined}
-          bumpScale={isCustomerView ? 0.012 : 0.008}
-          roughness={isCustomerView ? 0.52 : 0.5}
+          color={isCustomerView ? '#78bfcb' : '#5db4c3'}
+          roughness={isCustomerView ? 0.48 : 0.5}
           metalness={0.01}
           transparent
-          opacity={isCustomerView ? 0.66 : 0.48}
+          opacity={isCustomerView ? 0.62 : 0.48}
         />
       </mesh>
       <WaveSurface isCustomerView={isCustomerView} />
