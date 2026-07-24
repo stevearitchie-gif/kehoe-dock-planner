@@ -654,19 +654,32 @@ function buildPlanContextGroup(references: SectionViewBuildPlanReference[]) {
   const maxVisibleReferences = 4;
   const visibleReferences = references.slice(0, maxVisibleReferences);
   const extraCount = Math.max(0, references.length - visibleReferences.length);
+  const groupX = 72;
+  const groupY = 474;
+  const itemStartX = groupX + 16;
+  const itemStartY = groupY + 56;
+  const columnWidth = 276;
+  const rowHeight = 48;
 
   return (
     <g>
-      <rect x="76" y="586" width="580" height="128" fill="#ffffff" opacity="0.01" stroke="none" />
-      <text x="90" y="606" fill={ink} fontSize="12" fontWeight="800">
+      <rect x={groupX} y={groupY} width="594" height="164" fill="#ffffff" opacity="0.01" stroke="none" />
+      <text x={groupX + 16} y={groupY + 20} fill={ink} fontSize="12" fontWeight="800">
         BUILD PLAN CONTEXT
       </text>
-      <text x="90" y="624" fill={mutedInk} fontSize="10">
+      <text x={groupX + 16} y={groupY + 38} fill={mutedInk} fontSize="10">
         Additional Build Plan objects shown as visual context only. Final section details subject to site conditions and approvals.
       </text>
-      {visibleReferences.map((reference, index) => buildPlanContextSymbol(reference, 92 + (index % 2) * 280, 642 + Math.floor(index / 2) * 52, index))}
+      {visibleReferences.map((reference, index) =>
+        buildPlanContextSymbol(
+          reference,
+          itemStartX + (index % 2) * columnWidth,
+          itemStartY + Math.floor(index / 2) * rowHeight,
+          index,
+        ),
+      )}
       {extraCount > 0 && (
-        <text x="372" y="704" fill={mutedInk} fontSize="10">
+        <text x={itemStartX + columnWidth} y={groupY + 150} fill={mutedInk} fontSize="10">
           + {extraCount} more Build Plan item{extraCount === 1 ? '' : 's'} listed in the data panel
         </text>
       )}
@@ -1819,7 +1832,7 @@ export function SectionViewCanvas({ sectionView, projectName, drawingInfo, onCha
               editableElement('callout-dock', callout(labelText('callout-dock', `FLOATING DOCK ${feetLabel(sectionView.dockRampReference?.dockLengthFt, '')}`.trim()), 786, 202, 716, highWaterY - 56, 'dock'), 786, 190)}
 
             {buildPlanReferences.length > 0 &&
-              editableElement('build-plan-context', buildPlanContextGroup(buildPlanReferences), 90, 606)}
+              editableElement('build-plan-context', buildPlanContextGroup(buildPlanReferences), 88, 494)}
 
             {editableElement(
               'notes',
