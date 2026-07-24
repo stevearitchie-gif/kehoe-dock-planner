@@ -101,6 +101,24 @@ export interface SectionViewBuildPlanReference {
   source: 'buildPlan';
 }
 
+export interface SectionViewProjectedBuildPlanObject extends SectionViewBuildPlanReference {
+  stationFt: number;
+  startStationFt: number;
+  endStationFt: number;
+  offsetFt: number;
+  isPrimary?: boolean;
+}
+
+export interface SectionViewBuildPlanProjection {
+  source: 'auto-ramp-dock' | 'auto-dock' | 'fallback';
+  corridorWidthFt: number;
+  stationStartFt: number;
+  stationEndFt: number;
+  objects: SectionViewProjectedBuildPlanObject[];
+  offSectionCount: number;
+  note: string;
+}
+
 export interface SectionViewData {
   templateId: SectionViewTemplateId;
   title: string;
@@ -124,6 +142,7 @@ export interface SectionViewData {
   customItems?: SectionViewCustomItem[];
   dockRampReference?: SectionViewDockRampReference;
   buildPlanReferences?: SectionViewBuildPlanReference[];
+  buildPlanProjection?: SectionViewBuildPlanProjection;
   profileGeometry?: SectionViewProfileGeometry;
   labelOverrides?: Record<string, string>;
   titleBlock?: SectionViewTitleBlock;

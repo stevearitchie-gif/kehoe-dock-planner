@@ -5,6 +5,8 @@ import type { DrawingInfo } from '@/types/dock';
 import type {
   SectionViewData,
   SectionViewBuildPlanReference,
+  SectionViewBuildPlanProjection,
+  SectionViewProjectedBuildPlanObject,
   SectionViewCustomItem,
   SectionViewCustomItemType,
   SectionViewManualOffset,
@@ -68,6 +70,7 @@ const editableElementLabels: Record<string, string> = {
   'armour-group': 'Armour stone group',
   'dock-profile': 'Dock and ramp reference',
   'build-plan-context': 'Build Plan context references',
+  'build-plan-projection': 'Build Plan projected section',
   'dimension-bank': 'Bank dimension',
   'dimension-drop': 'Lakebed drop dimension',
   'callout-grade': 'Existing grade callout',
@@ -683,6 +686,119 @@ function buildPlanContextGroup(references: SectionViewBuildPlanReference[]) {
           + {extraCount} more Build Plan item{extraCount === 1 ? '' : 's'} listed in the data panel
         </text>
       )}
+    </g>
+  );
+}
+
+function projectedObjectLabel(reference: SectionViewProjectedBuildPlanObject) {
+  const typeLabel = reference.type.replace(/_/g, ' ');
+  const sizeLabel = dimensionLabel(reference.lengthFt, reference.widthFt, typeLabel);
+  return `${reference.label || typeLabel} ${sizeLabel}`;
+}
+
+function projectedObjectSymbol(
+  object: SectionViewProjectedBuildPlanObject,
+  xStart: number,
+  xEnd: number,
+  baseY: number,
+  index: number,
+) {
+  const width = Math.max(18, xEnd - xStart);
+  const centerX = xStart + width / 2;
+  const labelY = baseY - 52 - (index % 3) * 16;
+  const label = projectedObjectLabel(object);
+  const strokeColor = object.isPrimary ? ink : '#334155';
+  const fillColor = object.color?.trim() || '#f8fafc';
+
+  if (object.type === 'ramp_with_rails' || object.type === 'ramp_without_rails') {
+    const shoreY = baseY - 18;
+    const dockY = baseY - 36;
+    const hasRails = object.type === 'ramp_with_rails';
+    return (
+      <g key={object.id ?? `projected-ramp-${index}`} stroke={strokeColor} fill="none" strokeWidth="1.4">
+        <polygon points={`${xStart},${shoreY} ${xEnd},${dockY} ${xEnd},${dockY + 8} ${xStart},${shoreY + 8}`} fill="#eef6fb" />
+        {hasRails && (
+          <>
+            <line x1={xStart + 5} y1={shoreY - 12} x2={xEnd - 5} y2={dockY - 12} strokeWidth="1" />
+            <line x1={xStart + width * 0.22} y1={shoreY - 7} x2={xStart + width * 0.22} y2={shoreY + 8} strokeWidth="0.8" />
+            <line x1={xStart + width * 0.72} y1={dockY - 10} x2={xStart + width * 0.72} y2={dockY + 8} strokeWidth="0.8" />
+          </>
+        )}
+        <line x1={centerX} y1={labelY + 7} x2={centerX} y2={dockY - 4} stroke={red} markerEnd="url(#red-arrow)" />
+        <text x={centerX - 42} y={labelY} fill={red} stroke="none" fontSize="11" fontWeight="700">{label}</text>
+      </g>
+    );
+  }
+
+  if (object.type === 'floating_dock') {
+    return (
+      <g key={object.id ?? `projected-dock-${index}`} stroke={strokeColor} fill="none" strokeWidth={object.isPrimary ? 1.6 : 1.1}>
+        <rect x={xStart} y={baseY - 42} width={width} height="28" fill={fillColor} opacity="0.72" />
+        {object.boardDirection !== 'none' &&
+          Array.from({ length: Math.max(4, Math.min(18, Math.round(width / 9))) }, (_, lineIndex) => (
+            <line key={lineIndex} x1={xStart + 5 + lineIndex * 9} y1={baseY - 40} x2={xStart + 5 + lineIndex * 9} y2={baseY - 16} stroke="#8a5f3d" strokeWidth="0.8" />
+          ))}
+        <path d={`M ${xStart + 8} ${baseY - 12} q 0 14 5 14 L ${xEnd - 13} ${baseY + 2} q 5 0 5 -14`} strokeWidth="1" />
+        <line x1={centerX} y1={labelY + 7} x2={centerX} y2={baseY - 45} stroke={red} markerEnd="url(#red-arrow)" />
+        <text x={centerX - 46} y={labelY} fill={red} stroke="none" fontSize="11" fontWeight="700">{label}</text>
+      </g>
+    );
+  }
+
+  if (object.type === 'boat_lift') {
+    return (
+      <g key={object.id ?? `projected-lift-${index}`} stroke={strokeColor} fill="none" strokeWidth="1.2">
+        <line x1={xStart} y1={baseY - 52} x2={xEnd} y2={baseY - 52} />
+        <line x1={xStart + width * 0.16} y1={baseY - 26} x2={xEnd - width * 0.16} y2={baseY - 26} />
+        {[xStart + 6, xEnd - 6].map((postX) => <line key={postX} x1={postX} y1={baseY - 70} x2={postX} y2={baseY - 12} />)}
+        <path d={`M ${centerX - 18} ${baseY - 26} L ${centerX} ${baseY - 38} L ${centerX + 18} ${baseY - 26}`} />
+        <text x={centerX - 44} y={labelY} fill={red} stroke="none" fontSize="11" fontWeight="700">{label}</text>
+        <line x1={centerX} y1={labelY + 7} x2={centerX} y2={baseY - 54} stroke={red} markerEnd="url(#red-arrow)" />
+      </g>
+    );
+  }
+
+  if (object.type === 'boat_port' || object.type === 'boathouse') {
+    const isBoathouse = object.type === 'boathouse';
+    return (
+      <g key={object.id ?? `projected-structure-${index}`} stroke={strokeColor} fill="none" strokeWidth="1.2">
+        <rect x={xStart} y={baseY - 82} width={width} height="68" fill={isBoathouse ? '#f8fafc' : 'none'} />
+        <path d={`M ${xStart - 4} ${baseY - 82} L ${centerX} ${baseY - 108} L ${xEnd + 4} ${baseY - 82}`} fill={isBoathouse ? '#f1f5f9' : 'none'} />
+        {!isBoathouse && [xStart + 6, xEnd - 6].map((postX) => <line key={postX} x1={postX} y1={baseY - 82} x2={postX} y2={baseY - 14} />)}
+        <text x={centerX - 50} y={labelY - 6} fill={red} stroke="none" fontSize="11" fontWeight="700">{label}</text>
+        <line x1={centerX} y1={labelY + 1} x2={centerX} y2={baseY - 94} stroke={red} markerEnd="url(#red-arrow)" />
+      </g>
+    );
+  }
+
+  return (
+    <g key={object.id ?? `projected-accessory-${index}`} stroke={strokeColor} fill="none" strokeWidth="1.1">
+      <circle cx={centerX} cy={baseY - 54} r="10" fill="#f8fafc" />
+      <text x={centerX - 40} y={labelY} fill={red} stroke="none" fontSize="10" fontWeight="700">{label}</text>
+      <line x1={centerX} y1={labelY + 6} x2={centerX} y2={baseY - 64} stroke={red} markerEnd="url(#red-arrow)" />
+    </g>
+  );
+}
+
+function projectedBuildPlanSection(highWaterY: number, projection: SectionViewBuildPlanProjection) {
+  const xStart = 170;
+  const xEnd = 930;
+  const baseY = highWaterY - 6;
+  const stationSpan = Math.max(1, projection.stationEndFt - projection.stationStartFt);
+  const toX = (stationFt: number) => xStart + ((stationFt - projection.stationStartFt) / stationSpan) * (xEnd - xStart);
+
+  return (
+    <g>
+      <rect x={xStart - 44} y={baseY - 132} width={xEnd - xStart + 88} height="185" fill="#ffffff" opacity="0.01" />
+      <line x1={xStart} y1={baseY + 18} x2={xEnd} y2={baseY + 18} stroke={ink} strokeWidth="1" strokeDasharray="8 6" />
+      <line x1={toX(0)} y1={baseY - 92} x2={toX(0)} y2={baseY + 34} stroke={ink} strokeWidth="1.1" />
+      <text x={toX(0) - 28} y={baseY + 50} fill={mutedInk} fontSize="10">SECTION START / SHORE</text>
+      {projection.objects.map((object, index) =>
+        projectedObjectSymbol(object, toX(object.startStationFt), toX(object.endStationFt), baseY, index),
+      )}
+      <text x={xStart} y={baseY + 76} fill={mutedInk} fontSize="10">
+        {projection.note}
+      </text>
     </g>
   );
 }
@@ -1593,6 +1709,7 @@ export function SectionViewCanvas({ sectionView, projectName, drawingInfo, onCha
     ? `${customItemTypes.find((itemType) => itemType.type === selectedCustomItem.type)?.label.replace(/^Add /, '') ?? 'Custom item'}${customItemText(selectedCustomItem) ? `: ${customItemText(selectedCustomItem)}` : ''}`
     : undefined;
   const buildPlanReferences = sectionView.buildPlanReferences ?? [];
+  const buildPlanProjection = sectionView.buildPlanProjection;
   const selectedItemName = selectedZoneName ?? selectedCustomName ?? (
     selectedZonePointMatch
       ? `Rip rap ${selectedZonePointMatch[2]} boundary point ${Number(selectedZonePointMatch[3]) + 1}`
@@ -1782,7 +1899,15 @@ export function SectionViewCanvas({ sectionView, projectName, drawingInfo, onCha
                 highWaterY - 56,
               )}
 
-            {useDockTemplate &&
+            {useDockTemplate && buildPlanProjection &&
+              editableElement(
+                'build-plan-projection',
+                projectedBuildPlanSection(highWaterY, buildPlanProjection),
+                170,
+                highWaterY - 116,
+              )}
+
+            {useDockTemplate && !buildPlanProjection &&
               editableElement(
                 'dock-profile',
                 dockRampProfile(highWaterY, sectionView.dockRampReference, dockReferenceLabel, rampReferenceLabel),
@@ -1827,11 +1952,11 @@ export function SectionViewCanvas({ sectionView, projectName, drawingInfo, onCha
               editableElement('callout-armour', callout(labelText('callout-armour', 'ARMOUR STONE WALL'), 736, 238, 632, highWaterY - 46, 'armour'), 736, 226)}
             {useArmourTemplate &&
               editableElement('callout-clear-stone', callout(labelText('callout-clear-stone', 'CLEAR STONE BASE'), 724, 454, 616, highWaterY + 76, 'clear-stone'), 724, 442)}
-            {useDockTemplate && editableElement('callout-ramp', callout(labelText('callout-ramp', rampReferenceLabel.toUpperCase()), 486, 178, 535, highWaterY - 62, 'ramp'), 486, 166)}
-            {useDockTemplate &&
+            {useDockTemplate && !buildPlanProjection && editableElement('callout-ramp', callout(labelText('callout-ramp', rampReferenceLabel.toUpperCase()), 486, 178, 535, highWaterY - 62, 'ramp'), 486, 166)}
+            {useDockTemplate && !buildPlanProjection &&
               editableElement('callout-dock', callout(labelText('callout-dock', `FLOATING DOCK ${feetLabel(sectionView.dockRampReference?.dockLengthFt, '')}`.trim()), 786, 202, 716, highWaterY - 56, 'dock'), 786, 190)}
 
-            {buildPlanReferences.length > 0 &&
+            {!buildPlanProjection && buildPlanReferences.length > 0 &&
               editableElement('build-plan-context', buildPlanContextGroup(buildPlanReferences), 88, 494)}
 
             {editableElement(

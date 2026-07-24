@@ -1,11 +1,28 @@
 import type { DockObject, DockProject, ProjectScale } from '@/types/dock';
-import type { SectionViewBuildPlanReference, SectionViewData } from '@/features/sectionView/sectionTypes';
+import type {
+  SectionViewBuildPlanProjection,
+  SectionViewBuildPlanReference,
+  SectionViewData,
+  SectionViewProjectedBuildPlanObject,
+} from '@/features/sectionView/sectionTypes';
 import { sectionTemplates } from '@/features/sectionView/sectionTemplates';
 
 const FEET_PER_METER = 3.28084;
+const DEFAULT_FT_PER_PIXEL = 0.2;
+const MIN_SECTION_CORRIDOR_FT = 8;
+const MAX_SECTION_CORRIDOR_FT = 16;
 
 function hasScale(scale: ProjectScale): boolean {
   return scale.pixels > 0 && scale.realLength > 0;
+}
+
+function feetPerPixel(scale: ProjectScale) {
+  if (!hasScale(scale)) {
+    return DEFAULT_FT_PER_PIXEL;
+  }
+
+  const unitsPerPixel = scale.realLength / scale.pixels;
+  return scale.unit === 'm' ? unitsPerPixel * FEET_PER_METER : unitsPerPixel;
 }
 
 function objectLengthFeet(object: DockObject, scale: ProjectScale, axis: 'width' | 'height') {
@@ -28,6 +45,53 @@ function objectProfileDimensionsFeet(object: DockObject, scale: ProjectScale) {
   return {
     lengthFt: Math.max(widthFt, heightFt),
     widthFt: Math.min(widthFt, heightFt),
+  };
+}
+
+function objectCenter(object: DockObject) {
+  return {
+    x: object.x + object.width / 2,
+    y: object.y + object.height / 2,
+  };
+}
+
+function normalizeVector(vector: { x: number; y: number }) {
+  const length = Math.hypot(vector.x, vector.y);
+
+  if (length < 0.001) {
+    return { x: 1, y: 0 };
+  }
+
+  return {
+    x: vector.x / length,
+    y: vector.y / length,
+  };
+}
+
+function objectLongAxis(object: DockObject) {
+  const radians = (object.rotation * Math.PI) / 180;
+  const axis = object.height >= object.width
+    ? { x: -Math.sin(radians), y: Math.cos(radians) }
+    : { x: Math.cos(radians), y: Math.sin(radians) };
+
+  return normalizeVector(axis);
+}
+
+function dot(a: { x: number; y: number }, b: { x: number; y: number }) {
+  return a.x * b.x + a.y * b.y;
+}
+
+function getObjectProfileSpanFeet(object: DockObject, axis: { x: number; y: number }, scale: ProjectScale) {
+  const feetPerPx = feetPerPixel(scale);
+  const radians = (object.rotation * Math.PI) / 180;
+  const localX = { x: Math.cos(radians), y: Math.sin(radians) };
+  const localY = { x: -Math.sin(radians), y: Math.cos(radians) };
+  const projectedHalfWidth = Math.abs(dot(localX, axis)) * object.width / 2 + Math.abs(dot(localY, axis)) * object.height / 2;
+  const projectedHalfDepth = Math.abs(dot(localX, { x: -axis.y, y: axis.x })) * object.width / 2 + Math.abs(dot(localY, { x: -axis.y, y: axis.x })) * object.height / 2;
+
+  return {
+    halfStationFt: Math.max(1, projectedHalfWidth * feetPerPx),
+    halfOffsetFt: Math.max(1, projectedHalfDepth * feetPerPx),
   };
 }
 
@@ -203,6 +267,144 @@ function buildPlanReference(object: DockObject, scale: ProjectScale): SectionVie
   };
 }
 
+function findClosestShorelinePoint(project: DockProject, target: { x: number; y: number }) {
+  if (project.shorelinePoints.length === 0) {
+    return undefined;
+  }
+
+  return project.shorelinePoints.reduce((closest, point) => {
+    const closestDistance = Math.hypot(closest.x - target.x, closest.y - target.y);
+    const pointDistance = Math.hypot(point.x - target.x, point.y - target.y);
+    return pointDistance < closestDistance ? point : closest;
+  });
+}
+
+function buildAutoSectionAxis(project: DockProject, ramp: DockObject | undefined, dock: DockObject | undefined) {
+  if (ramp) {
+    const rampCenter = objectCenter(ramp);
+    const dockCenter = dock ? objectCenter(dock) : undefined;
+    let axis = objectLongAxis(ramp);
+
+    if (dockCenter) {
+      const rampToDock = normalizeVector({ x: dockCenter.x - rampCenter.x, y: dockCenter.y - rampCenter.y });
+      if (Math.abs(dot(axis, rampToDock)) > 0.1) {
+        axis = dot(axis, rampToDock) < 0 ? { x: -axis.x, y: -axis.y } : axis;
+      } else {
+        axis = rampToDock;
+      }
+    }
+
+    const rampLengthPx = Math.max(ramp.width, ramp.height);
+    const shoreEnd = {
+      x: rampCenter.x - axis.x * rampLengthPx / 2,
+      y: rampCenter.y - axis.y * rampLengthPx / 2,
+    };
+    const origin = findClosestShorelinePoint(project, shoreEnd) ?? shoreEnd;
+
+    return {
+      source: 'auto-ramp-dock' as const,
+      origin,
+      axis,
+    };
+  }
+
+  if (dock) {
+    const dockCenter = objectCenter(dock);
+    const axis = objectLongAxis(dock);
+    const dockLengthPx = Math.max(dock.width, dock.height);
+
+    return {
+      source: 'auto-dock' as const,
+      origin: {
+        x: dockCenter.x - axis.x * dockLengthPx / 2,
+        y: dockCenter.y - axis.y * dockLengthPx / 2,
+      },
+      axis,
+    };
+  }
+
+  return undefined;
+}
+
+function projectObjectsToSection(
+  project: DockProject,
+  scale: ProjectScale,
+  ramp: DockObject | undefined,
+  dock: DockObject | undefined,
+): SectionViewBuildPlanProjection | undefined {
+  const sectionAxis = buildAutoSectionAxis(project, ramp, dock);
+
+  if (!sectionAxis) {
+    return undefined;
+  }
+
+  const feetPerPx = feetPerPixel(scale);
+  const corridorWidthFt = Math.max(
+    MIN_SECTION_CORRIDOR_FT,
+    Math.min(
+      MAX_SECTION_CORRIDOR_FT,
+      Math.max(ramp ? objectReferenceDimensionsFeet(ramp, scale).widthFt ?? 0 : 0, dock ? objectReferenceDimensionsFeet(dock, scale).widthFt ?? 0 : 0) + 4,
+    ),
+  );
+  const supportedObjects = project.objects.filter((object) =>
+    ['floating_dock', 'ramp_with_rails', 'ramp_without_rails', 'boat_lift', 'boat_port', 'boathouse', 'accessory'].includes(object.type),
+  );
+  const projectedObjects: SectionViewProjectedBuildPlanObject[] = [];
+  let offSectionCount = 0;
+
+  supportedObjects.forEach((object) => {
+    const reference = buildPlanReference(object, scale);
+    if (!reference) {
+      return;
+    }
+
+    const center = objectCenter(object);
+    const relative = {
+      x: center.x - sectionAxis.origin.x,
+      y: center.y - sectionAxis.origin.y,
+    };
+    const stationFt = dot(relative, sectionAxis.axis) * feetPerPx;
+    const perpendicularPx = dot(relative, { x: -sectionAxis.axis.y, y: sectionAxis.axis.x });
+    const offsetFt = perpendicularPx * feetPerPx;
+    const span = getObjectProfileSpanFeet(object, sectionAxis.axis, scale);
+    const isPrimary = object.id === ramp?.id || object.id === dock?.id;
+    const intersectsCorridor = Math.abs(offsetFt) <= corridorWidthFt / 2 + span.halfOffsetFt;
+
+    if (!isPrimary && !intersectsCorridor) {
+      offSectionCount += 1;
+      return;
+    }
+
+    projectedObjects.push({
+      ...reference,
+      stationFt,
+      startStationFt: stationFt - span.halfStationFt,
+      endStationFt: stationFt + span.halfStationFt,
+      offsetFt,
+      isPrimary,
+    });
+  });
+
+  if (projectedObjects.length === 0) {
+    return undefined;
+  }
+
+  const stationStartFt = Math.min(0, ...projectedObjects.map((object) => object.startStationFt)) - 4;
+  const stationEndFt = Math.max(24, ...projectedObjects.map((object) => object.endStationFt)) + 8;
+
+  return {
+    source: sectionAxis.source,
+    corridorWidthFt,
+    stationStartFt,
+    stationEndFt,
+    objects: projectedObjects.sort((a, b) => a.stationFt - b.stationFt),
+    offSectionCount,
+    note: offSectionCount > 0
+      ? `Section view follows the ramp/dock section path. ${offSectionCount} Build Plan object${offSectionCount === 1 ? '' : 's'} outside this cut line may not appear in profile.`
+      : 'Section view follows the ramp/dock section path. Objects are shown where they intersect or sit near the section cut corridor.',
+  };
+}
+
 function firstOfType(project: DockProject, types: DockObject['type'][]): DockObject | undefined {
   return project.objects.find((object) => types.includes(object.type));
 }
@@ -250,6 +452,7 @@ export function generateSectionViewFromBuildPlan(
     .filter((object) => !primaryReferenceIds.has(object.id))
     .map((object) => buildPlanReference(object, currentScale))
     .filter((reference): reference is SectionViewBuildPlanReference => Boolean(reference));
+  const buildPlanProjection = projectObjectsToSection(project, currentScale, ramp, floatingDock);
 
   detectedItems.push(...supportedObjects.map((object) => elementSummary(object, currentScale)));
 
@@ -348,6 +551,7 @@ export function generateSectionViewFromBuildPlan(
       }
       : currentSectionView.dockRampReference,
     buildPlanReferences,
+    buildPlanProjection,
     labelOverrides: nextLabelOverrides,
     buildPlanSummary: {
       generatedAt: new Date().toISOString(),
