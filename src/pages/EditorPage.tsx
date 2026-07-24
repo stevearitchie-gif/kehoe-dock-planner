@@ -618,11 +618,32 @@ function printImageInHiddenFrame(args: {
             line-height: 1.05;
           }
           .title-logo {
-            display: block;
-            width: 118px;
-            max-height: 28px;
-            object-fit: contain;
-            margin: 2px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            height: 30px;
+            margin: 1px auto;
+          }
+          .title-logo-mark {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 68px;
+            height: 24px;
+            background: #cf2e2e;
+            color: #ffffff;
+            font-size: 14px;
+            font-style: italic;
+            font-weight: 800;
+          }
+          .title-logo-text {
+            display: inline-block;
+            color: #475569;
+            font-size: 7px;
+            font-weight: 700;
+            line-height: 1.05;
+            text-transform: uppercase;
           }
           .info-row td {
             height: 15px;
@@ -2445,7 +2466,12 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
             <td colspan="2"><div class="title-field"><span class="title-label">Location:</span><span class="title-value">${escapeHtml(project.projectLocation ?? '')}</span></div></td>
           </tr>
           <tr class="info-row">
-            <td rowspan="2" class="logo-cell"><img class="title-logo" src="/kehoe-header-logo.png" alt="Kehoe Marine Construction" /></td>
+            <td rowspan="2" class="logo-cell">
+              <div class="title-logo" aria-label="Kehoe Marine Construction">
+                <span class="title-logo-mark">Kehoe</span>
+                <span class="title-logo-text">Marine<br />Construction</span>
+              </div>
+            </td>
             <td colspan="2"><div class="title-field"><span class="title-label">Description:</span><span class="title-value">${escapeHtml(project.description ?? project.name)}</span></div></td>
           </tr>
           <tr class="drawing-row">
