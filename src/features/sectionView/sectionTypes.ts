@@ -87,7 +87,9 @@ export type SectionViewBuildPlanReferenceType =
   | 'boat_lift'
   | 'boat_port'
   | 'boathouse'
-  | 'accessory';
+  | 'accessory'
+  | 'rip_rap'
+  | 'armour_stone';
 
 export interface SectionViewBuildPlanReference {
   id?: string;

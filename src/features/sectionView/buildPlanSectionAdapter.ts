@@ -174,6 +174,25 @@ function formatAccessoryType(type: string | undefined) {
   return type ? type.replace(/_/g, ' ') : 'accessory';
 }
 
+function formatRipRapDetails(object: DockObject) {
+  const details = [
+    object.metadata?.ripRapStoneSize ? `stone ${object.metadata.ripRapStoneSize.replace(/-/g, ' ')}` : undefined,
+    object.metadata?.ripRapDepthFt ? `depth ${object.metadata.ripRapDepthFt} ft` : undefined,
+    object.metadata?.ripRapFilterLayer === false ? 'no filter layer' : object.metadata?.ripRapFilterLayer ? 'filter layer' : undefined,
+  ].filter(Boolean);
+
+  return details.length > 0 ? details.join(', ') : undefined;
+}
+
+function formatArmourStoneDetails(object: DockObject) {
+  const details = [
+    object.metadata?.armourStoneRows ? `${object.metadata.armourStoneRows} row${object.metadata.armourStoneRows === 1 ? '' : 's'}` : undefined,
+    object.metadata?.armourStoneWallHeightFt ? `height ${object.metadata.armourStoneWallHeightFt} ft` : undefined,
+  ].filter(Boolean);
+
+  return details.length > 0 ? details.join(', ') : undefined;
+}
+
 function accessorySummary(project: DockProject) {
   const counts = new Map<string, number>();
   project.objects
@@ -213,6 +232,16 @@ function elementSummary(object: DockObject, scale: ProjectScale) {
     return `Boathouse${sizeSuffix}${details ? `, ${details}` : ''}`;
   }
 
+  if (object.type === 'rip_rap') {
+    const details = formatRipRapDetails(object);
+    return `Rip rap zone${sizeSuffix}${details ? `, ${details}` : ''}`;
+  }
+
+  if (object.type === 'armour_stone') {
+    const details = formatArmourStoneDetails(object);
+    return `Armour stone${sizeSuffix}${details ? `, ${details}` : ''}`;
+  }
+
   return `${object.label || object.type}${sizeSuffix}`;
 }
 
@@ -237,7 +266,9 @@ function buildPlanReference(object: DockObject, scale: ProjectScale): SectionVie
     object.type !== 'boat_lift' &&
     object.type !== 'boat_port' &&
     object.type !== 'boathouse' &&
-    object.type !== 'accessory'
+    object.type !== 'accessory' &&
+    object.type !== 'rip_rap' &&
+    object.type !== 'armour_stone'
   ) {
     return null;
   }
@@ -252,7 +283,11 @@ function buildPlanReference(object: DockObject, scale: ProjectScale): SectionVie
           ? formatBoathouseDetails(object)
           : object.type === 'accessory'
             ? formatAccessoryType(object.metadata?.accessoryType)
-            : undefined;
+            : object.type === 'rip_rap'
+              ? formatRipRapDetails(object)
+              : object.type === 'armour_stone'
+                ? formatArmourStoneDetails(object)
+                : undefined;
 
   return {
     id: object.id,
@@ -347,7 +382,7 @@ function projectObjectsToSection(
     ),
   );
   const supportedObjects = project.objects.filter((object) =>
-    ['floating_dock', 'ramp_with_rails', 'ramp_without_rails', 'boat_lift', 'boat_port', 'boathouse', 'accessory'].includes(object.type),
+    ['floating_dock', 'ramp_with_rails', 'ramp_without_rails', 'boat_lift', 'boat_port', 'boathouse', 'accessory', 'rip_rap', 'armour_stone'].includes(object.type),
   );
   const projectedObjects: SectionViewProjectedBuildPlanObject[] = [];
   let offSectionCount = 0;
@@ -440,10 +475,12 @@ export function generateSectionViewFromBuildPlan(
   const boatPortCount = countTypes(project, ['boat_port']);
   const boathouseCount = countTypes(project, ['boathouse']);
   const accessoryCount = countTypes(project, ['accessory']);
+  const ripRapCount = countTypes(project, ['rip_rap']);
+  const armourStoneCount = countTypes(project, ['armour_stone']);
   const detectedItems: string[] = [];
   const structureSummary: string[] = [];
   const supportedObjects = project.objects.filter((object) =>
-    ['floating_dock', 'ramp_with_rails', 'ramp_without_rails', 'boat_lift', 'boat_port', 'boathouse'].includes(object.type),
+    ['floating_dock', 'ramp_with_rails', 'ramp_without_rails', 'boat_lift', 'boat_port', 'boathouse', 'rip_rap', 'armour_stone'].includes(object.type),
   );
   const floatingDockDimensions = floatingDock ? objectProfileDimensionsFeet(floatingDock, currentScale) : undefined;
   const rampDimensions = ramp ? objectProfileDimensionsFeet(ramp, currentScale) : undefined;
@@ -471,6 +508,14 @@ export function generateSectionViewFromBuildPlan(
   if (accessoryCount > 0) {
     const accessories = accessorySummary(project);
     structureSummary.push(`Accessories: ${accessories.length > 0 ? accessories.join(', ') : `${accessoryCount} item${accessoryCount === 1 ? '' : 's'}`}`);
+  }
+
+  if (ripRapCount > 0) {
+    structureSummary.push(`${ripRapCount} rip rap zone${ripRapCount === 1 ? '' : 's'} present`);
+  }
+
+  if (armourStoneCount > 0) {
+    structureSummary.push(`${armourStoneCount} armour stone element${armourStoneCount === 1 ? '' : 's'} present`);
   }
 
   if (structureSummary.length > 0) {

@@ -13,6 +13,8 @@ export type DockObjectType =
   | 'boat_port'
   | 'boathouse'
   | 'accessory'
+  | 'rip_rap'
+  | 'armour_stone'
   | 'text_note'
   | 'dimension_line'
   | 'shape_rectangle'
@@ -99,6 +101,12 @@ export interface DockObject {
     boathouseRoofFinish?: 'neutral' | 'metal' | 'shingle';
     accessoryType?: 'cleat' | 'bumper' | 'ladder' | 'bench' | 'post' | 'tie_up_point';
     accessoryFinish?: 'metal' | 'rubber' | 'wood' | 'neutral';
+    ripRapStoneSize?: 'small' | 'medium' | '10in-20in' | 'large';
+    ripRapDepthFt?: number;
+    ripRapFilterLayer?: boolean;
+    armourStoneRows?: number;
+    armourStoneWallHeightFt?: number;
+    siteElementNotes?: string;
     text?: string;
     dimensionValue?: number;
   };

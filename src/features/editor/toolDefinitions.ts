@@ -11,6 +11,8 @@ export const dockElementToolModes = [
   'boat_port',
   'boathouse',
   'accessory',
+  'rip_rap',
+  'armour_stone',
   'dimension_line',
 ] as const;
 
@@ -69,6 +71,8 @@ export const toolLabels: Record<ToolMode, string> = {
   boat_port: 'boat port',
   boathouse: 'boathouse',
   accessory: 'accessory',
+  rip_rap: 'rip rap',
+  armour_stone: 'armour stone',
   dimension_line: 'dimension line',
   shape_line: 'line',
   shape_arrow_line: 'arrow line',

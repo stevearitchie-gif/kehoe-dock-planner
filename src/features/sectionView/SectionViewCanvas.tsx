@@ -634,6 +634,37 @@ function buildPlanContextSymbol(reference: SectionViewBuildPlanReference, x: num
     );
   }
 
+  if (reference.type === 'rip_rap') {
+    return (
+      <g key={reference.id ?? `${reference.type}-${index}`} stroke={strokeColor} fill="none" strokeWidth="1.2">
+        <path d={`M ${x + 8} ${y + 38} L ${x + 22} ${y + 18} L ${x + 48} ${y + 22} L ${x + 78} ${y + 36} L ${x + 64} ${y + 48} L ${x + 24} ${y + 46} Z`} fill="#e5e7eb" />
+        {[0, 1, 2, 3, 4].map((stoneIndex) => (
+          <circle key={stoneIndex} cx={x + 22 + stoneIndex * 10} cy={y + 34 + (stoneIndex % 2) * 6} r={4 + (stoneIndex % 2)} fill="#9ca3af" stroke="#4b5563" />
+        ))}
+        <text x={x + 88} y={y + 24} fill={ink} stroke="none" fontSize="11" fontWeight="700">
+          {label}
+        </text>
+        {detail && <text x={x + 88} y={y + 40} fill={mutedInk} stroke="none" fontSize="10">{detail}</text>}
+      </g>
+    );
+  }
+
+  if (reference.type === 'armour_stone') {
+    return (
+      <g key={reference.id ?? `${reference.type}-${index}`} stroke={strokeColor} fill="none" strokeWidth="1.2">
+        {[0, 1].map((row) =>
+          [0, 1, 2].map((column) => (
+            <rect key={`${row}-${column}`} x={x + 10 + column * 22 + (row % 2) * 8} y={y + 18 + row * 14} width="22" height="13" fill="#a8a29e" stroke="#44403c" />
+          )),
+        )}
+        <text x={x + 88} y={y + 24} fill={ink} stroke="none" fontSize="11" fontWeight="700">
+          {label}
+        </text>
+        {detail && <text x={x + 88} y={y + 40} fill={mutedInk} stroke="none" fontSize="10">{detail}</text>}
+      </g>
+    );
+  }
+
   return (
     <g key={reference.id ?? `${reference.type}-${index}`} stroke={strokeColor} fill="none" strokeWidth="1.2">
       <rect x={x + 8} y={y + 18} width="72" height="26" fill={color} opacity="0.7" />
@@ -767,6 +798,54 @@ function projectedObjectSymbol(
         {!isBoathouse && [xStart + 6, xEnd - 6].map((postX) => <line key={postX} x1={postX} y1={baseY - 82} x2={postX} y2={baseY - 14} />)}
         <text x={centerX - 50} y={labelY - 6} fill={red} stroke="none" fontSize="11" fontWeight="700">{label}</text>
         <line x1={centerX} y1={labelY + 1} x2={centerX} y2={baseY - 94} stroke={red} markerEnd="url(#red-arrow)" />
+      </g>
+    );
+  }
+
+  if (object.type === 'rip_rap') {
+    return (
+      <g key={object.id ?? `projected-rip-rap-${index}`} stroke="#4b5563" fill="none" strokeWidth="1.1">
+        <path
+          d={`M ${xStart} ${baseY - 12} L ${xStart + width * 0.2} ${baseY - 34} L ${centerX} ${baseY - 28} L ${xEnd} ${baseY - 18} L ${xEnd - width * 0.1} ${baseY + 6} L ${xStart + width * 0.16} ${baseY + 4} Z`}
+          fill="#e5e7eb"
+        />
+        {Array.from({ length: Math.max(5, Math.min(20, Math.round(width / 14))) }, (_, stoneIndex) => (
+          <circle
+            key={stoneIndex}
+            cx={xStart + 8 + ((stoneIndex * 17) % Math.max(16, width - 16))}
+            cy={baseY - 20 + (stoneIndex % 4) * 7}
+            r={3 + (stoneIndex % 3)}
+            fill={stoneIndex % 2 === 0 ? '#9ca3af' : '#6b7280'}
+            stroke="#4b5563"
+            strokeWidth="0.8"
+          />
+        ))}
+        <text x={centerX - 44} y={labelY} fill={red} stroke="none" fontSize="11" fontWeight="700">{label}</text>
+        <line x1={centerX} y1={labelY + 7} x2={centerX} y2={baseY - 30} stroke={red} markerEnd="url(#red-arrow)" />
+      </g>
+    );
+  }
+
+  if (object.type === 'armour_stone') {
+    return (
+      <g key={object.id ?? `projected-armour-${index}`} stroke="#44403c" fill="none" strokeWidth="1.1">
+        {Array.from({ length: 2 }, (_, row) =>
+          Array.from({ length: Math.max(2, Math.min(8, Math.round(width / 26))) }, (_, column) => {
+            const blockWidth = Math.max(18, width / Math.max(2, Math.min(8, Math.round(width / 26))));
+            return (
+              <rect
+                key={`${row}-${column}`}
+                x={xStart + column * blockWidth - (row % 2) * blockWidth * 0.22}
+                y={baseY - 34 + row * 16}
+                width={blockWidth + 1}
+                height="16"
+                fill={row % 2 === 0 ? '#a8a29e' : '#78716c'}
+              />
+            );
+          }),
+        )}
+        <text x={centerX - 48} y={labelY} fill={red} stroke="none" fontSize="11" fontWeight="700">{label}</text>
+        <line x1={centerX} y1={labelY + 7} x2={centerX} y2={baseY - 36} stroke={red} markerEnd="url(#red-arrow)" />
       </g>
     );
   }

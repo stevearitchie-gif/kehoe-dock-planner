@@ -170,6 +170,11 @@ function buildBoardTextureLines(object: DockObject): number[][] {
   return lines;
 }
 
+function sitePatternSeed(index: number) {
+  const value = Math.sin(index * 12.9898) * 43758.5453;
+  return value - Math.floor(value);
+}
+
 function getDimensionLineLabel(object: DockObject, scale: ProjectScale): string {
   if (object.type !== 'dimension_line') {
     return object.label;
@@ -1546,6 +1551,105 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                     <>
                       <Line points={[6, 6, object.width - 6, object.height - 6]} stroke="#475569" strokeWidth={1.5} />
                       <Line points={[object.width - 6, 6, 6, object.height - 6]} stroke="#475569" strokeWidth={1.5} />
+                    </>
+                  )}
+
+                  {object.type === 'rip_rap' && (
+                    <>
+                      <Line
+                        points={[
+                          4,
+                          object.height * 0.18,
+                          object.width * 0.22,
+                          5,
+                          object.width * 0.52,
+                          object.height * 0.12,
+                          object.width - 8,
+                          object.height * 0.24,
+                          object.width - 12,
+                          object.height * 0.82,
+                          object.width * 0.62,
+                          object.height - 6,
+                          object.width * 0.24,
+                          object.height * 0.88,
+                          6,
+                          object.height * 0.68,
+                        ]}
+                        closed
+                        fill={object.color}
+                        opacity={0.45}
+                        stroke={getObjectStrokeColor(object)}
+                        strokeWidth={getObjectStrokeWidth(object, 1.4)}
+                        listening={false}
+                      />
+                      {Array.from({ length: Math.max(10, Math.min(42, Math.round((object.width * object.height) / 260))) }, (_, stoneIndex) => {
+                        const x = 10 + sitePatternSeed(stoneIndex + 3) * Math.max(1, object.width - 20);
+                        const y = 8 + sitePatternSeed(stoneIndex + 17) * Math.max(1, object.height - 16);
+                        const radius = Math.max(2.5, Math.min(7, Math.min(object.width, object.height) * (0.035 + sitePatternSeed(stoneIndex + 29) * 0.035)));
+
+                        return (
+                          <Circle
+                            key={`rip-rap-stone-${stoneIndex}`}
+                            x={x}
+                            y={y}
+                            radius={radius}
+                            fill={stoneIndex % 3 === 0 ? '#6b7280' : stoneIndex % 3 === 1 ? '#9ca3af' : '#d1d5db'}
+                            stroke="#4b5563"
+                            strokeWidth={0.8}
+                            opacity={0.88}
+                            listening={false}
+                          />
+                        );
+                      })}
+                      {object.metadata?.ripRapFilterLayer !== false && (
+                        <Line
+                          points={[8, object.height - 10, object.width * 0.38, object.height - 5, object.width - 8, object.height - 14]}
+                          stroke="#f8fafc"
+                          strokeWidth={2}
+                          dash={[5, 4]}
+                          listening={false}
+                        />
+                      )}
+                    </>
+                  )}
+
+                  {object.type === 'armour_stone' && (
+                    <>
+                      <Rect
+                        x={0}
+                        y={0}
+                        width={object.width}
+                        height={object.height}
+                        fill={object.color}
+                        opacity={0.35}
+                        stroke={getObjectStrokeColor(object)}
+                        strokeWidth={getObjectStrokeWidth(object, 1.5)}
+                        listening={false}
+                      />
+                      {Array.from({ length: Math.max(1, Math.min(6, object.metadata?.armourStoneRows ?? 2)) }, (_, rowIndex) => {
+                        const rowCount = Math.max(2, Math.floor(object.width / 34));
+                        const blockHeight = object.height / Math.max(1, Math.min(6, object.metadata?.armourStoneRows ?? 2));
+
+                        return Array.from({ length: rowCount }, (_, columnIndex) => {
+                          const blockWidth = object.width / rowCount;
+                          const offset = rowIndex % 2 === 0 ? 0 : blockWidth * 0.22;
+
+                          return (
+                            <Rect
+                              key={`armour-stone-${rowIndex}-${columnIndex}`}
+                              x={columnIndex * blockWidth - offset}
+                              y={rowIndex * blockHeight}
+                              width={blockWidth + 1}
+                              height={blockHeight + 1}
+                              fill={rowIndex % 2 === 0 ? '#a8a29e' : '#78716c'}
+                              opacity={0.65}
+                              stroke="#44403c"
+                              strokeWidth={1}
+                              listening={false}
+                            />
+                          );
+                        });
+                      })}
                     </>
                   )}
 

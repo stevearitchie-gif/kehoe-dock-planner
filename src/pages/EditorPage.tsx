@@ -1351,6 +1351,8 @@ export function EditorPage() {
       'boat_port',
       'boathouse',
       'accessory',
+      'rip_rap',
+      'armour_stone',
       'dimension_line',
       'shape_rectangle',
       'shape_rounded_rectangle',
@@ -1403,6 +1405,8 @@ export function EditorPage() {
           boat_port: 'Boat Port',
           boathouse: 'Boathouse',
           accessory: 'Accessory',
+          rip_rap: 'Rip Rap Zone',
+          armour_stone: 'Armour Stone',
           dimension_line: 'Dimension Line',
           shape_rectangle: 'Rectangle',
           shape_rounded_rectangle: 'Rounded Rectangle',
@@ -1448,6 +1452,8 @@ export function EditorPage() {
           boat_port: { width: 120, height: 54 },
           boathouse: { width: 160, height: 90 },
           accessory: { width: 34, height: 18 },
+          rip_rap: { width: 150, height: 80 },
+          armour_stone: { width: 150, height: 34 },
           dimension_line: { width: 160, height: 24 },
           shape_rectangle: { width: 100, height: 60 },
           shape_rounded_rectangle: { width: 100, height: 60 },
@@ -1493,6 +1499,8 @@ export function EditorPage() {
           boat_port: '#bfdbfe',
           boathouse: '#d6d3c8',
           accessory: '#94a3b8',
+          rip_rap: '#9ca3af',
+          armour_stone: '#78716c',
           dimension_line: '#0f172a',
           shape_rectangle: '#dbeafe',
           shape_rounded_rectangle: '#dbeafe',
@@ -1562,6 +1570,17 @@ export function EditorPage() {
                       accessoryType: 'cleat',
                       accessoryFinish: 'metal',
                     }
+                  : placementTool === 'rip_rap'
+                    ? {
+                        ripRapStoneSize: '10in-20in',
+                        ripRapDepthFt: 1.5,
+                        ripRapFilterLayer: true,
+                      }
+                    : placementTool === 'armour_stone'
+                      ? {
+                          armourStoneRows: 2,
+                          armourStoneWallHeightFt: 3,
+                        }
               : undefined,
         };
 
@@ -2216,6 +2235,34 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
               .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
               .join(' ')} Accessory`
           : object.label,
+    }));
+  };
+
+  const handleSelectedRipRapOptionChange = (field: 'ripRapStoneSize' | 'ripRapFilterLayer', value: string | boolean) => {
+    updateSelectedObject((object) => ({
+      ...object,
+      metadata: {
+        ...object.metadata,
+        [field]: value,
+      },
+    }));
+  };
+
+  const handleSelectedSiteElementNumberChange = (
+    field: 'ripRapDepthFt' | 'armourStoneRows' | 'armourStoneWallHeightFt',
+    value: string,
+  ) => {
+    const parsedValue = Number(value);
+    if (!Number.isFinite(parsedValue) || parsedValue < 0) {
+      return;
+    }
+
+    updateSelectedObject((object) => ({
+      ...object,
+      metadata: {
+        ...object.metadata,
+        [field]: field === 'armourStoneRows' ? Math.max(1, Math.round(parsedValue)) : parsedValue,
+      },
     }));
   };
 
@@ -3779,6 +3826,105 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                                   );
                                 })}
                               </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedObject.type === 'rip_rap' && (
+                          <div className="mt-4 rounded-md border border-slate-200 bg-white p-3">
+                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                              Rip Rap Zone
+                            </p>
+                            <div className="mt-3">
+                              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Stone Size</p>
+                              <div className="mt-2 grid grid-cols-2 gap-2">
+                                {[
+                                  { label: 'Small', value: 'small' },
+                                  { label: 'Medium', value: 'medium' },
+                                  { label: '10 in to 20 in', value: '10in-20in' },
+                                  { label: 'Large', value: 'large' },
+                                ].map((option) => {
+                                  const activeValue = selectedObject.metadata?.ripRapStoneSize ?? '10in-20in';
+                                  const isActive = activeValue === option.value;
+
+                                  return (
+                                    <button
+                                      key={option.value}
+                                      type="button"
+                                      onClick={() => handleSelectedRipRapOptionChange('ripRapStoneSize', option.value)}
+                                      className={`rounded-md border px-2 py-2 text-xs font-medium ${
+                                        isActive
+                                          ? 'border-brand-600 bg-brand-50 text-brand-700'
+                                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                                      }`}
+                                    >
+                                      {option.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                            <div className="mt-3 grid grid-cols-2 gap-3">
+                              <label className="block">
+                                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                  Depth (ft)
+                                </span>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step="any"
+                                  value={selectedObject.metadata?.ripRapDepthFt ?? 1.5}
+                                  onChange={(event) => handleSelectedSiteElementNumberChange('ripRapDepthFt', event.target.value)}
+                                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                                />
+                              </label>
+                              <label className="flex items-center justify-between gap-3 rounded-md border border-slate-200 px-3 py-2">
+                                <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                  Filter Layer
+                                </span>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedObject.metadata?.ripRapFilterLayer ?? true}
+                                  onChange={(event) => handleSelectedRipRapOptionChange('ripRapFilterLayer', event.target.checked)}
+                                  className="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                                />
+                              </label>
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedObject.type === 'armour_stone' && (
+                          <div className="mt-4 rounded-md border border-slate-200 bg-white p-3">
+                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                              Armour Stone
+                            </p>
+                            <div className="mt-3 grid grid-cols-2 gap-3">
+                              <label className="block">
+                                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                  Rows
+                                </span>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  step={1}
+                                  value={selectedObject.metadata?.armourStoneRows ?? 2}
+                                  onChange={(event) => handleSelectedSiteElementNumberChange('armourStoneRows', event.target.value)}
+                                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                                />
+                              </label>
+                              <label className="block">
+                                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                  Wall Height (ft)
+                                </span>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step="any"
+                                  value={selectedObject.metadata?.armourStoneWallHeightFt ?? 3}
+                                  onChange={(event) => handleSelectedSiteElementNumberChange('armourStoneWallHeightFt', event.target.value)}
+                                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                                />
+                              </label>
                             </div>
                           </div>
                         )}
