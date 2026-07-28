@@ -608,6 +608,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       'boat_port',
       'boathouse',
       'accessory',
+      'rip_rap',
+      'armour_stone',
       'dimension_line',
       'shape_rectangle',
       'shape_rounded_rectangle',
