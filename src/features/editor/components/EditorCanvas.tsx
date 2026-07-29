@@ -36,8 +36,19 @@ interface EditorCanvasProps {
   onZoomChange: (nextZoom: number) => void;
 }
 
+export interface EditorCanvasExportBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface EditorCanvasExportOptions {
+  bounds?: EditorCanvasExportBounds;
+}
+
 export interface EditorCanvasHandle {
-  exportAsImage: (pixelRatio?: number) => string | null;
+  exportAsImage: (pixelRatio?: number, options?: EditorCanvasExportOptions) => string | null;
 }
 
 type ResizeHandle = 'right' | 'bottom' | 'corner';
@@ -564,13 +575,58 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   const [stagePosition, setStagePosition] = useState<Point>({ x: 0, y: 0 });
 
   useImperativeHandle(ref, () => ({
-    exportAsImage(pixelRatio = 2) {
-      return (
-        stageRef.current?.toDataURL({
+    exportAsImage(pixelRatio = 2, options) {
+      const stage = stageRef.current;
+      if (!stage) {
+        return null;
+      }
+
+      if (!options?.bounds) {
+        return stage.toDataURL({
           pixelRatio,
           mimeType: 'image/png',
-        }) ?? null
-      );
+        });
+      }
+
+      const bounds = {
+        x: options.bounds.x,
+        y: options.bounds.y,
+        width: Math.max(1, options.bounds.width),
+        height: Math.max(1, options.bounds.height),
+      };
+      const previousAttrs = {
+        x: stage.x(),
+        y: stage.y(),
+        scaleX: stage.scaleX(),
+        scaleY: stage.scaleY(),
+        width: stage.width(),
+        height: stage.height(),
+      };
+
+      try {
+        stage.x(-bounds.x);
+        stage.y(-bounds.y);
+        stage.scale({ x: 1, y: 1 });
+        stage.width(bounds.width);
+        stage.height(bounds.height);
+        stage.batchDraw();
+
+        return stage.toDataURL({
+          pixelRatio,
+          mimeType: 'image/png',
+          x: 0,
+          y: 0,
+          width: bounds.width,
+          height: bounds.height,
+        });
+      } finally {
+        stage.x(previousAttrs.x);
+        stage.y(previousAttrs.y);
+        stage.scale({ x: previousAttrs.scaleX, y: previousAttrs.scaleY });
+        stage.width(previousAttrs.width);
+        stage.height(previousAttrs.height);
+        stage.batchDraw();
+      }
     },
   }));
 

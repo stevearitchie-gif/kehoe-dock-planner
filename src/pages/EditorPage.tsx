@@ -32,6 +32,8 @@ const ZOOM_STEP = 0.1;
 const MAX_SITE_IMAGE_BYTES = 10 * 1024 * 1024;
 const FEET_PER_METER = 3.28084;
 const AUTOSAVE_DELAY_MS = 3000;
+const BUILD_PLAN_PRINT_PADDING = 120;
+const BUILD_PLAN_LABEL_FONT_SIZE = 12;
 
 const OBJECT_COLOR_PRESETS = [
   { label: 'Cedar Dock', value: '#b77945' },
@@ -489,6 +491,114 @@ function resolveDrawingInfo(project: DockProject): DrawingInfo {
   };
 }
 
+function expandBounds(
+  bounds: { minX: number; minY: number; maxX: number; maxY: number },
+  x: number,
+  y: number,
+) {
+  bounds.minX = Math.min(bounds.minX, x);
+  bounds.minY = Math.min(bounds.minY, y);
+  bounds.maxX = Math.max(bounds.maxX, x);
+  bounds.maxY = Math.max(bounds.maxY, y);
+}
+
+function expandRectBounds(
+  bounds: { minX: number; minY: number; maxX: number; maxY: number },
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  expandBounds(bounds, x, y);
+  expandBounds(bounds, x + width, y + height);
+}
+
+function expandRotatedObjectBounds(bounds: { minX: number; minY: number; maxX: number; maxY: number }, object: DockObject) {
+  const angle = (object.rotation * Math.PI) / 180;
+  const corners = [
+    { x: 0, y: 0 },
+    { x: object.width, y: 0 },
+    { x: object.width, y: object.height },
+    { x: 0, y: object.height },
+  ];
+
+  corners.forEach((corner) => {
+    expandBounds(bounds, object.x + corner.x * Math.cos(angle) - corner.y * Math.sin(angle), object.y + corner.x * Math.sin(angle) + corner.y * Math.cos(angle));
+  });
+}
+
+function estimateBuildPlanLabelSize(label: string, rotation?: 0 | 90 | -90) {
+  const textWidth = Math.max(120, Math.ceil(String(label || '').replace(/\s+/g, ' ').trim().length * BUILD_PLAN_LABEL_FONT_SIZE * 0.7 + 20));
+  const textHeight = BUILD_PLAN_LABEL_FONT_SIZE * 1.5;
+
+  return rotation === 90 || rotation === -90
+    ? { width: textHeight + 20, height: textWidth + 20 }
+    : { width: textWidth + 20, height: textHeight + 14 };
+}
+
+function getBuildPlanContentBounds(project: DockProject, scalePoints: Point[]): { x: number; y: number; width: number; height: number } {
+  const bounds = {
+    minX: Number.POSITIVE_INFINITY,
+    minY: Number.POSITIVE_INFINITY,
+    maxX: Number.NEGATIVE_INFINITY,
+    maxY: Number.NEGATIVE_INFINITY,
+  };
+
+  project.objects.forEach((object) => {
+    expandRotatedObjectBounds(bounds, object);
+
+    if (!object.labelHidden) {
+      const labelSize = estimateBuildPlanLabelSize(object.label, object.labelRotation);
+      const labelCenterX = object.x + object.width / 2 + (object.labelOffsetX ?? 0);
+      const labelCenterY =
+        object.y +
+        (object.type === 'dimension_line' ? -(BUILD_PLAN_LABEL_FONT_SIZE * 0.75 + 6) : object.height / 2) +
+        (object.labelOffsetY ?? 0);
+      expandRectBounds(bounds, labelCenterX - labelSize.width / 2, labelCenterY - labelSize.height / 2, labelSize.width, labelSize.height);
+    }
+
+    if (!object.dimensionsHidden && object.type !== 'dimension_line') {
+      expandRectBounds(
+        bounds,
+        object.x + (object.dimensionWidthOffsetX ?? 0),
+        object.y + object.height + 10 + (object.dimensionWidthOffsetY ?? 0),
+        object.width,
+        42,
+      );
+      expandRectBounds(
+        bounds,
+        object.x + object.width + 10 + (object.dimensionHeightOffsetX ?? 0),
+        object.y + (object.dimensionHeightOffsetY ?? 0),
+        120,
+        object.height,
+      );
+    }
+  });
+
+  project.shorelinePoints.forEach((point) => expandBounds(bounds, point.x, point.y));
+
+  scalePoints.forEach((point) => expandBounds(bounds, point.x, point.y));
+
+  if (scalePoints.length >= 2) {
+    const minX = Math.min(...scalePoints.map((point) => point.x));
+    const minY = Math.min(...scalePoints.map((point) => point.y));
+    const maxX = Math.max(...scalePoints.map((point) => point.x));
+    const maxY = Math.max(...scalePoints.map((point) => point.y));
+    expandRectBounds(bounds, minX - 36, minY - 56, maxX - minX + 72, maxY - minY + 92);
+  }
+
+  if (!Number.isFinite(bounds.minX) || !Number.isFinite(bounds.minY) || !Number.isFinite(bounds.maxX) || !Number.isFinite(bounds.maxY)) {
+    return { x: 0, y: 0, width: 1200, height: 800 };
+  }
+
+  return {
+    x: bounds.minX - BUILD_PLAN_PRINT_PADDING,
+    y: bounds.minY - BUILD_PLAN_PRINT_PADDING,
+    width: Math.max(1, bounds.maxX - bounds.minX + BUILD_PLAN_PRINT_PADDING * 2),
+    height: Math.max(1, bounds.maxY - bounds.minY + BUILD_PLAN_PRINT_PADDING * 2),
+  };
+}
+
 function printImageInHiddenFrame(args: {
   imageDataUrl: string;
   sectionViewImageDataUrl?: string | null;
@@ -555,11 +665,19 @@ function printImageInHiddenFrame(args: {
             break-before: page;
             page-break-before: always;
           }
+          .build-plan-drawing-area {
+            position: absolute;
+            inset: 0 0 1.42in 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+          }
           .canvas-image {
             width: 100%;
-            max-height: calc(100vh - 1.75in);
+            height: 100%;
             object-fit: contain;
-            object-position: top left;
+            object-position: center center;
             display: block;
           }
           .section-view-image {
@@ -700,6 +818,12 @@ function printImageInHiddenFrame(args: {
             text-align: center;
           }
           @media print {
+            html,
+            body {
+              width: 100%;
+              height: 100%;
+              overflow: hidden;
+            }
             .canvas-image {
               border: none;
             }
@@ -708,7 +832,9 @@ function printImageInHiddenFrame(args: {
       </head>
       <body>
         <div class="page">
-          <img id="export-image" class="canvas-image" src="${args.imageDataUrl}" alt="${args.projectName}" />
+          <div class="build-plan-drawing-area">
+            <img id="export-image" class="canvas-image" src="${args.imageDataUrl}" alt="${args.projectName}" />
+          </div>
           ${args.titleBlockHtml}
         </div>
         ${
@@ -2522,7 +2648,8 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
 
     await waitForNextPaint();
 
-    const imageDataUrl = editorCanvasRef.current?.exportAsImage(2) ?? null;
+    const buildPlanBounds = getBuildPlanContentBounds(project, scalePoints);
+    const imageDataUrl = editorCanvasRef.current?.exportAsImage(2, { bounds: buildPlanBounds }) ?? null;
 
     setSelectedObjectId(previousSelectedObjectId);
 
