@@ -608,10 +608,10 @@ function printImageInHiddenFrame(args: {
 }): boolean {
   const iframe = document.createElement('iframe');
   iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
+  iframe.style.left = '-10000px';
+  iframe.style.top = '0';
+  iframe.style.width = '11in';
+  iframe.style.height = '8.5in';
   iframe.style.border = '0';
   iframe.style.visibility = 'hidden';
   document.body.appendChild(iframe);
@@ -652,14 +652,17 @@ function printImageInHiddenFrame(args: {
           body {
             margin: 0;
             padding: 0;
+            width: 10.3in;
+            height: 7.8in;
             font-family: Arial, sans-serif;
             color: #111827;
             background: #ffffff;
           }
           .page {
             position: relative;
-            width: 100%;
-            min-height: calc(100vh - 0.7in);
+            width: 10.3in;
+            height: 7.8in;
+            overflow: hidden;
           }
           .page + .page {
             break-before: page;
@@ -667,7 +670,7 @@ function printImageInHiddenFrame(args: {
           }
           .build-plan-drawing-area {
             position: absolute;
-            inset: 0 0 1.42in 0;
+            inset: 0 0 1.55in 0;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -694,8 +697,8 @@ function printImageInHiddenFrame(args: {
           }
           .section-sheet {
             position: relative;
-            width: min(100%, calc((100vh - 0.7in) * 11 / 8.5));
-            max-width: 100%;
+            width: 10.3in;
+            max-width: 10.3in;
             aspect-ratio: 11 / 8.5;
           }
           .section-sheet .title-block {
@@ -706,11 +709,14 @@ function printImageInHiddenFrame(args: {
             position: absolute;
             right: 0;
             bottom: 0;
-            width: 390px;
-            border: 1px solid #111827;
+            box-sizing: border-box;
+            width: 3.9in;
+            min-height: 1.08in;
+            border: 0.75pt solid #111827;
             background: #ffffff;
-            font-size: 8px;
+            font-size: 8pt;
             line-height: 1.05;
+            z-index: 5;
           }
           .title-block-bottom-right {
             right: 0;
@@ -734,8 +740,8 @@ function printImageInHiddenFrame(args: {
             table-layout: fixed;
           }
           .title-block td {
-            border: 1px solid #111827;
-            padding: 1px 2px;
+            border: 0.75pt solid #111827;
+            padding: 0.012in 0.024in;
             vertical-align: middle;
           }
           .title-field {
@@ -747,19 +753,19 @@ function printImageInHiddenFrame(args: {
             text-overflow: ellipsis;
           }
           .title-label {
-            font-size: 8px;
+            font-size: 8pt;
             font-weight: 400;
           }
           .title-value {
             display: inline;
-            margin-left: 3px;
-            font-size: 8px;
+            margin-left: 0.035in;
+            font-size: 8pt;
             font-weight: 600;
           }
           .scale-note {
             background: #f3f4f6;
             text-align: center;
-            font-size: 10px;
+            font-size: 10pt;
             font-weight: 700;
             line-height: 1.05;
           }
@@ -767,45 +773,45 @@ function printImageInHiddenFrame(args: {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
-            height: 30px;
-            margin: 1px auto;
+            gap: 0.06in;
+            height: 0.32in;
+            margin: 0.01in auto;
           }
           .title-logo-mark {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 68px;
-            height: 24px;
+            width: 0.68in;
+            height: 0.24in;
             background: #cf2e2e;
             color: #ffffff;
-            font-size: 14px;
+            font-size: 14pt;
             font-style: italic;
             font-weight: 800;
           }
           .title-logo-text {
             display: inline-block;
             color: #475569;
-            font-size: 7px;
+            font-size: 7pt;
             font-weight: 700;
             line-height: 1.05;
             text-transform: uppercase;
           }
           .info-row td {
-            height: 15px;
-            padding-top: 2px;
-            padding-bottom: 2px;
+            height: 0.17in;
+            padding-top: 0.015in;
+            padding-bottom: 0.015in;
           }
           .scale-row td {
-            height: 13px;
+            height: 0.15in;
           }
           .drawing-row td {
-            height: 12px;
-            padding-top: 1px;
-            padding-bottom: 1px;
+            height: 0.14in;
+            padding-top: 0.01in;
+            padding-bottom: 0.01in;
           }
           .logo-cell {
-            height: 32px;
+            height: 0.34in;
           }
           .title-main-cell {
             width: 68%;
