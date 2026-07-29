@@ -491,6 +491,209 @@ function resolveDrawingInfo(project: DockProject): DrawingInfo {
   };
 }
 
+const BUILD_PLAN_SHEET_WIDTH_PX = 2200;
+const BUILD_PLAN_SHEET_HEIGHT_PX = 1700;
+const BUILD_PLAN_SHEET_MARGIN_PX = 110;
+const BUILD_PLAN_TITLE_BLOCK_WIDTH_PX = 780;
+const BUILD_PLAN_TITLE_BLOCK_HEIGHT_PX = 230;
+const BUILD_PLAN_TITLE_BLOCK_GAP_PX = 38;
+const BUILD_PLAN_FOOTER_HEIGHT_PX = 40;
+
+function loadImageDataUrl(dataUrl: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => resolve(null);
+    image.src = dataUrl;
+  });
+}
+
+function drawFittedImage(
+  context: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  area: { x: number; y: number; width: number; height: number },
+) {
+  const scale = Math.min(area.width / image.naturalWidth, area.height / image.naturalHeight);
+  const drawWidth = image.naturalWidth * scale;
+  const drawHeight = image.naturalHeight * scale;
+  const drawX = area.x + (area.width - drawWidth) / 2;
+  const drawY = area.y + (area.height - drawHeight) / 2;
+
+  context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+}
+
+function truncateCanvasText(
+  context: CanvasRenderingContext2D,
+  value: string,
+  maxWidth: number,
+) {
+  if (context.measureText(value).width <= maxWidth) {
+    return value;
+  }
+
+  let nextValue = value;
+  while (nextValue.length > 1 && context.measureText(`${nextValue}...`).width > maxWidth) {
+    nextValue = nextValue.slice(0, -1);
+  }
+
+  return `${nextValue}...`;
+}
+
+function drawTitleField(
+  context: CanvasRenderingContext2D,
+  label: string,
+  value: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  context.save();
+  context.beginPath();
+  context.rect(x, y, width, height);
+  context.clip();
+  context.fillStyle = '#111827';
+  context.font = '16px Arial';
+  context.textBaseline = 'middle';
+  context.fillText(label, x + 10, y + height / 2);
+
+  const labelWidth = context.measureText(label).width;
+  context.font = '600 16px Arial';
+  context.fillText(truncateCanvasText(context, value, width - labelWidth - 28), x + 16 + labelWidth, y + height / 2);
+  context.restore();
+}
+
+function drawBuildPlanTitleBlock(
+  context: CanvasRenderingContext2D,
+  args: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    drawingInfo: DrawingInfo;
+    drawingDate: string;
+    scaleLabel: string;
+    projectName: string;
+  },
+) {
+  const { x, y, width, height, drawingInfo, drawingDate, scaleLabel, projectName } = args;
+  const leftWidth = Math.round(width * 0.42);
+  const middleWidth = Math.round(width * 0.4);
+  const rightWidth = width - leftWidth - middleWidth;
+  const rowHeights = [38, 38, 48, 48, height - 38 - 38 - 48 - 48];
+  const rowY = rowHeights.reduce<number[]>((accumulator, _rowHeight, index) => {
+    accumulator.push(index === 0 ? y : accumulator[index - 1] + rowHeights[index - 1]);
+    return accumulator;
+  }, []);
+
+  context.save();
+  context.fillStyle = '#ffffff';
+  context.fillRect(x, y, width, height);
+  context.strokeStyle = '#111827';
+  context.lineWidth = 2;
+  context.strokeRect(x, y, width, height);
+
+  rowY.slice(1).forEach((lineY) => {
+    context.beginPath();
+    context.moveTo(x, lineY);
+    context.lineTo(x + width, lineY);
+    context.stroke();
+  });
+
+  [x + leftWidth, x + leftWidth + middleWidth].forEach((lineX) => {
+    context.beginPath();
+    context.moveTo(lineX, y);
+    context.lineTo(lineX, y + height);
+    context.stroke();
+  });
+
+  context.fillStyle = '#f3f4f6';
+  context.fillRect(x + 1, rowY[1] + 1, leftWidth - 2, rowHeights[1] - 2);
+  context.fillStyle = '#111827';
+  context.font = '700 23px Arial';
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  scaleLabel.split('\n').forEach((line, index, lines) => {
+    context.fillText(line, x + leftWidth / 2, rowY[1] + rowHeights[1] / 2 + (index - (lines.length - 1) / 2) * 24);
+  });
+
+  drawTitleField(context, 'Date:', drawingDate, x, rowY[0], leftWidth, rowHeights[0]);
+  drawTitleField(context, 'Client:', drawingInfo.client ?? '', x + leftWidth, rowY[0], middleWidth + rightWidth, rowHeights[0]);
+  drawTitleField(context, 'Location:', drawingInfo.location ?? '', x + leftWidth, rowY[1], middleWidth + rightWidth, rowHeights[1]);
+  drawTitleField(context, 'Description:', drawingInfo.description ?? projectName, x + leftWidth, rowY[2], middleWidth + rightWidth, rowHeights[2]);
+  drawTitleField(context, 'Drawing #:', drawingInfo.drawingNumber ?? '', x + leftWidth, rowY[3], middleWidth, rowHeights[3]);
+  drawTitleField(context, 'Rev:', drawingInfo.revision ?? '0', x + leftWidth + middleWidth, rowY[3], rightWidth, rowHeights[3]);
+  drawTitleField(context, 'Completed By:', drawingInfo.completedBy ?? '', x, rowY[4], leftWidth, rowHeights[4]);
+
+  const logoY = rowY[2] + rowHeights[2] + 4;
+  const logoX = x + Math.round(leftWidth * 0.28);
+  context.fillStyle = '#cf2e2e';
+  context.fillRect(logoX, logoY, 122, 44);
+  context.fillStyle = '#ffffff';
+  context.font = 'italic 700 28px Arial';
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillText('Kehoe', logoX + 61, logoY + 22);
+  context.fillStyle = '#475569';
+  context.font = '700 12px Arial';
+  context.textAlign = 'left';
+  context.fillText('MARINE', logoX + 138, logoY + 16);
+  context.fillText('CONSTRUCTION', logoX + 138, logoY + 31);
+  context.restore();
+}
+
+async function composeBuildPlanSheetImage(args: {
+  buildPlanImageDataUrl: string;
+  drawingInfo: DrawingInfo;
+  drawingDate: string;
+  scaleLabel: string;
+  projectName: string;
+}): Promise<string | null> {
+  const buildPlanImage = await loadImageDataUrl(args.buildPlanImageDataUrl);
+  if (!buildPlanImage) {
+    return null;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = BUILD_PLAN_SHEET_WIDTH_PX;
+  canvas.height = BUILD_PLAN_SHEET_HEIGHT_PX;
+  const context = canvas.getContext('2d');
+  if (!context) {
+    return null;
+  }
+
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  const titleBlockX = canvas.width - BUILD_PLAN_SHEET_MARGIN_PX - BUILD_PLAN_TITLE_BLOCK_WIDTH_PX;
+  const titleBlockY = canvas.height - BUILD_PLAN_SHEET_MARGIN_PX - BUILD_PLAN_TITLE_BLOCK_HEIGHT_PX;
+  const drawingArea = {
+    x: BUILD_PLAN_SHEET_MARGIN_PX,
+    y: BUILD_PLAN_SHEET_MARGIN_PX,
+    width: canvas.width - BUILD_PLAN_SHEET_MARGIN_PX * 2,
+    height: titleBlockY - BUILD_PLAN_TITLE_BLOCK_GAP_PX - BUILD_PLAN_SHEET_MARGIN_PX,
+  };
+
+  drawFittedImage(context, buildPlanImage, drawingArea);
+  drawBuildPlanTitleBlock(context, {
+    x: titleBlockX,
+    y: titleBlockY,
+    width: BUILD_PLAN_TITLE_BLOCK_WIDTH_PX,
+    height: BUILD_PLAN_TITLE_BLOCK_HEIGHT_PX,
+    drawingInfo: args.drawingInfo,
+    drawingDate: args.drawingDate,
+    scaleLabel: args.scaleLabel,
+    projectName: args.projectName,
+  });
+
+  context.fillStyle = '#475569';
+  context.font = '14px Arial';
+  context.textBaseline = 'middle';
+  context.fillText('Permit-support drawing generated from Build Plan. Verify dimensions and site conditions before submission.', BUILD_PLAN_SHEET_MARGIN_PX, canvas.height - BUILD_PLAN_FOOTER_HEIGHT_PX);
+
+  return canvas.toDataURL('image/png');
+}
+
 function expandBounds(
   bounds: { minX: number; minY: number; maxX: number; maxY: number },
   x: number,
@@ -604,7 +807,6 @@ function printImageInHiddenFrame(args: {
   sectionViewImageDataUrl?: string | null;
   sectionViewTitleBlockHtml?: string;
   projectName: string;
-  titleBlockHtml: string;
 }): boolean {
   const iframe = document.createElement('iframe');
   iframe.style.position = 'fixed';
@@ -680,19 +882,13 @@ function printImageInHiddenFrame(args: {
           }
           .build-plan-drawing-area {
             position: absolute;
-            top: 0.35in;
-            left: 0.35in;
-            right: 0.35in;
-            bottom: 1.55in;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            inset: 0;
             overflow: hidden;
           }
           .canvas-image {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
+            width: 11in;
+            height: 8.5in;
+            object-fit: fill;
             object-position: center center;
             display: block;
           }
@@ -857,7 +1053,6 @@ function printImageInHiddenFrame(args: {
           <div class="build-plan-drawing-area">
             <img id="export-image" class="canvas-image" src="${args.imageDataUrl}" alt="${args.projectName}" />
           </div>
-          ${args.titleBlockHtml}
         </div>
         ${
           args.sectionViewImageDataUrl
@@ -2689,7 +2884,19 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
       currentScale.realLength > 0 && currentScale.pixels > 0
         ? `${currentScale.pixels.toFixed(0)} px = ${currentScale.realLength} ${currentScale.unit}`
         : 'Not to\nScale';
-    const titleBlockScaleHtml = titleBlockScaleLabel.replace(/\n/g, '<br />');
+
+    const composedBuildPlanImageDataUrl = await composeBuildPlanSheetImage({
+      buildPlanImageDataUrl: imageDataUrl,
+      drawingInfo,
+      drawingDate,
+      scaleLabel: titleBlockScaleLabel,
+      projectName,
+    });
+
+    if (!composedBuildPlanImageDataUrl) {
+      setSaveMessage('Export failed');
+      return;
+    }
 
     const titleBlockPosition = project.exportSettings?.titleBlockPosition ?? 'bottom-right';
     const titleBlockOffsetX = project.exportSettings?.titleBlockOffsetX ?? 0;
@@ -2697,46 +2904,6 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
     const titleBlockHorizontalEdge = titleBlockPosition.endsWith('right') ? 'right' : 'left';
     const titleBlockVerticalEdge = titleBlockPosition.startsWith('bottom') ? 'bottom' : 'top';
     const titleBlockOffsetStyle = `${titleBlockHorizontalEdge}: calc(0.35in + ${titleBlockOffsetX}px); ${titleBlockVerticalEdge}: calc(0.35in + ${titleBlockOffsetY}px);`;
-
-    const titleBlockHtml =
-      titleBlockPosition === 'hidden'
-        ? ''
-        : `
-      <div class="title-block title-block-${titleBlockPosition}" style="${titleBlockOffsetStyle}">
-        <table>
-          <colgroup>
-            <col style="width: 42%;" />
-            <col style="width: 40%;" />
-            <col style="width: 18%;" />
-          </colgroup>
-          <tr class="info-row">
-            <td><div class="title-field"><span class="title-label">Date:</span><span class="title-value">${escapeHtml(drawingDate)}</span></div></td>
-            <td colspan="2"><div class="title-field"><span class="title-label">Client:</span><span class="title-value">${escapeHtml(drawingInfo.client ?? '')}</span></div></td>
-          </tr>
-          <tr class="scale-row">
-            <td class="scale-note">${titleBlockScaleHtml}</td>
-            <td colspan="2"><div class="title-field"><span class="title-label">Location:</span><span class="title-value">${escapeHtml(drawingInfo.location ?? '')}</span></div></td>
-          </tr>
-          <tr class="info-row">
-            <td rowspan="2" class="logo-cell">
-              <div class="title-logo" aria-label="Kehoe Marine Construction">
-                <span class="title-logo-mark">Kehoe</span>
-                <span class="title-logo-text">Marine<br />Construction</span>
-              </div>
-            </td>
-            <td colspan="2"><div class="title-field"><span class="title-label">Description:</span><span class="title-value">${escapeHtml(drawingInfo.description ?? project.name)}</span></div></td>
-          </tr>
-          <tr class="drawing-row">
-            <td><div class="title-field"><span class="title-label">Drawing #:</span><span class="title-value">${escapeHtml(drawingInfo.drawingNumber ?? '')}</span></div></td>
-            <td class="small-cell"><div class="title-field"><span class="title-label">Rev:</span><span class="title-value">${escapeHtml(drawingInfo.revision ?? '0')}</span></div></td>
-          </tr>
-          <tr>
-            <td><div class="title-field"><span class="title-label">Completed By:</span><span class="title-value">${escapeHtml(drawingInfo.completedBy ?? '')}</span></div></td>
-            <td colspan="2"></td>
-          </tr>
-        </table>
-      </div>
-    `;
 
     let sectionViewImageDataUrl: string | null = null;
     let sectionViewTitleBlockHtml = '';
@@ -2787,11 +2954,10 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
     }
 
     const printed = printImageInHiddenFrame({
-      imageDataUrl,
+      imageDataUrl: composedBuildPlanImageDataUrl,
       sectionViewImageDataUrl,
       sectionViewTitleBlockHtml,
       projectName: escapeHtml(projectName),
-      titleBlockHtml,
     });
 
     if (!printed) {
