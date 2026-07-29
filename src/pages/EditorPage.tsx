@@ -613,7 +613,8 @@ function printImageInHiddenFrame(args: {
   iframe.style.width = '11in';
   iframe.style.height = '8.5in';
   iframe.style.border = '0';
-  iframe.style.visibility = 'hidden';
+  iframe.style.opacity = '0';
+  iframe.style.pointerEvents = 'none';
   document.body.appendChild(iframe);
 
   const frameWindow = iframe.contentWindow;
@@ -646,22 +647,31 @@ function printImageInHiddenFrame(args: {
         <meta charset="utf-8" />
         <style>
           @page {
-            size: landscape;
-            margin: 0.35in;
+            size: letter landscape;
+            margin: 0;
+          }
+          html {
+            margin: 0;
+            padding: 0;
+            width: 11in;
+            height: 8.5in;
           }
           body {
             margin: 0;
             padding: 0;
-            width: 10.3in;
-            height: 7.8in;
+            width: 11in;
+            min-height: 8.5in;
             font-family: Arial, sans-serif;
             color: #111827;
             background: #ffffff;
+            overflow: visible;
           }
           .page {
             position: relative;
-            width: 10.3in;
-            height: 7.8in;
+            width: 11in;
+            height: 8.5in;
+            box-sizing: border-box;
+            background: #ffffff;
             overflow: hidden;
           }
           .page + .page {
@@ -670,7 +680,10 @@ function printImageInHiddenFrame(args: {
           }
           .build-plan-drawing-area {
             position: absolute;
-            inset: 0 0 1.55in 0;
+            top: 0.35in;
+            left: 0.35in;
+            right: 0.35in;
+            bottom: 1.55in;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -691,24 +704,21 @@ function printImageInHiddenFrame(args: {
             display: block;
           }
           .section-page {
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            position: relative;
           }
           .section-sheet {
             position: relative;
-            width: 10.3in;
-            max-width: 10.3in;
-            aspect-ratio: 11 / 8.5;
+            width: 11in;
+            height: 8.5in;
           }
           .section-sheet .title-block {
-            right: 4.6%;
-            bottom: 4.8%;
+            right: 0.35in;
+            bottom: 0.35in;
           }
           .title-block {
             position: absolute;
-            right: 0;
-            bottom: 0;
+            right: 0.35in;
+            bottom: 0.35in;
             box-sizing: border-box;
             width: 3.9in;
             min-height: 1.08in;
@@ -719,20 +729,20 @@ function printImageInHiddenFrame(args: {
             z-index: 5;
           }
           .title-block-bottom-right {
-            right: 0;
-            bottom: 0;
+            right: 0.35in;
+            bottom: 0.35in;
           }
           .title-block-bottom-left {
-            left: 0;
-            bottom: 0;
+            left: 0.35in;
+            bottom: 0.35in;
           }
           .title-block-top-right {
-            right: 0;
-            top: 0;
+            right: 0.35in;
+            top: 0.35in;
           }
           .title-block-top-left {
-            left: 0;
-            top: 0;
+            left: 0.35in;
+            top: 0.35in;
           }
           .title-block table {
             width: 100%;
@@ -826,9 +836,15 @@ function printImageInHiddenFrame(args: {
           @media print {
             html,
             body {
-              width: 100%;
-              height: 100%;
-              overflow: hidden;
+              width: 11in;
+              min-height: 8.5in;
+              margin: 0;
+              padding: 0;
+              overflow: visible;
+            }
+            .page {
+              width: 11in;
+              height: 8.5in;
             }
             .canvas-image {
               border: none;
@@ -2680,7 +2696,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
     const titleBlockOffsetY = project.exportSettings?.titleBlockOffsetY ?? 0;
     const titleBlockHorizontalEdge = titleBlockPosition.endsWith('right') ? 'right' : 'left';
     const titleBlockVerticalEdge = titleBlockPosition.startsWith('bottom') ? 'bottom' : 'top';
-    const titleBlockOffsetStyle = `${titleBlockHorizontalEdge}: ${titleBlockOffsetX}px; ${titleBlockVerticalEdge}: ${titleBlockOffsetY}px;`;
+    const titleBlockOffsetStyle = `${titleBlockHorizontalEdge}: calc(0.35in + ${titleBlockOffsetX}px); ${titleBlockVerticalEdge}: calc(0.35in + ${titleBlockOffsetY}px);`;
 
     const titleBlockHtml =
       titleBlockPosition === 'hidden'
