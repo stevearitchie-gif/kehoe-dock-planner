@@ -48,7 +48,7 @@ export interface EditorCanvasExportOptions {
 }
 
 export interface EditorCanvasHandle {
-  exportAsImage: (pixelRatio?: number, options?: EditorCanvasExportOptions) => string | null;
+  exportAsImage: (pixelRatio?: number, options?: EditorCanvasExportOptions) => Promise<string | null>;
 }
 
 type ResizeHandle = 'right' | 'bottom' | 'corner';
@@ -575,7 +575,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   const [stagePosition, setStagePosition] = useState<Point>({ x: 0, y: 0 });
 
   useImperativeHandle(ref, () => ({
-    exportAsImage(pixelRatio = 2, options) {
+    async exportAsImage(pixelRatio = 2, options) {
       const stage = stageRef.current;
       if (!stage) {
         return null;
@@ -609,7 +609,11 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
         stage.scale({ x: 1, y: 1 });
         stage.width(bounds.width);
         stage.height(bounds.height);
-        stage.batchDraw();
+        stage.draw();
+
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => resolve());
+        });
 
         return stage.toDataURL({
           pixelRatio,
@@ -625,7 +629,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
         stage.scale({ x: previousAttrs.scaleX, y: previousAttrs.scaleY });
         stage.width(previousAttrs.width);
         stage.height(previousAttrs.height);
-        stage.batchDraw();
+        stage.draw();
       }
     },
   }));

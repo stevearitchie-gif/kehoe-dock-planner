@@ -2671,7 +2671,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
     await waitForNextPaint();
 
     const buildPlanBounds = getBuildPlanContentBounds(project, scalePoints);
-    const imageDataUrl = editorCanvasRef.current?.exportAsImage(2, { bounds: buildPlanBounds }) ?? null;
+    const imageDataUrl = await (editorCanvasRef.current?.exportAsImage(2, { bounds: buildPlanBounds }) ?? Promise.resolve(null));
 
     setSelectedObjectId(previousSelectedObjectId);
 
