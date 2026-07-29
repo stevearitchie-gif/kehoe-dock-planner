@@ -205,6 +205,11 @@ function getObjectDimensionLabel(pixels: number, scale: ProjectScale): string {
   return formatFeetAndInches(realLengthInScaleUnits);
 }
 
+function getLabelTextBoxWidth(text: string, objectWidth: number): number {
+  const estimatedTextWidth = Math.ceil(text.length * 7.2 + 16);
+  return Math.max(objectWidth, LABEL_BOX_MIN_WIDTH, estimatedTextWidth);
+}
+
 function formatScaleMeasurementLabel(scale: ProjectScale): string {
   if (scale.realLength <= 0) {
     return 'Set scale length';
@@ -1222,19 +1227,9 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
             const isShapeObject = object.type.startsWith('shape_');
             const displayLabelText =
               object.type === 'dimension_line' ? getDimensionLineLabel(object, currentScale) : object.label;
-            const isLabelVertical = object.labelRotation === 90 || object.labelRotation === -90;
-            const verticalLabelCharacters =
-              object.labelRotation === -90 ? displayLabelText.split('').reverse() : displayLabelText.split('');
-            const labelWidth = isLabelVertical
-              ? 34
-              : isShapeObject
-                ? object.width
-                : Math.max(object.width, LABEL_BOX_MIN_WIDTH);
-            const labelHeight = isLabelVertical
-              ? Math.max(90, verticalLabelCharacters.length * 14 + 8)
-              : isShapeObject
-                ? Math.max(object.height, LABEL_BOX_HEIGHT)
-                : LABEL_BOX_HEIGHT;
+            const labelRotation = object.labelRotation ?? 0;
+            const labelWidth = getLabelTextBoxWidth(displayLabelText, object.width);
+            const labelHeight = isShapeObject && labelRotation === 0 ? Math.max(object.height, LABEL_BOX_HEIGHT) : LABEL_BOX_HEIGHT;
             const defaultLabelX = object.width / 2 - labelWidth / 2;
             const defaultLabelY =
               object.type === 'dimension_line'
@@ -1887,22 +1882,14 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                     strokeWidth={0}
                     cornerRadius={4}
                   />
-                  {isLabelVertical ? (
-                    verticalLabelCharacters.map((character, characterIndex) => (
-                      <Text
-                        key={`${object.id}-label-character-${characterIndex}`}
-                        x={0}
-                        y={4 + characterIndex * 14}
-                        width={labelWidth}
-                        height={14}
-                        align="center"
-                        verticalAlign="middle"
-                        text={character}
-                        fontSize={12}
-                        fill={object.labelColor ?? '#0f172a'}
-                      />
-                    ))
-                  ) : (
+                  <Group
+                    x={labelWidth / 2}
+                    y={labelHeight / 2}
+                    offsetX={labelWidth / 2}
+                    offsetY={labelHeight / 2}
+                    rotation={labelRotation}
+                    listening={false}
+                  >
                     <Text
                       x={4}
                       y={4}
@@ -1913,8 +1900,11 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                       text={displayLabelText}
                       fontSize={12}
                       fill={object.labelColor ?? '#0f172a'}
+                      wrap="none"
+                      ellipsis={false}
+                      listening={false}
                     />
-                  )}
+                  </Group>
                 </Group>
                 )}
 
