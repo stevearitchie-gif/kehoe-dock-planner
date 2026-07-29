@@ -51,6 +51,14 @@ export interface EditorCanvasHandle {
   exportAsImage: (pixelRatio?: number, options?: EditorCanvasExportOptions) => Promise<string | null>;
 }
 
+type ExportViewport = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  scale: number;
+};
+
 type ResizeHandle = 'right' | 'bottom' | 'corner';
 type ConnectorEndpointHandle = 'start' | 'end';
 
@@ -573,6 +581,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   const draftShapeBoxRef = useRef<DraftShapeBox | null>(null);
   const [connectorSnapPoint, setConnectorSnapPoint] = useState<Point | null>(null);
   const [stagePosition, setStagePosition] = useState<Point>({ x: 0, y: 0 });
+  const [exportViewport, setExportViewport] = useState<ExportViewport | null>(null);
 
   useImperativeHandle(ref, () => ({
     async exportAsImage(pixelRatio = 2, options) {
@@ -594,21 +603,21 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
         width: Math.max(1, options.bounds.width),
         height: Math.max(1, options.bounds.height),
       };
-      const previousAttrs = {
-        x: stage.x(),
-        y: stage.y(),
-        scaleX: stage.scaleX(),
-        scaleY: stage.scaleY(),
-        width: stage.width(),
-        height: stage.height(),
-      };
-
       try {
-        stage.x(-bounds.x);
-        stage.y(-bounds.y);
-        stage.scale({ x: 1, y: 1 });
-        stage.width(bounds.width);
-        stage.height(bounds.height);
+        setExportViewport({
+          x: -bounds.x,
+          y: -bounds.y,
+          width: bounds.width,
+          height: bounds.height,
+          scale: 1,
+        });
+
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => resolve());
+          });
+        });
+
         stage.draw();
 
         await new Promise<void>((resolve) => {
@@ -624,11 +633,12 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           height: bounds.height,
         });
       } finally {
-        stage.x(previousAttrs.x);
-        stage.y(previousAttrs.y);
-        stage.scale({ x: previousAttrs.scaleX, y: previousAttrs.scaleY });
-        stage.width(previousAttrs.width);
-        stage.height(previousAttrs.height);
+        setExportViewport(null);
+
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => resolve());
+        });
+
         stage.draw();
       }
     },
@@ -1186,12 +1196,12 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     >
       <Stage
         ref={stageRef}
-        width={canvasSize.width}
-        height={canvasSize.height}
-        x={stagePosition.x}
-        y={stagePosition.y}
-        scaleX={zoom}
-        scaleY={zoom}
+        width={exportViewport?.width ?? canvasSize.width}
+        height={exportViewport?.height ?? canvasSize.height}
+        x={exportViewport?.x ?? stagePosition.x}
+        y={exportViewport?.y ?? stagePosition.y}
+        scaleX={exportViewport?.scale ?? zoom}
+        scaleY={exportViewport?.scale ?? zoom}
         draggable={isPanTool && !interactionSession}
         onDragMove={(event) => {
           if (!isPanTool) {
