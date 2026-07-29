@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, type DragEvent } from 'react';
-import { Circle, Ellipse, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text } from 'react-konva';
+import { Circle, Ellipse, Group, Image as KonvaImage, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import type { Stage as KonvaStage } from 'konva/lib/Stage';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { DockObject, Point, ProjectScale } from '@/types/dock';
@@ -72,13 +72,29 @@ type DraftShapeBox = {
   currentPoint: Point;
 };
 
+type ObjectLabelRendererProps = {
+  objectId: string;
+  labelText: string;
+  labelColor?: string;
+  labelRotation: 0 | 90 | -90;
+  centerX: number;
+  centerY: number;
+  defaultCenterX: number;
+  defaultCenterY: number;
+  hitWidth: number;
+  hitHeight: number;
+  isDraggable: boolean;
+  onObjectClick: (objectId: string) => void;
+  onObjectLabelOffsetChange: (objectId: string, offset: Point) => void;
+};
+
 const GRID_SIZE = 40;
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 3;
 const MIN_OBJECT_SIZE = 10;
 const ROTATION_HANDLE_OFFSET = 28;
 const LABEL_BOX_MIN_WIDTH = 120;
-const LABEL_BOX_HEIGHT = 24;
+const LABEL_FONT_SIZE = 12;
 
 const DRAW_START_THRESHOLD = 8;
 
@@ -205,9 +221,90 @@ function getObjectDimensionLabel(pixels: number, scale: ProjectScale): string {
   return formatFeetAndInches(realLengthInScaleUnits);
 }
 
-function getLabelTextBoxWidth(text: string, objectWidth: number): number {
-  const estimatedTextWidth = Math.ceil(text.length * 7.2 + 16);
-  return Math.max(objectWidth, LABEL_BOX_MIN_WIDTH, estimatedTextWidth);
+function getLabelTextBoxWidth(text: string): number {
+  const estimatedTextWidth = Math.ceil(text.length * LABEL_FONT_SIZE * 0.7 + 20);
+  return Math.max(LABEL_BOX_MIN_WIDTH, estimatedTextWidth);
+}
+
+function normalizeLabelText(labelText: string): string {
+  return String(labelText || '').replace(/\s+/g, ' ').trim();
+}
+
+function renderObjectLabel({
+  objectId,
+  labelText,
+  labelColor,
+  labelRotation,
+  centerX,
+  centerY,
+  defaultCenterX,
+  defaultCenterY,
+  hitWidth,
+  hitHeight,
+  isDraggable,
+  onObjectClick,
+  onObjectLabelOffsetChange,
+}: ObjectLabelRendererProps) {
+  const normalizedLabel = normalizeLabelText(labelText);
+
+  return (
+    <Group
+      x={centerX}
+      y={centerY}
+      listening={isDraggable}
+      draggable={isDraggable}
+      onClick={(event) => {
+        event.cancelBubble = true;
+        onObjectClick(objectId);
+      }}
+      onTap={(event) => {
+        event.cancelBubble = true;
+        onObjectClick(objectId);
+      }}
+      onMouseDown={(event) => {
+        event.cancelBubble = true;
+        onObjectClick(objectId);
+      }}
+      onDragStart={(event) => {
+        event.cancelBubble = true;
+        onObjectClick(objectId);
+      }}
+      onDragMove={(event) => {
+        event.cancelBubble = true;
+      }}
+      onDragEnd={(event) => {
+        event.cancelBubble = true;
+        onObjectLabelOffsetChange(objectId, {
+          x: event.target.x() - defaultCenterX,
+          y: event.target.y() - defaultCenterY,
+        });
+      }}
+    >
+      <Rect
+        x={-hitWidth / 2}
+        y={-hitHeight / 2}
+        width={hitWidth}
+        height={hitHeight}
+        fill="#ffffff"
+        opacity={0.001}
+        strokeWidth={0}
+        cornerRadius={4}
+      />
+      <Shape
+        listening={false}
+        sceneFunc={(context) => {
+          context.save();
+          context.rotate((labelRotation * Math.PI) / 180);
+          context.font = `${LABEL_FONT_SIZE}px Arial`;
+          context.fillStyle = labelColor ?? '#0f172a';
+          context.textAlign = 'center';
+          context.textBaseline = 'middle';
+          context.fillText(normalizedLabel, 0, 0);
+          context.restore();
+        }}
+      />
+    </Group>
+  );
 }
 
 function formatScaleMeasurementLabel(scale: ProjectScale): string {
@@ -1224,21 +1321,21 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 ? interactionSession.previewRotation
                 : object.rotation;
 
-            const isShapeObject = object.type.startsWith('shape_');
             const displayLabelText =
               object.type === 'dimension_line' ? getDimensionLineLabel(object, currentScale) : object.label;
             const labelRotation = object.labelRotation ?? 0;
-            const labelWidth = getLabelTextBoxWidth(displayLabelText, object.width);
-            const labelHeight = isShapeObject && labelRotation === 0 ? Math.max(object.height, LABEL_BOX_HEIGHT) : LABEL_BOX_HEIGHT;
-            const defaultLabelX = object.width / 2 - labelWidth / 2;
-            const defaultLabelY =
+            const labelText = normalizeLabelText(displayLabelText);
+            const labelTextWidth = getLabelTextBoxWidth(labelText);
+            const labelTextHeight = LABEL_FONT_SIZE * 1.5;
+            const labelHitWidth = labelRotation === 0 ? labelTextWidth + 12 : labelTextHeight + 16;
+            const labelHitHeight = labelRotation === 0 ? labelTextHeight + 10 : labelTextWidth + 16;
+            const defaultLabelCenterX = object.width / 2;
+            const defaultLabelCenterY =
               object.type === 'dimension_line'
-                ? -labelHeight - 6
-                : isShapeObject
-                  ? 0
-                  : object.height / 2 - labelHeight / 2;
-            const labelX = defaultLabelX + (object.labelOffsetX ?? 0);
-            const labelY = defaultLabelY + (object.labelOffsetY ?? 0);
+                ? -(labelTextHeight / 2 + 6)
+                : object.height / 2;
+            const labelCenterX = defaultLabelCenterX + (object.labelOffsetX ?? 0);
+            const labelCenterY = defaultLabelCenterY + (object.labelOffsetY ?? 0);
             const isLabelDraggable =
               isLabelMoveModeEnabled && isSelected && activeTool === 'select' && !object.locked && !interactionSession;
 
@@ -1839,74 +1936,22 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 
                 </Group>
 
-                {!object.labelHidden && (
-                <Group
-                  x={labelX}
-                  y={labelY}
-                  listening={isLabelDraggable}
-                  draggable={isLabelDraggable}
-                  onClick={(event) => {
-                    event.cancelBubble = true;
-                    onObjectClick(object.id);
-                  }}
-                  onTap={(event) => {
-                    event.cancelBubble = true;
-                    onObjectClick(object.id);
-                  }}
-                  onMouseDown={(event) => {
-                    event.cancelBubble = true;
-                    onObjectClick(object.id);
-                  }}
-                  onDragStart={(event) => {
-                    event.cancelBubble = true;
-                    onObjectClick(object.id);
-                  }}
-                  onDragMove={(event) => {
-                    event.cancelBubble = true;
-                  }}
-                  onDragEnd={(event) => {
-                    event.cancelBubble = true;
-                    onObjectLabelOffsetChange(object.id, {
-                      x: event.target.x() - defaultLabelX,
-                      y: event.target.y() - defaultLabelY,
-                    });
-                  }}
-                >
-                  <Rect
-                    x={0}
-                    y={0}
-                    width={labelWidth}
-                    height={labelHeight}
-                    fill="#ffffff"
-                    opacity={0.001}
-                    strokeWidth={0}
-                    cornerRadius={4}
-                  />
-                  <Group
-                    x={labelWidth / 2}
-                    y={labelHeight / 2}
-                    offsetX={labelWidth / 2}
-                    offsetY={labelHeight / 2}
-                    rotation={labelRotation}
-                    listening={false}
-                  >
-                    <Text
-                      x={4}
-                      y={4}
-                      width={labelWidth - 8}
-                      height={labelHeight - 8}
-                      align="center"
-                      verticalAlign="middle"
-                      text={displayLabelText}
-                      fontSize={12}
-                      fill={object.labelColor ?? '#0f172a'}
-                      wrap="none"
-                      ellipsis={false}
-                      listening={false}
-                    />
-                  </Group>
-                </Group>
-                )}
+                {!object.labelHidden &&
+                  renderObjectLabel({
+                    objectId: object.id,
+                    labelText,
+                    labelColor: object.labelColor,
+                    labelRotation,
+                    centerX: labelCenterX,
+                    centerY: labelCenterY,
+                    defaultCenterX: defaultLabelCenterX,
+                    defaultCenterY: defaultLabelCenterY,
+                    hitWidth: labelHitWidth,
+                    hitHeight: labelHitHeight,
+                    isDraggable: isLabelDraggable,
+                    onObjectClick,
+                    onObjectLabelOffsetChange,
+                  })}
 
                 {canShowObjectDimensions && (
                   <>
