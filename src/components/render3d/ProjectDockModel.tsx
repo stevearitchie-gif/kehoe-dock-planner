@@ -50,6 +50,11 @@ const FLOATING_DOCK_DECK_TOP_HEIGHT = KEHOE_FLOATING_DOCK_FASCIA_DEPTH + KEHOE_F
 const STATIONARY_DOCK_DECK_TOP_HEIGHT = 0.68;
 
 function getDeckColor(element: ProjectRenderElement, viewMode: RenderViewMode) {
+  const colorOverride = getElementColorOverride(element);
+  if (colorOverride) {
+    return colorOverride;
+  }
+
   if (viewMode === 'internal') {
     return element.color;
   }
@@ -64,6 +69,10 @@ function getDeckColor(element: ProjectRenderElement, viewMode: RenderViewMode) {
 function getElementColorOverride(element: ProjectRenderElement) {
   const color = element.color?.trim();
   return color ? color : undefined;
+}
+
+function getPrimarySurfaceColor(element: ProjectRenderElement, fallback: string) {
+  return getElementColorOverride(element) ?? fallback;
 }
 
 function getLocalRampTopHeight(z: number, width: number, elevationInfo: RampElevationInfo) {
@@ -402,7 +411,7 @@ function RampElement({
 }) {
   const hasRails = element.type === 'ramp_with_rails';
   const railColor = viewMode === 'customer' ? '#f8fafc' : '#e2e8f0';
-  const deckColor = viewMode === 'customer' ? '#aa8454' : element.color;
+  const deckColor = getPrimarySurfaceColor(element, viewMode === 'customer' ? '#aa8454' : element.color);
   const railOffsets = [-0.45, 0, 0.45];
 
   return (
@@ -510,7 +519,7 @@ function KehoeRampWithoutRailsElement({
 function StepsElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
   const stepCount = 4;
   const stepDepth = element.length / stepCount;
-  const stepColor = viewMode === 'customer' ? '#a98255' : element.color;
+  const stepColor = getPrimarySurfaceColor(element, viewMode === 'customer' ? '#a98255' : element.color);
 
   return (
     <group position={[element.x, 0, element.z]} rotation={[0, element.rotation, 0]}>
@@ -591,7 +600,7 @@ function BoatLiftElement({ element, viewMode }: { element: ProjectRenderElement;
 
 function GenericBoatPortElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
   const postColor = viewMode === 'customer' ? '#d8e1e6' : '#2563eb';
-  const roofColor = viewMode === 'customer' ? '#eef4f7' : element.color;
+  const roofColor = getPrimarySurfaceColor(element, viewMode === 'customer' ? '#eef4f7' : element.color);
   const wallHeight = 7;
   const roofRise = 1.4;
   const postPositions = [
@@ -646,7 +655,7 @@ function GenericBoathouseElement({ element, viewMode }: { element: ProjectRender
   const wallHeight = 9;
   const roofRise = 3;
   const wallColor = viewMode === 'customer' ? '#d6d3c8' : element.color;
-  const roofColor = viewMode === 'customer' ? '#c9d3d9' : '#facc15';
+  const roofColor = getPrimarySurfaceColor(element, viewMode === 'customer' ? '#c9d3d9' : '#facc15');
 
   return (
     <group position={[element.x, 0, element.z]} rotation={[0, element.rotation, 0]}>
@@ -708,7 +717,7 @@ function GenericAccessoryElement({
   viewMode: RenderViewMode;
   mountHeight: number;
 }) {
-  const color = viewMode === 'customer' ? '#94a3b8' : element.color;
+  const color = getPrimarySurfaceColor(element, viewMode === 'customer' ? '#94a3b8' : element.color);
 
   return (
     <group position={[element.x, mountHeight, element.z]} rotation={[0, element.rotation, 0]}>
@@ -755,7 +764,7 @@ function AccessoryElement({
 
 function RoofOverlayElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
   const roofY = element.elevation + 3.8;
-  const canopyColor = viewMode === 'customer' ? '#f3f8fb' : element.color;
+  const canopyColor = getPrimarySurfaceColor(element, viewMode === 'customer' ? '#f3f8fb' : element.color);
   const frameColor = viewMode === 'customer' ? '#cbd5e1' : '#475569';
 
   return (
