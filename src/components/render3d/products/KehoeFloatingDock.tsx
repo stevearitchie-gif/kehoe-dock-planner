@@ -188,7 +188,7 @@ function Cleats({
             <meshStandardMaterial color={color} roughness={0.28} metalness={0.32} />
           </mesh>
           <mesh position={[0, 0.045, 0]} castShadow>
-            <boxGeometry args={[CLEAT_WIDTH_FT * 1.35, 0.04, CLEAT_LENGTH_FT * 0.18]} />
+            <boxGeometry args={[CLEAT_WIDTH_FT * 0.18, 0.04, CLEAT_LENGTH_FT * 1.35]} />
             <meshStandardMaterial color={color} roughness={0.26} metalness={0.36} />
           </mesh>
         </group>
