@@ -1897,6 +1897,8 @@ export function EditorPage() {
                   boatPortWallHeightFt: 7,
                   boatPortRoofRiseFt: 1.4,
                   boatPortRoofType: 'pitched',
+                  boatPortPostSideInsetFt: 0,
+                  boatPortPostEndInsetFt: 0,
                 }
               : placementTool === 'boathouse'
                 ? {
@@ -2498,9 +2500,13 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
     }));
   };
 
-  const handleSelectedBoatPortHeightChange = (field: 'boatPortWallHeightFt' | 'boatPortRoofRiseFt', value: string) => {
+  const handleSelectedBoatPortNumberChange = (
+    field: 'boatPortWallHeightFt' | 'boatPortRoofRiseFt' | 'boatPortPostSideInsetFt' | 'boatPortPostEndInsetFt',
+    value: string,
+  ) => {
     const parsedValue = Number(value);
-    if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+    const allowsZero = field === 'boatPortPostSideInsetFt' || field === 'boatPortPostEndInsetFt';
+    if (!Number.isFinite(parsedValue) || parsedValue < 0 || (!allowsZero && parsedValue <= 0)) {
       return;
     }
 
@@ -3854,7 +3860,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                                   min={1}
                                   step="any"
                                   value={selectedObject.metadata?.boatPortWallHeightFt ?? 7}
-                                  onChange={(event) => handleSelectedBoatPortHeightChange('boatPortWallHeightFt', event.target.value)}
+                                  onChange={(event) => handleSelectedBoatPortNumberChange('boatPortWallHeightFt', event.target.value)}
                                   className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
                                 />
                               </label>
@@ -3867,7 +3873,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                                   min={0.25}
                                   step="any"
                                   value={selectedObject.metadata?.boatPortRoofRiseFt ?? 1.4}
-                                  onChange={(event) => handleSelectedBoatPortHeightChange('boatPortRoofRiseFt', event.target.value)}
+                                  onChange={(event) => handleSelectedBoatPortNumberChange('boatPortRoofRiseFt', event.target.value)}
                                   className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
                                 />
                               </label>
@@ -3895,6 +3901,34 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                                   </button>
                                 );
                               })}
+                            </div>
+                            <div className="mt-3 grid grid-cols-2 gap-2">
+                              <label className="block">
+                                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                  Post side inset (ft)
+                                </span>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step="any"
+                                  value={selectedObject.metadata?.boatPortPostSideInsetFt ?? 0}
+                                  onChange={(event) => handleSelectedBoatPortNumberChange('boatPortPostSideInsetFt', event.target.value)}
+                                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                                />
+                              </label>
+                              <label className="block">
+                                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                  Post end inset (ft)
+                                </span>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step="any"
+                                  value={selectedObject.metadata?.boatPortPostEndInsetFt ?? 0}
+                                  onChange={(event) => handleSelectedBoatPortNumberChange('boatPortPostEndInsetFt', event.target.value)}
+                                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                                />
+                              </label>
                             </div>
                           </div>
                         )}

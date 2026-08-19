@@ -232,6 +232,8 @@ export function buildProjectRenderModel(project: DockProject): ProjectRenderMode
       boatPortWallHeightFt: getPositiveMetadataNumber(object.metadata?.boatPortWallHeightFt),
       boatPortRoofRiseFt: getPositiveMetadataNumber(object.metadata?.boatPortRoofRiseFt),
       boatPortRoofType: getBoatPortRoofType(object),
+      boatPortPostSideInsetFt: getPositiveMetadataNumber(object.metadata?.boatPortPostSideInsetFt),
+      boatPortPostEndInsetFt: getPositiveMetadataNumber(object.metadata?.boatPortPostEndInsetFt),
       boathouseWallHeightFt: getPositiveMetadataNumber(object.metadata?.boathouseWallHeightFt),
       boathouseRoofRiseFt: getPositiveMetadataNumber(object.metadata?.boathouseRoofRiseFt),
       boathouseRoofType: getBoathouseRoofType(object),

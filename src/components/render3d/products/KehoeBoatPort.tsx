@@ -7,6 +7,8 @@ export interface KehoeBoatPortProps {
   wallHeightFt?: number;
   roofRiseFt?: number;
   roofType?: BoatPortRoofType;
+  postSideInsetFt?: number;
+  postEndInsetFt?: number;
   opacity?: number;
   viewMode: RenderViewMode;
   roofColorOverride?: string;
@@ -45,6 +47,14 @@ function getMaterials(viewMode: RenderViewMode) {
 
 function getPositiveValue(value: number | undefined, fallback: number) {
   return Number.isFinite(value) && Number(value) > 0 ? Number(value) : fallback;
+}
+
+function getClampedInset(value: number | undefined, maxInset: number) {
+  if (!Number.isFinite(value) || Number(value) <= 0) {
+    return 0;
+  }
+
+  return Math.min(Number(value), Math.max(0, maxInset));
 }
 
 function PitchedRoof({
@@ -105,6 +115,8 @@ export function KehoeBoatPort({
   wallHeightFt,
   roofRiseFt,
   roofType = 'pitched',
+  postSideInsetFt,
+  postEndInsetFt,
   opacity = 1,
   viewMode,
   roofColorOverride,
@@ -120,8 +132,12 @@ export function KehoeBoatPort({
   const wallHeight = getPositiveValue(wallHeightFt, DEFAULT_WALL_HEIGHT_FT);
   const roofRise = getPositiveValue(roofRiseFt, DEFAULT_ROOF_RISE_FT);
   const normalizedRoofType: BoatPortRoofType = roofType === 'flat' ? 'flat' : 'pitched';
-  const postX = length / 2 - POST_SIZE_FT / 2;
-  const postZ = width / 2 - POST_SIZE_FT / 2;
+  const postEndInset = getClampedInset(postEndInsetFt, length / 2 - POST_SIZE_FT);
+  const postSideInset = getClampedInset(postSideInsetFt, width / 2 - POST_SIZE_FT);
+  const postX = length / 2 - POST_SIZE_FT / 2 - postEndInset;
+  const postZ = width / 2 - POST_SIZE_FT / 2 - postSideInset;
+  const postFrameLength = Math.max(POST_SIZE_FT, postX * 2 + POST_SIZE_FT);
+  const postFrameWidth = Math.max(POST_SIZE_FT, postZ * 2 + POST_SIZE_FT);
   const postPositions = [
     [-postX, -postZ],
     [postX, -postZ],
@@ -150,13 +166,13 @@ export function KehoeBoatPort({
 
       {[-1, 1].map((zSign) => (
         <mesh key={`side-frame-${zSign}`} position={[0, frameY, zSign * postZ]} castShadow receiveShadow>
-          <boxGeometry args={[length, 0.12, 0.12]} />
+          <boxGeometry args={[postFrameLength, 0.12, 0.12]} />
           <meshStandardMaterial color={materials.frame} roughness={0.3} metalness={0.3} transparent={opacity < 1} opacity={opacity} />
         </mesh>
       ))}
       {[-1, 1].map((xSign) => (
         <mesh key={`end-frame-${xSign}`} position={[xSign * postX, frameY, 0]} castShadow receiveShadow>
-          <boxGeometry args={[0.12, 0.12, width]} />
+          <boxGeometry args={[0.12, 0.12, postFrameWidth]} />
           <meshStandardMaterial color={materials.frame} roughness={0.3} metalness={0.3} transparent={opacity < 1} opacity={opacity} />
         </mesh>
       ))}

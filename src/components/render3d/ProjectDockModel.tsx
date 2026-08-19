@@ -655,6 +655,8 @@ function BoatPortElement({ element, viewMode }: { element: ProjectRenderElement;
         wallHeightFt={element.boatPortWallHeightFt}
         roofRiseFt={element.boatPortRoofRiseFt}
         roofType={element.boatPortRoofType}
+        postSideInsetFt={element.boatPortPostSideInsetFt}
+        postEndInsetFt={element.boatPortPostEndInsetFt}
         opacity={element.opacity}
         viewMode={viewMode}
         roofColorOverride={getElementColorOverride(element)}
@@ -1055,6 +1057,8 @@ function getElementRenderKey(element: ProjectRenderElement, rampElevation?: Ramp
     formatKeyNumber(element.boatPortWallHeightFt),
     formatKeyNumber(element.boatPortRoofRiseFt),
     element.boatPortRoofType ?? 'boat-port-roof-default',
+    formatKeyNumber(element.boatPortPostSideInsetFt),
+    formatKeyNumber(element.boatPortPostEndInsetFt),
     formatKeyNumber(element.boathouseWallHeightFt),
     formatKeyNumber(element.boathouseRoofRiseFt),
     element.boathouseRoofType ?? 'boathouse-roof-default',

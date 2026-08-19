@@ -92,6 +92,8 @@ export interface DockObject {
     boatPortWallHeightFt?: number;
     boatPortRoofRiseFt?: number;
     boatPortRoofType?: 'flat' | 'pitched';
+    boatPortPostSideInsetFt?: number;
+    boatPortPostEndInsetFt?: number;
     boathouseWallHeightFt?: number;
     boathouseRoofRiseFt?: number;
     boathouseRoofType?: 'flat' | 'gable';

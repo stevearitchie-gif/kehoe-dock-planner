@@ -66,6 +66,8 @@ export interface ProjectRenderElement {
   boatPortWallHeightFt?: number;
   boatPortRoofRiseFt?: number;
   boatPortRoofType?: BoatPortRoofType;
+  boatPortPostSideInsetFt?: number;
+  boatPortPostEndInsetFt?: number;
   boathouseWallHeightFt?: number;
   boathouseRoofRiseFt?: number;
   boathouseRoofType?: BoathouseRoofType;

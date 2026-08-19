@@ -240,6 +240,19 @@ function getObjectDimensionLabel(pixels: number, scale: ProjectScale): string {
   return formatFeetAndInches(realLengthInScaleUnits);
 }
 
+function getFeetToPixels(feet: number, scale: ProjectScale): number {
+  if (!Number.isFinite(feet) || feet <= 0) {
+    return 0;
+  }
+
+  if (scale.pixels <= 0 || scale.realLength <= 0) {
+    return feet * 20;
+  }
+
+  const scaleLengthInFeet = scale.unit === 'm' ? scale.realLength * 3.28084 : scale.realLength;
+  return (feet / scaleLengthInFeet) * scale.pixels;
+}
+
 function getLabelTextBoxWidth(text: string): number {
   const estimatedTextWidth = Math.ceil(text.length * LABEL_FONT_SIZE * 0.7 + 20);
   return Math.max(LABEL_BOX_MIN_WIDTH, estimatedTextWidth);
@@ -1840,55 +1853,73 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                   )}
 
                   {object.type === 'boat_port' && (
-                    <>
-                      {[
-                        [8, 8],
-                        [object.width - 8, 8],
-                        [8, object.height - 8],
-                        [object.width - 8, object.height - 8],
-                      ].map(([x, y]) => (
-                        <Rect
-                          key={`boat-port-post-${x}-${y}`}
-                          x={x - 2}
-                          y={y - 2}
-                          width={4}
-                          height={4}
-                          fill="#2563eb"
-                          listening={false}
-                        />
-                      ))}
-                      <Line
-                        points={[8, 8, object.width - 8, 8, object.width - 8, object.height - 8, 8, object.height - 8, 8, 8]}
-                        stroke="#2563eb"
-                        strokeWidth={1.5}
-                        dash={[5, 4]}
-                        listening={false}
-                      />
-                      {object.metadata?.boatPortRoofType === 'flat' ? (
-                        <Line
-                          points={[14, object.height / 2, object.width - 14, object.height / 2]}
-                          stroke="#60a5fa"
-                          strokeWidth={2}
-                          listening={false}
-                        />
-                      ) : (
+                    (() => {
+                      const edgePadding = 8;
+                      const endInsetPx = Math.min(
+                        Math.max(0, getFeetToPixels(object.metadata?.boatPortPostEndInsetFt ?? 0, currentScale)),
+                        Math.max(0, object.width / 2 - edgePadding),
+                      );
+                      const sideInsetPx = Math.min(
+                        Math.max(0, getFeetToPixels(object.metadata?.boatPortPostSideInsetFt ?? 0, currentScale)),
+                        Math.max(0, object.height / 2 - edgePadding),
+                      );
+                      const postLeftX = edgePadding + endInsetPx;
+                      const postRightX = object.width - edgePadding - endInsetPx;
+                      const postTopY = edgePadding + sideInsetPx;
+                      const postBottomY = object.height - edgePadding - sideInsetPx;
+
+                      return (
                         <>
+                          {[
+                            [postLeftX, postTopY],
+                            [postRightX, postTopY],
+                            [postLeftX, postBottomY],
+                            [postRightX, postBottomY],
+                          ].map(([x, y]) => (
+                            <Rect
+                              key={`boat-port-post-${x}-${y}`}
+                              x={x - 2}
+                              y={y - 2}
+                              width={4}
+                              height={4}
+                              fill="#2563eb"
+                              listening={false}
+                            />
+                          ))}
                           <Line
-                            points={[14, object.height - 10, object.width / 2, 10, object.width - 14, object.height - 10]}
-                            stroke="#60a5fa"
-                            strokeWidth={2}
-                            lineJoin="round"
+                            points={[postLeftX, postTopY, postRightX, postTopY, postRightX, postBottomY, postLeftX, postBottomY, postLeftX, postTopY]}
+                            stroke="#2563eb"
+                            strokeWidth={1.5}
+                            dash={[5, 4]}
                             listening={false}
                           />
-                          <Line
-                            points={[object.width / 2, 10, object.width / 2, object.height - 10]}
-                            stroke="#93c5fd"
-                            strokeWidth={1}
-                            listening={false}
-                          />
+                          {object.metadata?.boatPortRoofType === 'flat' ? (
+                            <Line
+                              points={[14, object.height / 2, object.width - 14, object.height / 2]}
+                              stroke="#60a5fa"
+                              strokeWidth={2}
+                              listening={false}
+                            />
+                          ) : (
+                            <>
+                              <Line
+                                points={[14, object.height - 10, object.width / 2, 10, object.width - 14, object.height - 10]}
+                                stroke="#60a5fa"
+                                strokeWidth={2}
+                                lineJoin="round"
+                                listening={false}
+                              />
+                              <Line
+                                points={[object.width / 2, 10, object.width / 2, object.height - 10]}
+                                stroke="#93c5fd"
+                                strokeWidth={1}
+                                listening={false}
+                              />
+                            </>
+                          )}
                         </>
-                      )}
-                    </>
+                      );
+                    })()
                   )}
 
                   {object.type === 'boathouse' && (

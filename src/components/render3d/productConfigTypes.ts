@@ -56,6 +56,8 @@ export interface ProductConfiguration {
     wallHeightFt?: number;
     roofRiseFt?: number;
     roofType?: 'flat' | 'pitched';
+    postSideInsetFt?: number;
+    postEndInsetFt?: number;
   };
   boathouse?: {
     wallHeightFt?: number;

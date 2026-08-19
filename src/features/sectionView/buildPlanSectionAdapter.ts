@@ -153,6 +153,8 @@ function formatBoatPortDetails(object: DockObject) {
     object.metadata?.boatPortWallHeightFt ? `wall ${object.metadata.boatPortWallHeightFt} ft` : undefined,
     object.metadata?.boatPortRoofRiseFt ? `roof rise ${object.metadata.boatPortRoofRiseFt} ft` : undefined,
     object.metadata?.boatPortRoofType ? `${object.metadata.boatPortRoofType} roof` : undefined,
+    object.metadata?.boatPortPostSideInsetFt ? `side post inset ${object.metadata.boatPortPostSideInsetFt} ft` : undefined,
+    object.metadata?.boatPortPostEndInsetFt ? `end post inset ${object.metadata.boatPortPostEndInsetFt} ft` : undefined,
   ].filter(Boolean);
 
   return details.length > 0 ? details.join(', ') : undefined;

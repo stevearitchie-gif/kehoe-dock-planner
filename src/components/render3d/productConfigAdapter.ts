@@ -73,6 +73,8 @@ function buildBaseElement(config: ProductConfiguration, type: ProjectRenderEleme
     boatPortWallHeightFt: config.boatPort?.wallHeightFt,
     boatPortRoofRiseFt: config.boatPort?.roofRiseFt,
     boatPortRoofType: config.boatPort?.roofType,
+    boatPortPostSideInsetFt: config.boatPort?.postSideInsetFt,
+    boatPortPostEndInsetFt: config.boatPort?.postEndInsetFt,
     boathouseWallHeightFt: config.boathouse?.wallHeightFt,
     boathouseRoofRiseFt: config.boathouse?.roofRiseFt,
     boathouseRoofType: config.boathouse?.roofType,
