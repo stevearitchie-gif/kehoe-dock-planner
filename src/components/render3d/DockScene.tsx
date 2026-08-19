@@ -40,6 +40,8 @@ const customerCameraPositions: Record<CameraPreset, [number, number, number]> = 
   front: [36, 10, 0],
 };
 
+const THREE_DOUBLE_SIDE = 2;
+
 function CameraRig({ preset, viewMode }: { preset: CameraPreset; viewMode: RenderViewMode }) {
   const { camera } = useThree();
   const controlsRef = useRef<ElementRef<typeof OrbitControls> | null>(null);
@@ -100,13 +102,15 @@ function ShorelineSegment({
   );
 }
 
-function getSegmentNormal(start: ProjectRenderShorelinePoint, end: ProjectRenderShorelinePoint) {
-  const dx = end.x - start.x;
-  const dz = end.z - start.z;
+function getOverallShoreNormal(points: ProjectRenderShorelinePoint[]) {
+  const firstPoint = points[0];
+  const lastPoint = points[points.length - 1];
+  const dx = lastPoint.x - firstPoint.x;
+  const dz = lastPoint.z - firstPoint.z;
   const length = Math.hypot(dx, dz);
 
   if (length < 0.01) {
-    return { x: 0, z: 1 };
+    return null;
   }
 
   return {
@@ -115,30 +119,35 @@ function getSegmentNormal(start: ProjectRenderShorelinePoint, end: ProjectRender
   };
 }
 
-function getShoreOffsetPoints(points: ProjectRenderShorelinePoint[], shoreSideSign: number, depth: number) {
-  return points.map((point, index) => {
-    const previousNormal = index > 0 ? getSegmentNormal(points[index - 1], point) : null;
-    const nextNormal = index < points.length - 1 ? getSegmentNormal(point, points[index + 1]) : null;
-    const normalX = (previousNormal?.x ?? 0) + (nextNormal?.x ?? 0);
-    const normalZ = (previousNormal?.z ?? 0) + (nextNormal?.z ?? 0);
-    const normalLength = Math.hypot(normalX, normalZ);
-    const fallbackNormal = previousNormal ?? nextNormal ?? { x: 0, z: 1 };
-    const offsetNormal =
-      normalLength > 0.01
-        ? { x: normalX / normalLength, z: normalZ / normalLength }
-        : fallbackNormal;
+function getShorelineCenter(points: ProjectRenderShorelinePoint[]) {
+  const totals = points.reduce(
+    (result, point) => ({
+      x: result.x + point.x,
+      z: result.z + point.z,
+    }),
+    { x: 0, z: 0 },
+  );
 
+  return {
+    x: totals.x / points.length,
+    z: totals.z / points.length,
+  };
+}
+
+function getShoreOffsetPoints(points: ProjectRenderShorelinePoint[], normal: { x: number; z: number }, shoreSideSign: number, depth: number) {
+  return points.map((point) => {
     return {
-      x: point.x + offsetNormal.x * shoreSideSign * depth,
-      z: point.z + offsetNormal.z * shoreSideSign * depth,
+      x: point.x + normal.x * shoreSideSign * depth,
+      z: point.z + normal.z * shoreSideSign * depth,
       sourceX: point.sourceX,
       sourceY: point.sourceY,
     };
   });
 }
 
-function LandStripMesh({
+function ShoreLandMesh({
   points,
+  normal,
   shoreSideSign,
   depth,
   y,
@@ -146,6 +155,7 @@ function LandStripMesh({
   opacity,
 }: {
   points: ProjectRenderShorelinePoint[];
+  normal: { x: number; z: number };
   shoreSideSign: number;
   depth: number;
   y: number;
@@ -153,7 +163,7 @@ function LandStripMesh({
   opacity: number;
 }) {
   const geometry = useMemo(() => {
-    const offsetPoints = getShoreOffsetPoints(points, shoreSideSign, depth);
+    const offsetPoints = getShoreOffsetPoints(points, normal, shoreSideSign, depth);
     const vertices = new Float32Array(points.length * 2 * 3);
     const indices = new Uint16Array((points.length - 1) * 6);
 
@@ -186,7 +196,7 @@ function LandStripMesh({
     }
 
     return { vertices, indices };
-  }, [depth, points, shoreSideSign, y]);
+  }, [depth, normal, points, shoreSideSign, y]);
 
   return (
     <mesh receiveShadow>
@@ -194,49 +204,35 @@ function LandStripMesh({
         <bufferAttribute attach="attributes-position" args={[geometry.vertices, 3]} />
         <bufferAttribute attach="index" args={[geometry.indices, 1]} />
       </bufferGeometry>
-      <meshStandardMaterial color={color} roughness={0.86} metalness={0} transparent opacity={opacity} />
+      <meshStandardMaterial color={color} roughness={0.86} metalness={0} side={THREE_DOUBLE_SIDE} transparent={opacity < 1} opacity={opacity} />
     </mesh>
   );
 }
 
 function isPrimaryWaterElement(element: ProjectRenderElement) {
-  return element.type === 'floating_dock' || element.type === 'stationary_dock' || element.type === 'boat_lift' || element.type === 'boat_port';
-}
-
-function getNearestSegmentSide(point: { x: number; z: number }, shorelinePoints: ProjectRenderShorelinePoint[]) {
-  let closestDistance = Number.POSITIVE_INFINITY;
-  let closestSide = 0;
-
-  for (let index = 0; index < shorelinePoints.length - 1; index += 1) {
-    const start = shorelinePoints[index];
-    const end = shorelinePoints[index + 1];
-    const dx = end.x - start.x;
-    const dz = end.z - start.z;
-    const segmentLengthSquared = dx * dx + dz * dz;
-
-    if (segmentLengthSquared <= 0.0001) {
-      continue;
-    }
-
-    const t = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.z - start.z) * dz) / segmentLengthSquared));
-    const closestX = start.x + dx * t;
-    const closestZ = start.z + dz * t;
-    const distance = Math.hypot(point.x - closestX, point.z - closestZ);
-    const side = dx * (point.z - start.z) - dz * (point.x - start.x);
-
-    if (distance < closestDistance && Math.abs(side) > 0.001) {
-      closestDistance = distance;
-      closestSide = Math.sign(side);
-    }
-  }
-
-  return closestSide;
+  return (
+    element.type === 'floating_dock' ||
+    element.type === 'stationary_dock' ||
+    element.type === 'ramp_with_rails' ||
+    element.type === 'ramp_without_rails' ||
+    element.type === 'boat_lift' ||
+    element.type === 'boat_port'
+  );
 }
 
 function getShoreSideSign(points: ProjectRenderShorelinePoint[], elements: ProjectRenderElement[]) {
+  const normal = getOverallShoreNormal(points);
+  if (!normal) {
+    return null;
+  }
+
+  const shorelineCenter = getShorelineCenter(points);
   const waterElements = elements.filter(isPrimaryWaterElement);
   const waterSideVotes = waterElements
-    .map((element) => getNearestSegmentSide({ x: element.x, z: element.z }, points))
+    .map((element) => {
+      const dot = (element.x - shorelineCenter.x) * normal.x + (element.z - shorelineCenter.z) * normal.z;
+      return Math.abs(dot) > 0.001 ? Math.sign(dot) : 0;
+    })
     .filter((side) => side !== 0);
 
   if (waterSideVotes.length === 0) {
@@ -263,14 +259,27 @@ function BuildPlanShoreline({
   const isCustomerView = viewMode === 'customer';
   const land = getSalesMaterialPalette(viewMode).land;
   const edgeWidth = isCustomerView ? 0.08 : 0.06;
-  const landDepth = isCustomerView ? 64 : 52;
-  const transitionWidth = isCustomerView ? 1.6 : 1.2;
-  const shoreSideSign = getShoreSideSign(points, elements) ?? 1;
+  const landDepth = isCustomerView ? 180 : 140;
+  const transitionWidth = isCustomerView ? 2.2 : 1.6;
+  const normal = getOverallShoreNormal(points);
+  const shoreSideSign = getShoreSideSign(points, elements);
 
   return (
     <group>
-      <LandStripMesh points={points} shoreSideSign={shoreSideSign} depth={landDepth} y={0.016} color={land.color} opacity={isCustomerView ? 0.86 : 0.68} />
-      <LandStripMesh points={points} shoreSideSign={shoreSideSign} depth={transitionWidth} y={0.034} color={land.transitionColor} opacity={isCustomerView ? 0.58 : 0.48} />
+      {normal && shoreSideSign !== null ? (
+        <>
+          <ShoreLandMesh points={points} normal={normal} shoreSideSign={shoreSideSign} depth={landDepth} y={0.04} color={land.color} opacity={isCustomerView ? 1 : 0.78} />
+          <ShoreLandMesh
+            points={points}
+            normal={normal}
+            shoreSideSign={shoreSideSign}
+            depth={transitionWidth}
+            y={0.052}
+            color={land.transitionColor}
+            opacity={isCustomerView ? 0.78 : 0.58}
+          />
+        </>
+      ) : null}
       {points.slice(0, -1).map((point, index) => (
         <ShorelineSegment
           key={`shore-edge-${index}`}
