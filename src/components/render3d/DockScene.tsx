@@ -1,6 +1,6 @@
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import { Canvas, useThree } from '@react-three/fiber';
-import { forwardRef, useEffect, useImperativeHandle, useRef, type ElementRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, type ElementRef } from 'react';
 import { FloatingDockModel } from '@/components/render3d/FloatingDockModel';
 import { ProjectDockModel } from '@/components/render3d/ProjectDockModel';
 import { getSalesMaterialPalette } from '@/components/render3d/salesMaterials';
@@ -100,6 +100,105 @@ function ShorelineSegment({
   );
 }
 
+function getSegmentNormal(start: ProjectRenderShorelinePoint, end: ProjectRenderShorelinePoint) {
+  const dx = end.x - start.x;
+  const dz = end.z - start.z;
+  const length = Math.hypot(dx, dz);
+
+  if (length < 0.01) {
+    return { x: 0, z: 1 };
+  }
+
+  return {
+    x: -dz / length,
+    z: dx / length,
+  };
+}
+
+function getShoreOffsetPoints(points: ProjectRenderShorelinePoint[], shoreSideSign: number, depth: number) {
+  return points.map((point, index) => {
+    const previousNormal = index > 0 ? getSegmentNormal(points[index - 1], point) : null;
+    const nextNormal = index < points.length - 1 ? getSegmentNormal(point, points[index + 1]) : null;
+    const normalX = (previousNormal?.x ?? 0) + (nextNormal?.x ?? 0);
+    const normalZ = (previousNormal?.z ?? 0) + (nextNormal?.z ?? 0);
+    const normalLength = Math.hypot(normalX, normalZ);
+    const fallbackNormal = previousNormal ?? nextNormal ?? { x: 0, z: 1 };
+    const offsetNormal =
+      normalLength > 0.01
+        ? { x: normalX / normalLength, z: normalZ / normalLength }
+        : fallbackNormal;
+
+    return {
+      x: point.x + offsetNormal.x * shoreSideSign * depth,
+      z: point.z + offsetNormal.z * shoreSideSign * depth,
+      sourceX: point.sourceX,
+      sourceY: point.sourceY,
+    };
+  });
+}
+
+function LandStripMesh({
+  points,
+  shoreSideSign,
+  depth,
+  y,
+  color,
+  opacity,
+}: {
+  points: ProjectRenderShorelinePoint[];
+  shoreSideSign: number;
+  depth: number;
+  y: number;
+  color: string;
+  opacity: number;
+}) {
+  const geometry = useMemo(() => {
+    const offsetPoints = getShoreOffsetPoints(points, shoreSideSign, depth);
+    const vertices = new Float32Array(points.length * 2 * 3);
+    const indices = new Uint16Array((points.length - 1) * 6);
+
+    points.forEach((point, index) => {
+      const shoreVertexIndex = index * 6;
+      const landVertexIndex = shoreVertexIndex + 3;
+      const offsetPoint = offsetPoints[index];
+
+      vertices[shoreVertexIndex] = point.x;
+      vertices[shoreVertexIndex + 1] = y;
+      vertices[shoreVertexIndex + 2] = point.z;
+      vertices[landVertexIndex] = offsetPoint.x;
+      vertices[landVertexIndex + 1] = y;
+      vertices[landVertexIndex + 2] = offsetPoint.z;
+    });
+
+    for (let index = 0; index < points.length - 1; index += 1) {
+      const shoreA = index * 2;
+      const landA = shoreA + 1;
+      const shoreB = (index + 1) * 2;
+      const landB = shoreB + 1;
+      const triangleIndex = index * 6;
+
+      indices[triangleIndex] = shoreA;
+      indices[triangleIndex + 1] = shoreB;
+      indices[triangleIndex + 2] = landB;
+      indices[triangleIndex + 3] = shoreA;
+      indices[triangleIndex + 4] = landB;
+      indices[triangleIndex + 5] = landA;
+    }
+
+    return { vertices, indices };
+  }, [depth, points, shoreSideSign, y]);
+
+  return (
+    <mesh receiveShadow>
+      <bufferGeometry onUpdate={(bufferGeometry) => bufferGeometry.computeVertexNormals()}>
+        <bufferAttribute attach="attributes-position" args={[geometry.vertices, 3]} />
+        <bufferAttribute attach="index" args={[geometry.indices, 1]} />
+      </bufferGeometry>
+      <meshStandardMaterial color={color} roughness={0.86} metalness={0} transparent opacity={opacity} />
+    </mesh>
+  );
+}
+
 function isPrimaryWaterElement(element: ProjectRenderElement) {
   return element.type === 'floating_dock' || element.type === 'stationary_dock' || element.type === 'boat_lift' || element.type === 'boat_port';
 }
@@ -164,40 +263,14 @@ function BuildPlanShoreline({
   const isCustomerView = viewMode === 'customer';
   const land = getSalesMaterialPalette(viewMode).land;
   const edgeWidth = isCustomerView ? 0.08 : 0.06;
-  const landDepth = isCustomerView ? 8 : 6;
-  const transitionWidth = isCustomerView ? 0.7 : 0.55;
-  const shoreSideSign = getShoreSideSign(points, elements);
-  const isCenteredFallback = shoreSideSign === null;
-  const landWidth = isCenteredFallback ? 3.6 : landDepth;
-  const landOffset = isCenteredFallback ? 0 : (shoreSideSign * landDepth) / 2;
-  const transitionOffset = isCenteredFallback ? 0 : (shoreSideSign * transitionWidth) / 2;
+  const landDepth = isCustomerView ? 64 : 52;
+  const transitionWidth = isCustomerView ? 1.6 : 1.2;
+  const shoreSideSign = getShoreSideSign(points, elements) ?? 1;
 
   return (
     <group>
-      {points.slice(0, -1).map((point, index) => (
-        <ShorelineSegment
-          key={`shore-land-${index}`}
-          start={point}
-          end={points[index + 1]}
-          y={0.016}
-          width={landWidth}
-          color={land.color}
-          opacity={isCustomerView ? 0.82 : 0.66}
-          sideOffset={landOffset}
-        />
-      ))}
-      {points.slice(0, -1).map((point, index) => (
-        <ShorelineSegment
-          key={`shore-transition-${index}`}
-          start={point}
-          end={points[index + 1]}
-          y={0.034}
-          width={transitionWidth}
-          color={land.transitionColor}
-          opacity={isCustomerView ? 0.54 : 0.44}
-          sideOffset={transitionOffset}
-        />
-      ))}
+      <LandStripMesh points={points} shoreSideSign={shoreSideSign} depth={landDepth} y={0.016} color={land.color} opacity={isCustomerView ? 0.86 : 0.68} />
+      <LandStripMesh points={points} shoreSideSign={shoreSideSign} depth={transitionWidth} y={0.034} color={land.transitionColor} opacity={isCustomerView ? 0.58 : 0.48} />
       {points.slice(0, -1).map((point, index) => (
         <ShorelineSegment
           key={`shore-edge-${index}`}
