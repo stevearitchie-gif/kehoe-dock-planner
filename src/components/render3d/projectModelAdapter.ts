@@ -79,8 +79,8 @@ function getObjectCenter(object: DockObject) {
   };
 }
 
-function getFloatingDockBoardDirection(object: DockObject): FloatingDockBoardDirection | undefined {
-  if (object.type !== 'floating_dock') {
+function getPlatformBoardDirection(object: DockObject): FloatingDockBoardDirection | undefined {
+  if (object.type !== 'floating_dock' && object.type !== 'stationary_dock') {
     return undefined;
   }
 
@@ -227,7 +227,7 @@ export function buildProjectRenderModel(project: DockProject): ProjectRenderMode
       sourceHeight: object.height,
       sourceRotation: object.rotation,
       anchorInterpretation: 'top-left group origin, center adjusted for rotation',
-      boardDirection: getFloatingDockBoardDirection(object),
+      boardDirection: getPlatformBoardDirection(object),
       showStandardCleats: getFloatingDockShowStandardCleats(object),
       boatPortWallHeightFt: getPositiveMetadataNumber(object.metadata?.boatPortWallHeightFt),
       boatPortRoofRiseFt: getPositiveMetadataNumber(object.metadata?.boatPortRoofRiseFt),

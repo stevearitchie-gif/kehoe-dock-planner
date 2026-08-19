@@ -160,19 +160,29 @@ function Cleats({
   y: number;
   color: string;
 }) {
-  const zInset = Math.min(3, length * 0.18);
+  const longEdgeRunsAlongX = width >= length;
+  const zInset = Math.min(1.2, length * 0.2);
   const xInset = Math.min(1.2, width * 0.2);
-  const positions = [
-    [-width / 2 + xInset, -length / 2 + zInset],
-    [width / 2 - xInset, -length / 2 + zInset],
-    [-width / 2 + xInset, length / 2 - zInset],
-    [width / 2 - xInset, length / 2 - zInset],
-  ];
+  const alongEdgeInset = longEdgeRunsAlongX ? xInset : zInset;
+  const sideInset = longEdgeRunsAlongX ? zInset : xInset;
+  const positions: Array<{ x: number; z: number; rotationY: number }> = longEdgeRunsAlongX
+    ? [
+        { x: -width / 2 + alongEdgeInset, z: -length / 2 + sideInset, rotationY: Math.PI / 2 },
+        { x: width / 2 - alongEdgeInset, z: -length / 2 + sideInset, rotationY: Math.PI / 2 },
+        { x: -width / 2 + alongEdgeInset, z: length / 2 - sideInset, rotationY: Math.PI / 2 },
+        { x: width / 2 - alongEdgeInset, z: length / 2 - sideInset, rotationY: Math.PI / 2 },
+      ]
+    : [
+        { x: -width / 2 + sideInset, z: -length / 2 + alongEdgeInset, rotationY: 0 },
+        { x: width / 2 - sideInset, z: -length / 2 + alongEdgeInset, rotationY: 0 },
+        { x: -width / 2 + sideInset, z: length / 2 - alongEdgeInset, rotationY: 0 },
+        { x: width / 2 - sideInset, z: length / 2 - alongEdgeInset, rotationY: 0 },
+      ];
 
   return (
     <>
-      {positions.map(([x, z]) => (
-        <group key={`${x}-${z}`} position={[x, y, z]}>
+      {positions.map(({ x, z, rotationY }) => (
+        <group key={`${x}-${z}`} position={[x, y, z]} rotation={[0, rotationY, 0]}>
           <mesh castShadow>
             <boxGeometry args={[CLEAT_WIDTH_FT, 0.06, CLEAT_LENGTH_FT]} />
             <meshStandardMaterial color={color} roughness={0.28} metalness={0.32} />
@@ -251,7 +261,7 @@ export function KehoeFloatingDock({
   opacity = 1,
   viewMode,
   deckFinish = 'pressure-treated',
-  boardDirection = 'vertical',
+  boardDirection = 'none',
   showStandardCleats = true,
   deckColorOverride,
   tubeDiameterFt = DEFAULT_TUBE_DIAMETER_FT,

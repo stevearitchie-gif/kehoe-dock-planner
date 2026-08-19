@@ -93,14 +93,21 @@ function DeckBoardLines({
   y,
   color = '#6b5438',
   rampElevation,
+  boardDirection,
 }: {
   length: number;
   width: number;
   y: number;
   color?: string;
   rampElevation?: RampElevationInfo;
+  boardDirection?: ProjectRenderElement['boardDirection'];
 }) {
-  const lineCount = Math.max(3, Math.min(18, Math.round(width / 0.75)));
+  if (!rampElevation && (!boardDirection || boardDirection === 'none')) {
+    return null;
+  }
+
+  const lineAxisLength = boardDirection === 'vertical' ? length : width;
+  const lineCount = Math.max(3, Math.min(18, Math.round(lineAxisLength / 0.75)));
   const zStart = rampElevation?.hasConnection
     ? Math.min(-rampElevation.dockEndSign * (width / 2), rampElevation.visualDockEndZ ?? rampElevation.dockEndSign * (width / 2))
     : -width / 2;
@@ -108,16 +115,21 @@ function DeckBoardLines({
     ? Math.max(-rampElevation.dockEndSign * (width / 2), rampElevation.visualDockEndZ ?? rampElevation.dockEndSign * (width / 2))
     : width / 2;
   const spacing = (zEnd - zStart) / lineCount;
+  const axisSpacing = lineAxisLength / lineCount;
 
   return (
     <>
       {Array.from({ length: lineCount + 1 }, (_, index) => {
-        const z = zStart + index * spacing;
+        const offset = -lineAxisLength / 2 + index * axisSpacing;
+        const x = boardDirection === 'vertical' ? offset : 0;
+        const z = boardDirection === 'vertical' ? 0 : zStart + index * spacing;
         const lineY = rampElevation ? getLocalRampTopHeight(z, width, rampElevation) + 0.025 : y;
+        const geometryArgs: [number, number, number] =
+          boardDirection === 'vertical' ? [0.018, 0.018, width] : [length + 0.02, 0.018, 0.018];
 
         return (
-          <mesh key={index} position={[0, lineY, z]} receiveShadow>
-            <boxGeometry args={[length + 0.02, 0.018, 0.018]} />
+          <mesh key={index} position={[x, lineY, z]} receiveShadow>
+            <boxGeometry args={geometryArgs} />
             <meshStandardMaterial color={color} roughness={0.82} />
           </mesh>
         );
@@ -205,7 +217,7 @@ function PlatformElement({ element, viewMode }: { element: ProjectRenderElement;
         <boxGeometry args={[element.length + 0.03, 0.025, element.width + 0.03]} />
         <meshStandardMaterial color={deckColor} roughness={0.82} transparent opacity={element.opacity} />
       </mesh>
-      <DeckBoardLines length={element.length} width={element.width} y={element.elevation + platformHeight + 0.04} />
+      <DeckBoardLines length={element.length} width={element.width} y={element.elevation + platformHeight + 0.04} boardDirection={element.boardDirection} />
 
       {isFloatingDock && (
         <>
