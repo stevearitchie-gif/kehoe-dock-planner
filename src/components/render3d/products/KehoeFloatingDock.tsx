@@ -11,6 +11,9 @@ export interface KehoeFloatingDockProps {
   deckFinish?: FloatingDockDeckFinish;
   boardDirection?: FloatingDockBoardDirection;
   showStandardCleats?: boolean;
+  verticalStavingEnabled?: boolean;
+  verticalStavingColor?: string;
+  verticalStavingSpacingFt?: number;
   deckColorOverride?: string;
   tubeDiameterFt?: number;
 }
@@ -26,6 +29,9 @@ const CROSS_MEMBER_SPACING_FT = 4;
 const CLEAT_WIDTH_FT = 0.42;
 const CLEAT_LENGTH_FT = 0.8;
 const DECK_LINE_OFFSET_FT = 0.045;
+const DEFAULT_STAVING_SPACING_FT = 0.82;
+const STAVING_BOARD_WIDTH_FT = 0.09;
+const STAVING_PROJECTION_FT = 0.045;
 
 function getMaterials(viewMode: RenderViewMode, deckFinish: FloatingDockDeckFinish, deckColorOverride?: string) {
   const palette = getSalesMaterialPalette(viewMode);
@@ -255,6 +261,55 @@ function ConnectionPlates({
   );
 }
 
+function VerticalStaving({
+  width,
+  length,
+  y,
+  height,
+  color,
+  spacing = DEFAULT_STAVING_SPACING_FT,
+}: {
+  width: number;
+  length: number;
+  y: number;
+  height: number;
+  color: string;
+  spacing?: number;
+}) {
+  const safeSpacing = Number.isFinite(spacing) && spacing > 0.25 ? spacing : DEFAULT_STAVING_SPACING_FT;
+  const widthBoardCount = Math.max(2, Math.min(48, Math.round(width / safeSpacing)));
+  const lengthBoardCount = Math.max(2, Math.min(64, Math.round(length / safeSpacing)));
+
+  return (
+    <>
+      {[-1, 1].flatMap((zSide) =>
+        Array.from({ length: widthBoardCount + 1 }, (_, index) => {
+          const x = -width / 2 + (width * index) / widthBoardCount;
+
+          return (
+            <mesh key={`end-${zSide}-${index}`} position={[x, y, zSide * (length / 2 + STAVING_PROJECTION_FT / 2)]} castShadow receiveShadow>
+              <boxGeometry args={[STAVING_BOARD_WIDTH_FT, height, STAVING_PROJECTION_FT]} />
+              <meshStandardMaterial color={color} roughness={0.82} metalness={0} />
+            </mesh>
+          );
+        }),
+      )}
+      {[-1, 1].flatMap((xSide) =>
+        Array.from({ length: lengthBoardCount + 1 }, (_, index) => {
+          const z = -length / 2 + (length * index) / lengthBoardCount;
+
+          return (
+            <mesh key={`side-${xSide}-${index}`} position={[xSide * (width / 2 + STAVING_PROJECTION_FT / 2), y, z]} castShadow receiveShadow>
+              <boxGeometry args={[STAVING_PROJECTION_FT, height, STAVING_BOARD_WIDTH_FT]} />
+              <meshStandardMaterial color={color} roughness={0.82} metalness={0} />
+            </mesh>
+          );
+        }),
+      )}
+    </>
+  );
+}
+
 export function KehoeFloatingDock({
   footprintWidthFt,
   footprintLengthFt,
@@ -263,6 +318,9 @@ export function KehoeFloatingDock({
   deckFinish = 'pressure-treated',
   boardDirection = 'none',
   showStandardCleats = true,
+  verticalStavingEnabled = false,
+  verticalStavingColor,
+  verticalStavingSpacingFt,
   deckColorOverride,
   tubeDiameterFt = DEFAULT_TUBE_DIAMETER_FT,
 }: KehoeFloatingDockProps) {
@@ -323,6 +381,16 @@ export function KehoeFloatingDock({
           </mesh>
         </group>
       ))}
+      {verticalStavingEnabled && (
+        <VerticalStaving
+          width={footprintWidthFt}
+          length={footprintLengthFt}
+          y={fasciaY}
+          height={FASCIA_DEPTH_FT * 0.9}
+          color={verticalStavingColor ?? materials.fasciaDark}
+          spacing={verticalStavingSpacingFt}
+        />
+      )}
 
       <CrossMembers width={footprintWidthFt} length={footprintLengthFt} y={FASCIA_DEPTH_FT * 0.28} color={materials.crossMember} />
       {[-1, 1].map((side) => (

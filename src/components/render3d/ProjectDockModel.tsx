@@ -48,6 +48,9 @@ const KEHOE_FLOATING_DOCK_FASCIA_DEPTH = 0.92;
 const KEHOE_FLOATING_DOCK_DECK_THICKNESS = 0.22;
 const FLOATING_DOCK_DECK_TOP_HEIGHT = KEHOE_FLOATING_DOCK_FASCIA_DEPTH + KEHOE_FLOATING_DOCK_DECK_THICKNESS;
 const STATIONARY_DOCK_DECK_TOP_HEIGHT = 0.68;
+const DEFAULT_VERTICAL_STAVING_SPACING_FT = 0.82;
+const VERTICAL_STAVING_BOARD_WIDTH_FT = 0.08;
+const VERTICAL_STAVING_PROJECTION_FT = 0.045;
 
 function getDeckColor(element: ProjectRenderElement, viewMode: RenderViewMode) {
   const colorOverride = getElementColorOverride(element);
@@ -138,6 +141,55 @@ function DeckBoardLines({
   );
 }
 
+function VerticalStavingBoards({
+  length,
+  width,
+  y,
+  height,
+  color,
+  spacing = DEFAULT_VERTICAL_STAVING_SPACING_FT,
+}: {
+  length: number;
+  width: number;
+  y: number;
+  height: number;
+  color: string;
+  spacing?: number;
+}) {
+  const safeSpacing = Number.isFinite(spacing) && spacing > 0.25 ? spacing : DEFAULT_VERTICAL_STAVING_SPACING_FT;
+  const lengthBoardCount = Math.max(2, Math.min(64, Math.round(length / safeSpacing)));
+  const widthBoardCount = Math.max(2, Math.min(48, Math.round(width / safeSpacing)));
+
+  return (
+    <>
+      {[-1, 1].flatMap((zSide) =>
+        Array.from({ length: lengthBoardCount + 1 }, (_, index) => {
+          const x = -length / 2 + (length * index) / lengthBoardCount;
+
+          return (
+            <mesh key={`staving-end-${zSide}-${index}`} position={[x, y, zSide * (width / 2 + VERTICAL_STAVING_PROJECTION_FT / 2)]} castShadow receiveShadow>
+              <boxGeometry args={[VERTICAL_STAVING_BOARD_WIDTH_FT, height, VERTICAL_STAVING_PROJECTION_FT]} />
+              <meshStandardMaterial color={color} roughness={0.82} metalness={0} />
+            </mesh>
+          );
+        }),
+      )}
+      {[-1, 1].flatMap((xSide) =>
+        Array.from({ length: widthBoardCount + 1 }, (_, index) => {
+          const z = -width / 2 + (width * index) / widthBoardCount;
+
+          return (
+            <mesh key={`staving-side-${xSide}-${index}`} position={[xSide * (length / 2 + VERTICAL_STAVING_PROJECTION_FT / 2), y, z]} castShadow receiveShadow>
+              <boxGeometry args={[VERTICAL_STAVING_PROJECTION_FT, height, VERTICAL_STAVING_BOARD_WIDTH_FT]} />
+              <meshStandardMaterial color={color} roughness={0.82} metalness={0} />
+            </mesh>
+          );
+        }),
+      )}
+    </>
+  );
+}
+
 function DebugLabel({ element, rampElevation }: { element: ProjectRenderElement; rampElevation?: RampElevationInfo }) {
   const railDiagnostic = element.type === 'ramp_with_rails' ? '\nrails: local Y edges' : '';
   const rampDiagnostic =
@@ -206,6 +258,7 @@ function PlatformElement({ element, viewMode }: { element: ProjectRenderElement;
   const platformY = element.elevation + platformHeight / 2;
   const deckColor = getDeckColor(element, viewMode);
   const sideColor = viewMode === 'customer' ? '#6f5738' : element.color;
+  const stavingColor = element.verticalStavingColor ?? (viewMode === 'customer' ? '#4f3824' : sideColor);
 
   return (
     <group position={[element.x, 0, element.z]} rotation={[0, element.rotation, 0]}>
@@ -218,6 +271,16 @@ function PlatformElement({ element, viewMode }: { element: ProjectRenderElement;
         <meshStandardMaterial color={deckColor} roughness={0.82} transparent opacity={element.opacity} />
       </mesh>
       <DeckBoardLines length={element.length} width={element.width} y={element.elevation + platformHeight + 0.04} boardDirection={element.boardDirection} />
+      {element.verticalStavingEnabled && (
+        <VerticalStavingBoards
+          length={element.length}
+          width={element.width}
+          y={platformY}
+          height={platformHeight * 0.88}
+          color={stavingColor}
+          spacing={element.verticalStavingSpacingFt}
+        />
+      )}
 
       {isFloatingDock && (
         <>
@@ -267,6 +330,9 @@ function KehoeFloatingDockElement({ element, viewMode }: { element: ProjectRende
         deckFinish={element.deckFinish}
         boardDirection={element.boardDirection}
         showStandardCleats={element.showStandardCleats ?? true}
+        verticalStavingEnabled={element.verticalStavingEnabled}
+        verticalStavingColor={element.verticalStavingColor}
+        verticalStavingSpacingFt={element.verticalStavingSpacingFt}
         tubeDiameterFt={element.tubeDiameterFt}
         deckColorOverride={getElementColorOverride(element)}
       />
@@ -1053,6 +1119,9 @@ function getElementRenderKey(element: ProjectRenderElement, rampElevation?: Ramp
     element.deckFinish ?? 'deck-default',
     element.boardDirection ?? 'board-default',
     String(element.showStandardCleats ?? 'standard-cleats-default'),
+    String(element.verticalStavingEnabled ?? 'vertical-staving-default'),
+    element.verticalStavingColor ?? 'vertical-staving-color-default',
+    formatKeyNumber(element.verticalStavingSpacingFt),
     formatKeyNumber(element.tubeDiameterFt),
     formatKeyNumber(element.boatPortWallHeightFt),
     formatKeyNumber(element.boatPortRoofRiseFt),

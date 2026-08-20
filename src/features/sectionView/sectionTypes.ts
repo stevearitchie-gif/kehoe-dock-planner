@@ -82,6 +82,7 @@ export interface SectionViewDockRampReference {
 
 export type SectionViewBuildPlanReferenceType =
   | 'floating_dock'
+  | 'stationary_dock'
   | 'ramp_with_rails'
   | 'ramp_without_rails'
   | 'boat_lift'

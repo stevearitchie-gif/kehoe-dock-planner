@@ -61,6 +61,9 @@ export interface ProjectRenderElement {
   deckFinish?: DeckFinish;
   boardDirection?: FloatingDockBoardDirection;
   showStandardCleats?: boolean;
+  verticalStavingEnabled?: boolean;
+  verticalStavingColor?: string;
+  verticalStavingSpacingFt?: number;
   tubeDiameterFt?: number;
   productSourceLabel?: string;
   boatPortWallHeightFt?: number;

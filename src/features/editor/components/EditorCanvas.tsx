@@ -205,6 +205,29 @@ function buildBoardTextureLines(object: DockObject): number[][] {
   return lines;
 }
 
+function canShowVerticalStaving(object: DockObject): boolean {
+  return Boolean(object.metadata?.verticalStavingEnabled) && (object.type === 'floating_dock' || object.type === 'stationary_dock');
+}
+
+function buildVerticalStavingLines(object: DockObject): number[][] {
+  const spacing = 12;
+  const edgeInset = 4;
+  const tickLength = Math.max(6, Math.min(12, Math.min(object.width, object.height) * 0.16));
+  const lines: number[][] = [];
+
+  for (let x = spacing; x < object.width; x += spacing) {
+    lines.push([x, edgeInset, x, edgeInset + tickLength]);
+    lines.push([x, object.height - edgeInset, x, object.height - edgeInset - tickLength]);
+  }
+
+  for (let y = spacing; y < object.height; y += spacing) {
+    lines.push([edgeInset, y, edgeInset + tickLength, y]);
+    lines.push([object.width - edgeInset, y, object.width - edgeInset - tickLength, y]);
+  }
+
+  return lines;
+}
+
 function sitePatternSeed(index: number) {
   const value = Math.sin(index * 12.9898) * 43758.5453;
   return value - Math.floor(value);
@@ -1693,6 +1716,18 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                         stroke="#ffffff"
                         strokeWidth={1}
                         opacity={0.35}
+                        listening={false}
+                      />
+                    ))}
+
+                  {canShowVerticalStaving(object) &&
+                    buildVerticalStavingLines(object).map((points: number[], lineIndex: number) => (
+                      <Line
+                        key={`vertical-staving-${object.id}-${lineIndex}`}
+                        points={points}
+                        stroke={object.metadata?.verticalStavingColor ?? '#3f2f1f'}
+                        strokeWidth={2}
+                        opacity={0.72}
                         listening={false}
                       />
                     ))}

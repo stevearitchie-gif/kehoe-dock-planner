@@ -136,6 +136,15 @@ function formatBoardDirection(object: DockObject) {
   return undefined;
 }
 
+function formatDockDetails(object: DockObject) {
+  const details = [
+    formatBoardDirection(object),
+    object.metadata?.verticalStavingEnabled ? 'vertical staving' : undefined,
+  ].filter(Boolean);
+
+  return details.length > 0 ? details.join(', ') : undefined;
+}
+
 function formatRampType(type: DockObject['type']) {
   if (type === 'ramp_with_rails') {
     return 'ramp with rails';
@@ -212,8 +221,13 @@ function elementSummary(object: DockObject, scale: ProjectScale) {
   const sizeSuffix = size ? `, ${size}` : ', size not set';
 
   if (object.type === 'floating_dock') {
-    const boardDirection = formatBoardDirection(object);
-    return `Floating dock${sizeSuffix}${boardDirection ? `, ${boardDirection}` : ''}`;
+    const details = formatDockDetails(object);
+    return `Floating dock${sizeSuffix}${details ? `, ${details}` : ''}`;
+  }
+
+  if (object.type === 'stationary_dock') {
+    const details = formatDockDetails(object);
+    return `Stationary dock${sizeSuffix}${details ? `, ${details}` : ''}`;
   }
 
   if (object.type === 'ramp_with_rails' || object.type === 'ramp_without_rails') {
@@ -263,6 +277,7 @@ function objectReferenceDimensionsFeet(object: DockObject, scale: ProjectScale) 
 function buildPlanReference(object: DockObject, scale: ProjectScale): SectionViewBuildPlanReference | null {
   if (
     object.type !== 'floating_dock' &&
+    object.type !== 'stationary_dock' &&
     object.type !== 'ramp_with_rails' &&
     object.type !== 'ramp_without_rails' &&
     object.type !== 'boat_lift' &&
@@ -277,8 +292,8 @@ function buildPlanReference(object: DockObject, scale: ProjectScale): SectionVie
 
   const dimensions = objectReferenceDimensionsFeet(object, scale);
   const details =
-    object.type === 'floating_dock'
-      ? formatBoardDirection(object)
+    object.type === 'floating_dock' || object.type === 'stationary_dock'
+      ? formatDockDetails(object)
       : object.type === 'boat_port'
         ? formatBoatPortDetails(object)
         : object.type === 'boathouse'

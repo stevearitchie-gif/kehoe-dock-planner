@@ -2500,6 +2500,26 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
     }));
   };
 
+  const handleSelectedDockVerticalStavingChange = (checked: boolean) => {
+    updateSelectedObject((object) => ({
+      ...object,
+      metadata: {
+        ...object.metadata,
+        verticalStavingEnabled: checked,
+      },
+    }));
+  };
+
+  const handleSelectedDockVerticalStavingColorChange = (value: string) => {
+    updateSelectedObject((object) => ({
+      ...object,
+      metadata: {
+        ...object.metadata,
+        verticalStavingColor: value,
+      },
+    }));
+  };
+
   const handleSelectedBoatPortNumberChange = (
     field: 'boatPortWallHeightFt' | 'boatPortRoofRiseFt' | 'boatPortPostSideInsetFt' | 'boatPortPostEndInsetFt',
     value: string,
@@ -3821,6 +3841,46 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                                 );
                               })}
                             </div>
+                          </div>
+                        )}
+
+                        {(selectedObject.type === 'floating_dock' || selectedObject.type === 'stationary_dock') && (
+                          <div className="mt-4 rounded-md border border-slate-200 bg-white p-3">
+                            <label className="flex items-center justify-between gap-3">
+                              <span>
+                                <span className="block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                  Vertical Staving
+                                </span>
+                                <span className="mt-1 block text-xs text-slate-600">
+                                  Show vertical side boards along the dock fascia.
+                                </span>
+                              </span>
+                              <input
+                                type="checkbox"
+                                checked={selectedObject.metadata?.verticalStavingEnabled ?? false}
+                                onChange={(event) => handleSelectedDockVerticalStavingChange(event.target.checked)}
+                                className="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                              />
+                            </label>
+                            {selectedObject.metadata?.verticalStavingEnabled && (
+                              <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
+                                <span>
+                                  <span className="block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                    Staving Colour
+                                  </span>
+                                  <span className="mt-1 block text-xs text-slate-600">
+                                    Defaults to a dark dock fascia tone.
+                                  </span>
+                                </span>
+                                <input
+                                  type="color"
+                                  value={selectedObject.metadata?.verticalStavingColor ?? '#3f2f1f'}
+                                  onChange={(event) => handleSelectedDockVerticalStavingColorChange(event.target.value)}
+                                  className="h-10 w-12 cursor-pointer rounded-md border border-slate-300 bg-white p-1"
+                                  aria-label="Vertical staving colour"
+                                />
+                              </div>
+                            )}
                           </div>
                         )}
 
