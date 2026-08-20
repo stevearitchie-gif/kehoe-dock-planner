@@ -30,8 +30,9 @@ const CLEAT_WIDTH_FT = 0.42;
 const CLEAT_LENGTH_FT = 0.8;
 const DECK_LINE_OFFSET_FT = 0.045;
 const DEFAULT_STAVING_SPACING_FT = 0.82;
-const STAVING_BOARD_WIDTH_FT = 0.09;
-const STAVING_PROJECTION_FT = 0.045;
+const STAVING_PANEL_THICKNESS_FT = 0.028;
+const STAVING_SEAM_WIDTH_FT = 0.018;
+const STAVING_SEAM_PROJECTION_FT = 0.012;
 
 function getMaterials(viewMode: RenderViewMode, deckFinish: FloatingDockDeckFinish, deckColorOverride?: string) {
   const palette = getSalesMaterialPalette(viewMode);
@@ -277,35 +278,48 @@ function VerticalStaving({
   spacing?: number;
 }) {
   const safeSpacing = Number.isFinite(spacing) && spacing > 0.25 ? spacing : DEFAULT_STAVING_SPACING_FT;
-  const widthBoardCount = Math.max(2, Math.min(48, Math.round(width / safeSpacing)));
-  const lengthBoardCount = Math.max(2, Math.min(64, Math.round(length / safeSpacing)));
+  const widthSeamCount = Math.max(1, Math.min(47, Math.round(width / safeSpacing) - 1));
+  const lengthSeamCount = Math.max(1, Math.min(63, Math.round(length / safeSpacing) - 1));
+  const seamColor = '#1f2933';
 
   return (
     <>
-      {[-1, 1].flatMap((zSide) =>
-        Array.from({ length: widthBoardCount + 1 }, (_, index) => {
-          const x = -width / 2 + (width * index) / widthBoardCount;
+      {[-1, 1].map((zSide) => (
+        <group key={`end-panel-${zSide}`}>
+          <mesh position={[0, y, zSide * (length / 2 + STAVING_PANEL_THICKNESS_FT / 2)]} castShadow receiveShadow>
+            <boxGeometry args={[width, height, STAVING_PANEL_THICKNESS_FT]} />
+            <meshStandardMaterial color={color} roughness={0.82} metalness={0} />
+          </mesh>
+          {Array.from({ length: widthSeamCount }, (_, index) => {
+            const x = -width / 2 + (width * (index + 1)) / (widthSeamCount + 1);
 
-          return (
-            <mesh key={`end-${zSide}-${index}`} position={[x, y, zSide * (length / 2 + STAVING_PROJECTION_FT / 2)]} castShadow receiveShadow>
-              <boxGeometry args={[STAVING_BOARD_WIDTH_FT, height, STAVING_PROJECTION_FT]} />
-              <meshStandardMaterial color={color} roughness={0.82} metalness={0} />
-            </mesh>
-          );
-        }),
-      )}
-      {[-1, 1].flatMap((xSide) =>
-        Array.from({ length: lengthBoardCount + 1 }, (_, index) => {
-          const z = -length / 2 + (length * index) / lengthBoardCount;
+            return (
+              <mesh key={`end-seam-${zSide}-${index}`} position={[x, y, zSide * (length / 2 + STAVING_PANEL_THICKNESS_FT + STAVING_SEAM_PROJECTION_FT / 2)]}>
+                <boxGeometry args={[STAVING_SEAM_WIDTH_FT, height * 0.94, STAVING_SEAM_PROJECTION_FT]} />
+                <meshStandardMaterial color={seamColor} roughness={0.88} metalness={0} />
+              </mesh>
+            );
+          })}
+        </group>
+      ))}
+      {[-1, 1].map((xSide) => (
+        <group key={`side-panel-${xSide}`}>
+          <mesh position={[xSide * (width / 2 + STAVING_PANEL_THICKNESS_FT / 2), y, 0]} castShadow receiveShadow>
+            <boxGeometry args={[STAVING_PANEL_THICKNESS_FT, height, length]} />
+            <meshStandardMaterial color={color} roughness={0.82} metalness={0} />
+          </mesh>
+          {Array.from({ length: lengthSeamCount }, (_, index) => {
+            const z = -length / 2 + (length * (index + 1)) / (lengthSeamCount + 1);
 
-          return (
-            <mesh key={`side-${xSide}-${index}`} position={[xSide * (width / 2 + STAVING_PROJECTION_FT / 2), y, z]} castShadow receiveShadow>
-              <boxGeometry args={[STAVING_PROJECTION_FT, height, STAVING_BOARD_WIDTH_FT]} />
-              <meshStandardMaterial color={color} roughness={0.82} metalness={0} />
-            </mesh>
-          );
-        }),
-      )}
+            return (
+              <mesh key={`side-seam-${xSide}-${index}`} position={[xSide * (width / 2 + STAVING_PANEL_THICKNESS_FT + STAVING_SEAM_PROJECTION_FT / 2), y, z]}>
+                <boxGeometry args={[STAVING_SEAM_PROJECTION_FT, height * 0.94, STAVING_SEAM_WIDTH_FT]} />
+                <meshStandardMaterial color={seamColor} roughness={0.88} metalness={0} />
+              </mesh>
+            );
+          })}
+        </group>
+      ))}
     </>
   );
 }

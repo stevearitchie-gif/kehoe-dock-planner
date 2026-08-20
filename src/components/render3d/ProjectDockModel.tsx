@@ -49,8 +49,9 @@ const KEHOE_FLOATING_DOCK_DECK_THICKNESS = 0.22;
 const FLOATING_DOCK_DECK_TOP_HEIGHT = KEHOE_FLOATING_DOCK_FASCIA_DEPTH + KEHOE_FLOATING_DOCK_DECK_THICKNESS;
 const STATIONARY_DOCK_DECK_TOP_HEIGHT = 0.68;
 const DEFAULT_VERTICAL_STAVING_SPACING_FT = 0.82;
-const VERTICAL_STAVING_BOARD_WIDTH_FT = 0.08;
-const VERTICAL_STAVING_PROJECTION_FT = 0.045;
+const VERTICAL_STAVING_PANEL_THICKNESS_FT = 0.026;
+const VERTICAL_STAVING_SEAM_WIDTH_FT = 0.016;
+const VERTICAL_STAVING_SEAM_PROJECTION_FT = 0.01;
 
 function getDeckColor(element: ProjectRenderElement, viewMode: RenderViewMode) {
   const colorOverride = getElementColorOverride(element);
@@ -157,35 +158,48 @@ function VerticalStavingBoards({
   spacing?: number;
 }) {
   const safeSpacing = Number.isFinite(spacing) && spacing > 0.25 ? spacing : DEFAULT_VERTICAL_STAVING_SPACING_FT;
-  const lengthBoardCount = Math.max(2, Math.min(64, Math.round(length / safeSpacing)));
-  const widthBoardCount = Math.max(2, Math.min(48, Math.round(width / safeSpacing)));
+  const lengthSeamCount = Math.max(1, Math.min(63, Math.round(length / safeSpacing) - 1));
+  const widthSeamCount = Math.max(1, Math.min(47, Math.round(width / safeSpacing) - 1));
+  const seamColor = '#1f2933';
 
   return (
     <>
-      {[-1, 1].flatMap((zSide) =>
-        Array.from({ length: lengthBoardCount + 1 }, (_, index) => {
-          const x = -length / 2 + (length * index) / lengthBoardCount;
+      {[-1, 1].map((zSide) => (
+        <group key={`staving-end-panel-${zSide}`}>
+          <mesh position={[0, y, zSide * (width / 2 + VERTICAL_STAVING_PANEL_THICKNESS_FT / 2)]} castShadow receiveShadow>
+            <boxGeometry args={[length, height, VERTICAL_STAVING_PANEL_THICKNESS_FT]} />
+            <meshStandardMaterial color={color} roughness={0.82} metalness={0} />
+          </mesh>
+          {Array.from({ length: lengthSeamCount }, (_, index) => {
+            const x = -length / 2 + (length * (index + 1)) / (lengthSeamCount + 1);
 
-          return (
-            <mesh key={`staving-end-${zSide}-${index}`} position={[x, y, zSide * (width / 2 + VERTICAL_STAVING_PROJECTION_FT / 2)]} castShadow receiveShadow>
-              <boxGeometry args={[VERTICAL_STAVING_BOARD_WIDTH_FT, height, VERTICAL_STAVING_PROJECTION_FT]} />
-              <meshStandardMaterial color={color} roughness={0.82} metalness={0} />
-            </mesh>
-          );
-        }),
-      )}
-      {[-1, 1].flatMap((xSide) =>
-        Array.from({ length: widthBoardCount + 1 }, (_, index) => {
-          const z = -width / 2 + (width * index) / widthBoardCount;
+            return (
+              <mesh key={`staving-end-seam-${zSide}-${index}`} position={[x, y, zSide * (width / 2 + VERTICAL_STAVING_PANEL_THICKNESS_FT + VERTICAL_STAVING_SEAM_PROJECTION_FT / 2)]}>
+                <boxGeometry args={[VERTICAL_STAVING_SEAM_WIDTH_FT, height * 0.94, VERTICAL_STAVING_SEAM_PROJECTION_FT]} />
+                <meshStandardMaterial color={seamColor} roughness={0.88} metalness={0} />
+              </mesh>
+            );
+          })}
+        </group>
+      ))}
+      {[-1, 1].map((xSide) => (
+        <group key={`staving-side-panel-${xSide}`}>
+          <mesh position={[xSide * (length / 2 + VERTICAL_STAVING_PANEL_THICKNESS_FT / 2), y, 0]} castShadow receiveShadow>
+            <boxGeometry args={[VERTICAL_STAVING_PANEL_THICKNESS_FT, height, width]} />
+            <meshStandardMaterial color={color} roughness={0.82} metalness={0} />
+          </mesh>
+          {Array.from({ length: widthSeamCount }, (_, index) => {
+            const z = -width / 2 + (width * (index + 1)) / (widthSeamCount + 1);
 
-          return (
-            <mesh key={`staving-side-${xSide}-${index}`} position={[xSide * (length / 2 + VERTICAL_STAVING_PROJECTION_FT / 2), y, z]} castShadow receiveShadow>
-              <boxGeometry args={[VERTICAL_STAVING_PROJECTION_FT, height, VERTICAL_STAVING_BOARD_WIDTH_FT]} />
-              <meshStandardMaterial color={color} roughness={0.82} metalness={0} />
-            </mesh>
-          );
-        }),
-      )}
+            return (
+              <mesh key={`staving-side-seam-${xSide}-${index}`} position={[xSide * (length / 2 + VERTICAL_STAVING_PANEL_THICKNESS_FT + VERTICAL_STAVING_SEAM_PROJECTION_FT / 2), y, z]}>
+                <boxGeometry args={[VERTICAL_STAVING_SEAM_PROJECTION_FT, height * 0.94, VERTICAL_STAVING_SEAM_WIDTH_FT]} />
+                <meshStandardMaterial color={seamColor} roughness={0.88} metalness={0} />
+              </mesh>
+            );
+          })}
+        </group>
+      ))}
     </>
   );
 }
