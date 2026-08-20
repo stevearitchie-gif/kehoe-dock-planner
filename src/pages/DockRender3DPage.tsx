@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { Link, useMatch, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/components/auth/useAuth';
 import { AppShell } from '@/components/layout/AppShell';
@@ -7,11 +7,13 @@ import { DockScene, type DockSceneHandle } from '@/components/render3d/DockScene
 import { RenderControlPanel } from '@/components/render3d/RenderControlPanel';
 import { buildProductConfigurationRenderModel } from '@/components/render3d/productConfigAdapter';
 import { buildProjectRenderModel } from '@/components/render3d/projectModelAdapter';
-import { parseQuoteImportJson } from '@/components/render3d/quoteImportAdapter';
+import { parseQuoteImportData, parseQuoteImportJson } from '@/components/render3d/quoteImportAdapter';
 import { sampleQuoteProductConfigurations } from '@/components/render3d/sampleQuoteProductConfig';
 import { sampleQuoteImportPayloadText } from '@/components/render3d/sampleQuoteImportPayload';
 import { getProject } from '@/features/projects/projectService';
+import { getQuotePreviewConfig, getQuotePreviewImportPayload, type QuotePreviewConfigDocument } from '@/features/quotePreview/quotePreviewService';
 import type { ProductConfiguration } from '@/components/render3d/productConfigTypes';
+import type { NormalizedQuoteImportData } from '@/components/render3d/quoteImportTypes';
 import type { CameraPreset, DockRenderSettings, ProjectRenderModel, RenderViewMode } from '@/components/render3d/types';
 import type { DockProject } from '@/types/dock';
 
@@ -26,13 +28,34 @@ const defaultRenderSettings: DockRenderSettings = {
   deckFinish: 'pressure-treated',
 };
 
+const CONCEPT_NOTE_TITLE = 'Concept visualization only';
+const CONCEPT_NOTE_BODY =
+  'This 3D model is for initial review and layout discussion. It is not an engineered drawing, construction drawing, or exact representation of the finished installation. Final design, materials, dimensions, and site conditions may vary.';
+const CONCEPT_NOTE_WIDTH = 360;
+const CONCEPT_NOTE_HEIGHT = 148;
+const CONCEPT_NOTE_MARGIN = 24;
+
+function clampConceptNotePositionToViewport(position: { x: number; y: number }, viewport: { width: number; height: number }) {
+  const maxX = Math.max(CONCEPT_NOTE_MARGIN, viewport.width - CONCEPT_NOTE_WIDTH - CONCEPT_NOTE_MARGIN);
+  const maxY = Math.max(CONCEPT_NOTE_MARGIN, viewport.height - CONCEPT_NOTE_HEIGHT - CONCEPT_NOTE_MARGIN);
+
+  return {
+    x: Math.min(Math.max(CONCEPT_NOTE_MARGIN, position.x), maxX),
+    y: Math.min(Math.max(CONCEPT_NOTE_MARGIN, position.y), maxY),
+  };
+}
+
 type QuotePreviewDeckMaterial = 'pressure_treated_wood' | 'tru_north_pvc' | 'composite_grey';
 type QuotePreviewRampMaterial = 'aluminum';
 type QuotePreviewSourceLabel =
   | 'sample quote controls'
   | 'manual controls'
   | 'pasted quote data'
-  | 'pasted quote data plus fallback defaults';
+  | 'pasted quote data plus fallback defaults'
+  | 'loaded from saved preview'
+  | 'loaded from saved preview plus fallback defaults';
+
+type SavedQuotePreviewStatus = 'idle' | 'loading' | 'loaded' | 'not-found' | 'error';
 
 interface QuotePreviewControlState {
   dockLengthFt: number;
@@ -173,6 +196,19 @@ function getQuotePreviewDetails(configurations: ProductConfiguration[]) {
 function toPositiveNumber(value: string, fallback: number) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function quoteControlsFromNormalizedImport(normalized: NormalizedQuoteImportData): QuotePreviewControlState {
+  return {
+    dockLengthFt: normalized.dockLengthFt,
+    dockWidthFt: normalized.dockWidthFt,
+    deckMaterial: normalized.deckMaterial,
+    tubeDiameterFt: normalized.tubeDiameterFt,
+    rampEnabled: normalized.rampEnabled,
+    rampLengthFt: normalized.rampLengthFt,
+    rampWidthFt: normalized.rampWidthFt,
+    rampMaterial: normalized.rampMaterial,
+  };
 }
 
 function QuotePreviewControlPanel({
@@ -377,13 +413,20 @@ export function DockRender3DPage() {
   const nestedQuotePreviewMatch = useMatch('/render3d/quote-preview/:previewId');
   const previewId = dedicatedQuotePreviewMatch?.params.previewId ?? nestedQuotePreviewMatch?.params.previewId;
   const isQueryQuotePreview = projectId === 'local-test' && searchParams.get('mode') === 'quote-preview';
-  const isQuotePreview = (Boolean(dedicatedQuotePreviewMatch || nestedQuotePreviewMatch) && previewId === 'local-test') || isQueryQuotePreview;
+  const isRouteQuotePreview = Boolean(dedicatedQuotePreviewMatch || nestedQuotePreviewMatch);
+  const isQuotePreview = isRouteQuotePreview || isQueryQuotePreview;
+  const isLocalQuotePreview = isQueryQuotePreview || (isRouteQuotePreview && previewId === 'local-test');
+  const isSavedQuotePreview = Boolean(isRouteQuotePreview && previewId && previewId !== 'local-test');
   const { user } = useAuth();
   const sceneRef = useRef<DockSceneHandle | null>(null);
+  const renderViewportRef = useRef<HTMLElement | null>(null);
+  const conceptNoteDragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
   const [settings, setSettings] = useState<DockRenderSettings>(defaultRenderSettings);
   const [cameraPreset, setCameraPreset] = useState<CameraPreset>('isometric');
   const [viewMode, setViewMode] = useState<RenderViewMode>('customer');
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(true);
+  const [conceptNotePosition, setConceptNotePosition] = useState<{ x: number; y: number } | null>(null);
+  const [renderViewportSize, setRenderViewportSize] = useState({ width: 0, height: 0 });
   const [project, setProject] = useState<DockProject | null>(null);
   const [isLoadingProject, setIsLoadingProject] = useState(false);
   const [loadMessage, setLoadMessage] = useState<string | null>(null);
@@ -395,8 +438,94 @@ export function DockRender3DPage() {
   const [quoteImportText, setQuoteImportText] = useState(sampleQuoteImportPayloadText);
   const [quoteImportError, setQuoteImportError] = useState<string | null>(null);
   const [quoteImportWarnings, setQuoteImportWarnings] = useState<string[]>([]);
+  const [savedPreviewStatus, setSavedPreviewStatus] = useState<SavedQuotePreviewStatus>('idle');
+  const [savedPreviewMessage, setSavedPreviewMessage] = useState<string | null>(null);
+  const [savedPreviewDocument, setSavedPreviewDocument] = useState<QuotePreviewConfigDocument | null>(null);
   const canReturnToEditor = Boolean(projectId && projectId !== 'local-test' && !isQuotePreview);
   const toggleSidePanel = () => setIsSidePanelOpen((isOpen) => !isOpen);
+  const handleExportPng = useCallback(() => {
+    if (!sceneRef.current) {
+      return;
+    }
+
+    if (!conceptNotePosition || renderViewportSize.width <= 0 || renderViewportSize.height <= 0) {
+      sceneRef.current.exportPng();
+      return;
+    }
+
+    sceneRef.current.exportPng({
+      disclaimer: {
+        x: conceptNotePosition.x,
+        y: conceptNotePosition.y,
+        width: CONCEPT_NOTE_WIDTH,
+        height: CONCEPT_NOTE_HEIGHT,
+        viewportWidth: renderViewportSize.width,
+        viewportHeight: renderViewportSize.height,
+        title: CONCEPT_NOTE_TITLE,
+        body: CONCEPT_NOTE_BODY,
+      },
+    });
+  }, [conceptNotePosition, renderViewportSize.height, renderViewportSize.width]);
+  const handleConceptNotePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!conceptNotePosition) {
+      return;
+    }
+
+    const viewportRect = renderViewportRef.current?.getBoundingClientRect();
+    if (!viewportRect) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    conceptNoteDragRef.current = {
+      pointerId: event.pointerId,
+      offsetX: event.clientX - viewportRect.left - conceptNotePosition.x,
+      offsetY: event.clientY - viewportRect.top - conceptNotePosition.y,
+    };
+  };
+  const handleConceptNotePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const dragState = conceptNoteDragRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    const viewportRect = renderViewportRef.current?.getBoundingClientRect();
+    if (!viewportRect) {
+      return;
+    }
+
+    const nextPosition = {
+      x: event.clientX - viewportRect.left - dragState.offsetX,
+      y: event.clientY - viewportRect.top - dragState.offsetY,
+    };
+    setConceptNotePosition(clampConceptNotePositionToViewport(nextPosition, renderViewportSize));
+  };
+  const handleConceptNotePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const dragState = conceptNoteDragRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    conceptNoteDragRef.current = null;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+  const resetConceptNotePosition = () => {
+    setConceptNotePosition(
+      clampConceptNotePositionToViewport(
+        {
+          x: CONCEPT_NOTE_MARGIN,
+          y: Math.max(CONCEPT_NOTE_MARGIN, renderViewportSize.height - CONCEPT_NOTE_HEIGHT - CONCEPT_NOTE_MARGIN),
+        },
+        renderViewportSize,
+      ),
+    );
+  };
 
   useEffect(() => {
     let isActive = true;
@@ -449,6 +578,94 @@ export function DockRender3DPage() {
     };
   }, [isQuotePreview, projectId, user?.uid]);
 
+  useEffect(() => {
+    const viewportElement = renderViewportRef.current;
+    if (!viewportElement) {
+      return;
+    }
+
+    const updateViewportSize = () => {
+      const rect = viewportElement.getBoundingClientRect();
+      const viewport = { width: rect.width, height: rect.height };
+      setRenderViewportSize(viewport);
+      setConceptNotePosition((currentPosition) => {
+        const defaultPosition = {
+          x: CONCEPT_NOTE_MARGIN,
+          y: Math.max(CONCEPT_NOTE_MARGIN, viewport.height - CONCEPT_NOTE_HEIGHT - CONCEPT_NOTE_MARGIN),
+        };
+
+        return clampConceptNotePositionToViewport(currentPosition ?? defaultPosition, viewport);
+      });
+    };
+
+    updateViewportSize();
+    const resizeObserver = new ResizeObserver(updateViewportSize);
+    resizeObserver.observe(viewportElement);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [isSidePanelOpen]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    setSavedPreviewDocument(null);
+    setSavedPreviewMessage(null);
+
+    if (!isSavedQuotePreview || !previewId) {
+      setSavedPreviewStatus('idle');
+      return () => {
+        isActive = false;
+      };
+    }
+
+    setSavedPreviewStatus('loading');
+    setSavedPreviewMessage('Loading preview...');
+
+    getQuotePreviewConfig(previewId)
+      .then((loadedPreview) => {
+        if (!isActive) {
+          return;
+        }
+
+        if (!loadedPreview) {
+          setSavedPreviewStatus('not-found');
+          setSavedPreviewMessage('Preview not found.');
+          return;
+        }
+
+        const result = parseQuoteImportData(getQuotePreviewImportPayload(loadedPreview));
+
+        if (!result.ok) {
+          setSavedPreviewStatus('error');
+          setSavedPreviewMessage(result.error || 'Failed to load preview.');
+          setQuoteImportWarnings(result.warnings);
+          return;
+        }
+
+        setSavedPreviewDocument(loadedPreview);
+        setQuotePreviewControls(quoteControlsFromNormalizedImport(result.normalized));
+        setActiveQuoteConfigurations(result.configurations);
+        setQuoteImportError(null);
+        setQuoteImportWarnings(result.warnings);
+        setQuotePreviewSourceLabel(result.warnings.length > 0 ? 'loaded from saved preview plus fallback defaults' : 'loaded from saved preview');
+        setSavedPreviewStatus('loaded');
+        setSavedPreviewMessage(null);
+      })
+      .catch((error) => {
+        console.error('Failed to load saved quote preview', error);
+        if (isActive) {
+          setSavedPreviewStatus('error');
+          setSavedPreviewMessage('Failed to load preview.');
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [isSavedQuotePreview, previewId]);
+
   const projectModel = useMemo<ProjectRenderModel | null>(() => {
     if (!project) {
       return null;
@@ -467,16 +684,7 @@ export function DockRender3DPage() {
     }
 
     setQuoteImportError(null);
-    setQuotePreviewControls({
-      dockLengthFt: result.normalized.dockLengthFt,
-      dockWidthFt: result.normalized.dockWidthFt,
-      deckMaterial: result.normalized.deckMaterial,
-      tubeDiameterFt: result.normalized.tubeDiameterFt,
-      rampEnabled: result.normalized.rampEnabled,
-      rampLengthFt: result.normalized.rampLengthFt,
-      rampWidthFt: result.normalized.rampWidthFt,
-      rampMaterial: result.normalized.rampMaterial,
-    });
+    setQuotePreviewControls(quoteControlsFromNormalizedImport(result.normalized));
     setActiveQuoteConfigurations(result.configurations);
     setQuotePreviewSourceLabel(result.warnings.length > 0 ? 'pasted quote data plus fallback defaults' : 'pasted quote data');
   };
@@ -500,27 +708,35 @@ export function DockRender3DPage() {
   };
 
   const quotePreviewModel = useMemo<ProjectRenderModel | null>(() => {
-    if (!isQuotePreview) {
+    if (!isQuotePreview || (isSavedQuotePreview && savedPreviewStatus !== 'loaded')) {
       return null;
     }
 
     return buildProductConfigurationRenderModel(activeQuoteConfigurations);
-  }, [isQuotePreview, activeQuoteConfigurations]);
+  }, [isQuotePreview, isSavedQuotePreview, savedPreviewStatus, activeQuoteConfigurations]);
   const quotePreviewDetails = useMemo(
-    () => (isQuotePreview ? getQuotePreviewDetails(activeQuoteConfigurations) : null),
-    [isQuotePreview, activeQuoteConfigurations],
+    () => (isQuotePreview && (!isSavedQuotePreview || savedPreviewStatus === 'loaded') ? getQuotePreviewDetails(activeQuoteConfigurations) : null),
+    [isQuotePreview, isSavedQuotePreview, savedPreviewStatus, activeQuoteConfigurations],
   );
 
   const activeModel = quotePreviewModel ?? projectModel;
   const isModelFromQuote = Boolean(quotePreviewModel);
   const sourceNotice =
-    isModelFromQuote
+    isQuotePreview && isSavedQuotePreview && savedPreviewStatus === 'loading'
+      ? 'Loading saved quote preview'
+      : isQuotePreview && isSavedQuotePreview && savedPreviewStatus === 'not-found'
+        ? 'Saved quote preview was not found'
+        : isQuotePreview && isSavedQuotePreview && savedPreviewStatus === 'error'
+          ? 'Failed to load saved quote preview'
+          : isModelFromQuote
       ? `Rendering from quote ProductConfiguration (${quotePreviewSourceLabel})`
       : projectModel
         ? `Rendering from project data: ${projectModel.projectName}`
       : 'Rendering local proof-of-concept fallback';
   const detailNotice =
-    activeModel
+    isQuotePreview && isSavedQuotePreview && savedPreviewStatus !== 'loaded'
+      ? savedPreviewMessage
+      : activeModel
       ? `${isModelFromQuote ? 'Standalone quote preview. ' : ''}${
           activeModel.hasProjectScale ? '' : 'Project scale not found, using approximate fallback scale. '
         }${activeModel.elements.length} supported element${activeModel.elements.length === 1 ? '' : 's'} using ${
@@ -555,6 +771,24 @@ export function DockRender3DPage() {
           <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Scale</dt>
           <dd className="mt-1 text-slate-800">{activeModel.sourceUnitLabel}</dd>
         </div>
+        {isSavedQuotePreview && savedPreviewDocument?.quoteNumber && (
+          <div>
+            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Quote Number</dt>
+            <dd className="mt-1 text-slate-800">{savedPreviewDocument.quoteNumber}</dd>
+          </div>
+        )}
+        {isSavedQuotePreview && savedPreviewDocument?.customerName && (
+          <div>
+            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Customer</dt>
+            <dd className="mt-1 text-slate-800">{savedPreviewDocument.customerName}</dd>
+          </div>
+        )}
+        {isSavedQuotePreview && savedPreviewDocument?.source && (
+          <div>
+            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Preview Source</dt>
+            <dd className="mt-1 text-slate-800">{savedPreviewDocument.source}</dd>
+          </div>
+        )}
         {!activeModel.hasProjectScale && (
           <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
             Project scale not found, using approximate fallback scale.
@@ -567,7 +801,7 @@ export function DockRender3DPage() {
           </div>
         )}
       </dl>
-      {isModelFromQuote && (
+      {isModelFromQuote && isLocalQuotePreview && (
         <QuoteImportPanel
           importText={quoteImportText}
           importError={quoteImportError}
@@ -582,7 +816,7 @@ export function DockRender3DPage() {
           onUseManualControls={handleUseManualQuoteControls}
         />
       )}
-      {isModelFromQuote && (
+      {isModelFromQuote && isLocalQuotePreview && (
         <QuotePreviewControlPanel
           controls={quotePreviewControls}
           onChange={handleQuotePreviewControlsChange}
@@ -590,7 +824,9 @@ export function DockRender3DPage() {
       )}
       {isModelFromQuote && quotePreviewDetails && (
         <div className="mt-5 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Sample Quote Preview</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+            {isLocalQuotePreview ? 'Sample Quote Preview' : 'Saved Quote Preview'}
+          </p>
           <p className="mt-1 text-amber-950">
             Generated from ProductConfiguration ({quotePreviewSourceLabel}), not a saved Dock Planner layout.
           </p>
@@ -640,29 +876,50 @@ export function DockRender3DPage() {
       )}
       <button
         type="button"
-        onClick={() => sceneRef.current?.exportPng()}
+        onClick={handleExportPng}
         className="mt-5 min-h-11 w-full rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700"
       >
         Export PNG
       </button>
     </aside>
+  ) : isQuotePreview ? (
+    <aside className="max-h-[38vh] w-full shrink-0 overflow-y-auto border-t border-slate-200 bg-white p-4 lg:h-full lg:max-h-none lg:w-[18rem] lg:max-w-[32vw] lg:border-l lg:border-t-0 xl:w-80">
+      <h2 className="text-base font-semibold text-slate-900">Quote Preview</h2>
+      <p className="mt-1 text-sm text-slate-500">{sourceNotice}</p>
+      <div className="mt-5 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
+        {savedPreviewStatus === 'loading'
+          ? 'Loading preview...'
+          : savedPreviewStatus === 'not-found'
+            ? 'Preview not found.'
+            : savedPreviewStatus === 'error'
+              ? savedPreviewMessage ?? 'Failed to load preview.'
+              : 'Preparing quote preview...'}
+      </div>
+      <Link
+        to="/projects"
+        className="mt-5 flex min-h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-center text-sm font-medium text-slate-700 hover:bg-slate-100"
+      >
+        Projects
+      </Link>
+    </aside>
   ) : (
     <RenderControlPanel
       settings={settings}
       onSettingsChange={setSettings}
-      onExportPng={() => sceneRef.current?.exportPng()}
+      onExportPng={handleExportPng}
     />
   );
+
   return (
     <AppShell className="h-screen overflow-hidden">
       <div className="flex h-full min-h-0 flex-col">
         <header className="flex shrink-0 flex-col gap-3 border-b border-slate-200 bg-white px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0 xl:max-w-[34rem]">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-              {isModelFromQuote ? `Quote Preview ${previewId ?? ''}` : `Project ${projectId ?? 'local'}`}
+              {isQuotePreview ? `Quote Preview ${previewId ?? 'local-test'}` : `Project ${projectId ?? 'local'}`}
             </p>
             <h1 className="truncate text-xl font-semibold text-slate-900">
-              {isModelFromQuote ? 'Quote 3D Product Preview' : '3D Dock Render'}
+              {isQuotePreview ? 'Quote 3D Product Preview' : '3D Dock Render'}
             </h1>
             <p className="mt-1 text-sm text-slate-500">{sourceNotice}</p>
           </div>
@@ -690,7 +947,7 @@ export function DockRender3DPage() {
             <CameraPresetControls activePreset={cameraPreset} onPresetChange={setCameraPreset} />
             <button
               type="button"
-              onClick={() => sceneRef.current?.exportPng()}
+              onClick={handleExportPng}
               className="min-h-11 rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700"
             >
               Export PNG
@@ -735,7 +992,6 @@ export function DockRender3DPage() {
           </div>
         </header>
 
-
         <main
           className={`grid min-h-0 flex-1 ${
             isSidePanelOpen
@@ -743,18 +999,54 @@ export function DockRender3DPage() {
               : 'grid-cols-1 grid-rows-1'
           }`}
         >
-          <section className="relative min-h-[360px] flex-1 bg-sky-50 md:min-h-[460px] lg:min-h-0">
+          <section ref={renderViewportRef} className="relative min-h-[360px] flex-1 bg-sky-50 md:min-h-[460px] lg:min-h-0">
             <DockScene
               ref={sceneRef}
               settings={settings}
               cameraPreset={cameraPreset}
               projectModel={activeModel}
               viewMode={viewMode}
+              showFallbackModel={!isQuotePreview}
             />
-
+            {conceptNotePosition && (
+              <div
+                className="absolute z-20 cursor-move select-none rounded-md border border-slate-300 bg-white/90 px-3 py-3 text-left text-slate-700 shadow-md backdrop-blur-sm"
+                style={{
+                  left: conceptNotePosition.x,
+                  top: conceptNotePosition.y,
+                  width: CONCEPT_NOTE_WIDTH,
+                  minHeight: CONCEPT_NOTE_HEIGHT,
+                  touchAction: 'none',
+                }}
+                onPointerDown={handleConceptNotePointerDown}
+                onPointerMove={handleConceptNotePointerMove}
+                onPointerUp={handleConceptNotePointerUp}
+                onPointerCancel={handleConceptNotePointerUp}
+                role="note"
+                aria-label={CONCEPT_NOTE_TITLE}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-900">{CONCEPT_NOTE_TITLE}</p>
+                  <button
+                    type="button"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      resetConceptNotePosition();
+                    }}
+                    className="rounded border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-slate-600 hover:bg-slate-50"
+                  >
+                    Reset
+                  </button>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-slate-700">{CONCEPT_NOTE_BODY}</p>
+              </div>
+            )}
             {isModelFromQuote && (
               <div className="absolute left-4 top-4 max-w-xl rounded-lg border border-amber-300 bg-amber-50/95 px-4 py-3 text-sm text-amber-950 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Sample Quote Preview</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+                  {isLocalQuotePreview ? 'Sample Quote Preview' : 'Saved Quote Preview'}
+                </p>
                 <p className="mt-1 font-medium">Generated from ProductConfiguration, not a saved Dock Planner layout</p>
                 <p className="mt-1 text-xs text-amber-800">Preview source: {quotePreviewSourceLabel}</p>
               </div>

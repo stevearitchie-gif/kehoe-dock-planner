@@ -15,7 +15,7 @@ import type {
 } from '@/components/render3d/types';
 
 export interface DockSceneHandle {
-  exportPng: () => void;
+  exportPng: (options?: DockSceneExportPngOptions) => void;
 }
 
 interface DockSceneProps {
@@ -24,6 +24,21 @@ interface DockSceneProps {
   projectModel?: ProjectRenderModel | null;
   viewMode: RenderViewMode;
   showFallbackModel?: boolean;
+}
+
+interface DockSceneExportOverlay {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  viewportWidth: number;
+  viewportHeight: number;
+  title: string;
+  body: string;
+}
+
+interface DockSceneExportPngOptions {
+  disclaimer?: DockSceneExportOverlay;
 }
 
 const cameraPositions: Record<CameraPreset, [number, number, number]> = {
@@ -41,6 +56,88 @@ const customerCameraPositions: Record<CameraPreset, [number, number, number]> = 
 };
 
 const THREE_DOUBLE_SIDE = 2;
+
+function drawRoundedRect(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
+  const clampedRadius = Math.min(radius, width / 2, height / 2);
+
+  context.beginPath();
+  context.moveTo(x + clampedRadius, y);
+  context.lineTo(x + width - clampedRadius, y);
+  context.quadraticCurveTo(x + width, y, x + width, y + clampedRadius);
+  context.lineTo(x + width, y + height - clampedRadius);
+  context.quadraticCurveTo(x + width, y + height, x + width - clampedRadius, y + height);
+  context.lineTo(x + clampedRadius, y + height);
+  context.quadraticCurveTo(x, y + height, x, y + height - clampedRadius);
+  context.lineTo(x, y + clampedRadius);
+  context.quadraticCurveTo(x, y, x + clampedRadius, y);
+  context.closePath();
+}
+
+function wrapCanvasText(context: CanvasRenderingContext2D, text: string, maxWidth: number) {
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let currentLine = '';
+
+  words.forEach((word) => {
+    const nextLine = currentLine ? `${currentLine} ${word}` : word;
+    if (currentLine && context.measureText(nextLine).width > maxWidth) {
+      lines.push(currentLine);
+      currentLine = word;
+      return;
+    }
+
+    currentLine = nextLine;
+  });
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines;
+}
+
+function drawExportDisclaimer(context: CanvasRenderingContext2D, overlay: DockSceneExportOverlay, canvas: HTMLCanvasElement) {
+  if (overlay.viewportWidth <= 0 || overlay.viewportHeight <= 0) {
+    return;
+  }
+
+  const scaleX = canvas.width / overlay.viewportWidth;
+  const scaleY = canvas.height / overlay.viewportHeight;
+  const x = overlay.x * scaleX;
+  const y = overlay.y * scaleY;
+  const width = overlay.width * scaleX;
+  const height = overlay.height * scaleY;
+  const padding = 14 * Math.min(scaleX, scaleY);
+  const titleFontSize = 13 * Math.min(scaleX, scaleY);
+  const bodyFontSize = 12 * Math.min(scaleX, scaleY);
+  const lineHeight = 16 * Math.min(scaleX, scaleY);
+
+  context.save();
+  drawRoundedRect(context, x, y, width, height, 8 * Math.min(scaleX, scaleY));
+  context.fillStyle = 'rgba(255, 255, 255, 0.92)';
+  context.fill();
+  context.strokeStyle = 'rgba(15, 23, 42, 0.28)';
+  context.lineWidth = Math.max(1, Math.min(scaleX, scaleY));
+  context.stroke();
+
+  context.fillStyle = '#0f172a';
+  context.font = `700 ${titleFontSize}px Arial, sans-serif`;
+  context.textBaseline = 'top';
+  context.fillText(overlay.title, x + padding, y + padding);
+
+  context.fillStyle = '#334155';
+  context.font = `400 ${bodyFontSize}px Arial, sans-serif`;
+  const lines = wrapCanvasText(context, overlay.body, width - padding * 2);
+  const bodyTop = y + padding + titleFontSize + 8 * Math.min(scaleX, scaleY);
+  lines.forEach((line, index) => {
+    const lineY = bodyTop + index * lineHeight;
+    if (lineY + lineHeight <= y + height - padding / 2) {
+      context.fillText(line, x + padding, lineY);
+    }
+  });
+
+  context.restore();
+}
 
 function CameraRig({ preset, viewMode }: { preset: CameraPreset; viewMode: RenderViewMode }) {
   const { camera } = useThree();
@@ -300,7 +397,7 @@ export const DockScene = forwardRef<DockSceneHandle, DockSceneProps>(({ settings
   const isCustomerView = viewMode === 'customer';
 
   useImperativeHandle(ref, () => ({
-    exportPng: () => {
+    exportPng: (options?: DockSceneExportPngOptions) => {
       const canvas = canvasRef.current;
       if (!canvas) {
         return;
@@ -308,7 +405,22 @@ export const DockScene = forwardRef<DockSceneHandle, DockSceneProps>(({ settings
 
       const link = document.createElement('a');
       link.download = 'dock-render-3d.png';
-      link.href = canvas.toDataURL('image/png');
+      if (options?.disclaimer) {
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = canvas.width;
+        exportCanvas.height = canvas.height;
+        const context = exportCanvas.getContext('2d');
+
+        if (context) {
+          context.drawImage(canvas, 0, 0);
+          drawExportDisclaimer(context, options.disclaimer, canvas);
+          link.href = exportCanvas.toDataURL('image/png');
+        } else {
+          link.href = canvas.toDataURL('image/png');
+        }
+      } else {
+        link.href = canvas.toDataURL('image/png');
+      }
       link.click();
     },
   }));
