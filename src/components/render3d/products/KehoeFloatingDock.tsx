@@ -34,6 +34,8 @@ const DEFAULT_STAVING_SPACING_FT = 0.82;
 const STAVING_PANEL_THICKNESS_FT = 0.028;
 const STAVING_SEAM_WIDTH_FT = 0.018;
 const STAVING_SEAM_PROJECTION_FT = 0.012;
+const STANDARD_FASCIA_SEAM_HEIGHT_FT = 0.028;
+const STANDARD_FASCIA_SEAM_PROJECTION_FT = 0.018;
 
 function getMaterials(viewMode: RenderViewMode, deckFinish: FloatingDockDeckFinish, deckColorOverride?: string) {
   const palette = getSalesMaterialPalette(viewMode);
@@ -325,6 +327,35 @@ function VerticalStaving({
   );
 }
 
+function StandardFasciaBoardSeams({
+  width,
+  length,
+  y,
+  color,
+}: {
+  width: number;
+  length: number;
+  y: number;
+  color: string;
+}) {
+  return (
+    <>
+      {[-1, 1].map((zSide) => (
+        <mesh key={`end-board-seam-${zSide}`} position={[0, y, zSide * (length / 2 + STANDARD_FASCIA_SEAM_PROJECTION_FT / 2)]} receiveShadow>
+          <boxGeometry args={[width * 0.98, STANDARD_FASCIA_SEAM_HEIGHT_FT, STANDARD_FASCIA_SEAM_PROJECTION_FT]} />
+          <meshStandardMaterial color={color} roughness={0.86} metalness={0} />
+        </mesh>
+      ))}
+      {[-1, 1].map((xSide) => (
+        <mesh key={`side-board-seam-${xSide}`} position={[xSide * (width / 2 + STANDARD_FASCIA_SEAM_PROJECTION_FT / 2), y, 0]} receiveShadow>
+          <boxGeometry args={[STANDARD_FASCIA_SEAM_PROJECTION_FT, STANDARD_FASCIA_SEAM_HEIGHT_FT, length * 0.98]} />
+          <meshStandardMaterial color={color} roughness={0.86} metalness={0} />
+        </mesh>
+      ))}
+    </>
+  );
+}
+
 export function KehoeFloatingDock({
   footprintWidthFt,
   footprintLengthFt,
@@ -351,6 +382,7 @@ export function KehoeFloatingDock({
   const deckY = FASCIA_DEPTH_FT + DECK_THICKNESS_FT / 2;
   const fasciaY = FASCIA_DEPTH_FT / 2;
   const rubY = FASCIA_DEPTH_FT * 0.52;
+  const standardFasciaSeamY = FASCIA_DEPTH_FT * 0.36;
   const maxTubeDiameterInsideFootprint = Math.max(0.5, footprintWidthFt * 0.42);
   const pontoonDiameter = Math.min(tubeDiameterFt, maxTubeDiameterInsideFootprint);
   const pontoonInset = Math.min(Math.max(PONTOON_INSET_FT, pontoonDiameter * 0.55), Math.max(0.28, footprintWidthFt * 0.24));
@@ -407,6 +439,14 @@ export function KehoeFloatingDock({
           height={FASCIA_DEPTH_FT * 0.9}
           color={verticalStavingColor ?? materials.fasciaDark}
           spacing={verticalStavingSpacingFt}
+        />
+      )}
+      {!verticalStavingEnabled && (
+        <StandardFasciaBoardSeams
+          width={footprintWidthFt}
+          length={footprintLengthFt}
+          y={standardFasciaSeamY}
+          color={materials.fasciaDark}
         />
       )}
 
