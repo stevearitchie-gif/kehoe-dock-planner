@@ -344,6 +344,7 @@ function KehoeFloatingDockElement({ element, viewMode }: { element: ProjectRende
         deckFinish={element.deckFinish}
         boardDirection={element.boardDirection}
         showStandardCleats={element.showStandardCleats ?? true}
+        showSideBumper={element.showSideBumper ?? true}
         verticalStavingEnabled={element.verticalStavingEnabled}
         verticalStavingColor={element.verticalStavingColor}
         verticalStavingSpacingFt={element.verticalStavingSpacingFt}
@@ -1133,6 +1134,7 @@ function getElementRenderKey(element: ProjectRenderElement, rampElevation?: Ramp
     element.deckFinish ?? 'deck-default',
     element.boardDirection ?? 'board-default',
     String(element.showStandardCleats ?? 'standard-cleats-default'),
+    String(element.showSideBumper ?? 'side-bumper-default'),
     String(element.verticalStavingEnabled ?? 'vertical-staving-default'),
     element.verticalStavingColor ?? 'vertical-staving-color-default',
     formatKeyNumber(element.verticalStavingSpacingFt),

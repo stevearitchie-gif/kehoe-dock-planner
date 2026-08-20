@@ -61,6 +61,7 @@ export interface ProjectRenderElement {
   deckFinish?: DeckFinish;
   boardDirection?: FloatingDockBoardDirection;
   showStandardCleats?: boolean;
+  showSideBumper?: boolean;
   verticalStavingEnabled?: boolean;
   verticalStavingColor?: string;
   verticalStavingSpacingFt?: number;

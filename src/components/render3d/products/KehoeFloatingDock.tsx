@@ -11,6 +11,7 @@ export interface KehoeFloatingDockProps {
   deckFinish?: FloatingDockDeckFinish;
   boardDirection?: FloatingDockBoardDirection;
   showStandardCleats?: boolean;
+  showSideBumper?: boolean;
   verticalStavingEnabled?: boolean;
   verticalStavingColor?: string;
   verticalStavingSpacingFt?: number;
@@ -332,6 +333,7 @@ export function KehoeFloatingDock({
   deckFinish = 'pressure-treated',
   boardDirection = 'none',
   showStandardCleats = true,
+  showSideBumper = true,
   verticalStavingEnabled = false,
   verticalStavingColor,
   verticalStavingSpacingFt,
@@ -389,10 +391,12 @@ export function KehoeFloatingDock({
             <boxGeometry args={[FASCIA_THICKNESS_FT, FASCIA_DEPTH_FT, footprintLengthFt]} />
             <meshStandardMaterial color={materials.fascia} roughness={isCompositeDeck ? 0.58 : 0.76} metalness={isCompositeDeck ? 0.02 : 0} transparent={opacity < 1} opacity={opacity} />
           </mesh>
-          <mesh position={[side * (footprintWidthFt / 2 + 0.012), rubY, 0]} castShadow>
-            <boxGeometry args={[0.035, 0.09, footprintLengthFt * 0.96]} />
-            <meshStandardMaterial color={materials.fasciaDark} roughness={0.74} />
-          </mesh>
+          {showSideBumper && (
+            <mesh position={[side * (footprintWidthFt / 2 + 0.012), rubY, 0]} castShadow>
+              <boxGeometry args={[0.035, 0.09, footprintLengthFt * 0.96]} />
+              <meshStandardMaterial color={materials.fasciaDark} roughness={0.74} />
+            </mesh>
+          )}
         </group>
       ))}
       {verticalStavingEnabled && (
@@ -418,7 +422,7 @@ export function KehoeFloatingDock({
           endColor={materials.pontoonEnd}
         />
       ))}
-      <SideFasteners width={footprintWidthFt} length={footprintLengthFt} y={rubY + 0.18} color={materials.fastener} />
+      {showSideBumper && <SideFasteners width={footprintWidthFt} length={footprintLengthFt} y={rubY + 0.18} color={materials.fastener} />}
       <ConnectionPlates width={footprintWidthFt} length={footprintLengthFt} y={deckTopY + 0.035} color={materials.metal} />
       {viewMode === 'customer' && showStandardCleats && (
         <Cleats width={footprintWidthFt} length={footprintLengthFt} y={deckTopY + 0.055} color={materials.metal} />

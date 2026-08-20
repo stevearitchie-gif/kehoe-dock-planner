@@ -2500,6 +2500,16 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
     }));
   };
 
+  const handleSelectedDockSideBumperChange = (checked: boolean) => {
+    updateSelectedObject((object) => ({
+      ...object,
+      metadata: {
+        ...object.metadata,
+        showSideBumper: checked,
+      },
+    }));
+  };
+
   const handleSelectedDockVerticalStavingChange = (checked: boolean) => {
     updateSelectedObject((object) => ({
       ...object,
@@ -3899,6 +3909,22 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                                 type="checkbox"
                                 checked={selectedObject.metadata?.showStandardCleats ?? true}
                                 onChange={(event) => handleSelectedFloatingDockStandardCleatsChange(event.target.checked)}
+                                className="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                              />
+                            </label>
+                            <label className="mt-3 flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
+                              <span>
+                                <span className="block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                  Side Bumper / Rub Rail
+                                </span>
+                                <span className="mt-1 block text-xs text-slate-600">
+                                  Show the horizontal side bumper on the dock fascia.
+                                </span>
+                              </span>
+                              <input
+                                type="checkbox"
+                                checked={selectedObject.metadata?.showSideBumper ?? true}
+                                onChange={(event) => handleSelectedDockSideBumperChange(event.target.checked)}
                                 className="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                               />
                             </label>

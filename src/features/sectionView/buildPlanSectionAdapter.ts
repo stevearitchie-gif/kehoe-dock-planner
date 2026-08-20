@@ -140,6 +140,7 @@ function formatDockDetails(object: DockObject) {
   const details = [
     formatBoardDirection(object),
     object.metadata?.verticalStavingEnabled ? 'vertical staving' : undefined,
+    object.metadata?.showSideBumper === false ? 'side bumper hidden' : undefined,
   ].filter(Boolean);
 
   return details.length > 0 ? details.join(', ') : undefined;

@@ -100,6 +100,14 @@ function getFloatingDockShowStandardCleats(object: DockObject): boolean | undefi
   return object.metadata?.showStandardCleats;
 }
 
+function getDockShowSideBumper(object: DockObject): boolean | undefined {
+  if (object.type !== 'floating_dock' && object.type !== 'stationary_dock') {
+    return undefined;
+  }
+
+  return object.metadata?.showSideBumper;
+}
+
 function getDockVerticalStavingEnabled(object: DockObject): boolean | undefined {
   if (object.type !== 'floating_dock' && object.type !== 'stationary_dock') {
     return undefined;
@@ -246,6 +254,7 @@ export function buildProjectRenderModel(project: DockProject): ProjectRenderMode
       anchorInterpretation: 'top-left group origin, center adjusted for rotation',
       boardDirection: getPlatformBoardDirection(object),
       showStandardCleats: getFloatingDockShowStandardCleats(object),
+      showSideBumper: getDockShowSideBumper(object),
       verticalStavingEnabled: getDockVerticalStavingEnabled(object),
       verticalStavingColor: getDockVerticalStavingColor(object),
       verticalStavingSpacingFt: getPositiveMetadataNumber(object.metadata?.verticalStavingSpacingFt),

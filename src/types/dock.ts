@@ -86,6 +86,7 @@ export interface DockObject {
     material?: string;
     boardDirection?: 'none' | 'horizontal' | 'vertical';
     showStandardCleats?: boolean;
+    showSideBumper?: boolean;
     verticalStavingEnabled?: boolean;
     verticalStavingColor?: string;
     verticalStavingSpacingFt?: number;
