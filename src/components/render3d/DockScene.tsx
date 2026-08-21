@@ -37,8 +37,19 @@ interface DockSceneExportOverlay {
   body: string;
 }
 
+interface DockSceneExportProjectDetailsOverlay {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  viewportWidth: number;
+  viewportHeight: number;
+  rows: Array<{ label: string; value: string }>;
+}
+
 interface DockSceneExportPngOptions {
   disclaimer?: DockSceneExportOverlay;
+  projectDetails?: DockSceneExportProjectDetailsOverlay;
 }
 
 const cameraPositions: Record<CameraPreset, [number, number, number]> = {
@@ -134,6 +145,75 @@ function drawExportDisclaimer(context: CanvasRenderingContext2D, overlay: DockSc
     if (lineY + lineHeight <= y + height - padding / 2) {
       context.fillText(line, x + padding, lineY);
     }
+  });
+
+  context.restore();
+}
+
+function drawExportProjectDetails(context: CanvasRenderingContext2D, overlay: DockSceneExportProjectDetailsOverlay, canvas: HTMLCanvasElement) {
+  if (overlay.viewportWidth <= 0 || overlay.viewportHeight <= 0) {
+    return;
+  }
+
+  const scaleX = canvas.width / overlay.viewportWidth;
+  const scaleY = canvas.height / overlay.viewportHeight;
+  const scale = Math.min(scaleX, scaleY);
+  const x = overlay.x * scaleX;
+  const y = overlay.y * scaleY;
+  const width = overlay.width * scaleX;
+  const height = overlay.height * scaleY;
+  const headerHeight = 34 * scale;
+  const labelWidth = 96 * scale;
+  const paddingX = 12 * scale;
+  const rowHeight = Math.max(22 * scale, (height - headerHeight) / Math.max(1, overlay.rows.length));
+
+  context.save();
+  context.fillStyle = 'rgba(255, 255, 255, 0.94)';
+  context.fillRect(x, y, width, height);
+  context.strokeStyle = 'rgba(15, 23, 42, 0.62)';
+  context.lineWidth = Math.max(1, scale);
+  context.strokeRect(x, y, width, height);
+
+  context.fillStyle = '#b91c1c';
+  context.fillRect(x + paddingX, y + 9 * scale, 68 * scale, 18 * scale);
+  context.fillStyle = '#ffffff';
+  context.font = `700 ${13 * scale}px Arial, sans-serif`;
+  context.textBaseline = 'middle';
+  context.textAlign = 'center';
+  context.fillText('Kehoe', x + paddingX + 34 * scale, y + headerHeight / 2);
+
+  context.fillStyle = '#0f172a';
+  context.font = `700 ${12 * scale}px Arial, sans-serif`;
+  context.textAlign = 'left';
+  context.fillText('PROJECT DETAILS', x + paddingX + 82 * scale, y + headerHeight / 2);
+
+  context.beginPath();
+  context.moveTo(x, y + headerHeight);
+  context.lineTo(x + width, y + headerHeight);
+  context.stroke();
+
+  overlay.rows.forEach((row, index) => {
+    const rowY = y + headerHeight + index * rowHeight;
+
+    context.strokeStyle = 'rgba(15, 23, 42, 0.3)';
+    context.beginPath();
+    context.moveTo(x, rowY);
+    context.lineTo(x + width, rowY);
+    context.stroke();
+
+    context.fillStyle = '#475569';
+    context.font = `700 ${10 * scale}px Arial, sans-serif`;
+    context.textAlign = 'left';
+    context.textBaseline = 'top';
+    context.fillText(row.label, x + paddingX, rowY + 6 * scale);
+
+    context.fillStyle = '#0f172a';
+    context.font = `400 ${11 * scale}px Arial, sans-serif`;
+    const value = row.value || '-';
+    const valueLines = wrapCanvasText(context, value, width - labelWidth - paddingX * 1.5);
+    valueLines.slice(0, 2).forEach((line, lineIndex) => {
+      context.fillText(line, x + labelWidth, rowY + 6 * scale + lineIndex * 13 * scale);
+    });
   });
 
   context.restore();
@@ -405,7 +485,7 @@ export const DockScene = forwardRef<DockSceneHandle, DockSceneProps>(({ settings
 
       const link = document.createElement('a');
       link.download = 'dock-render-3d.png';
-      if (options?.disclaimer) {
+      if (options?.disclaimer || options?.projectDetails) {
         const exportCanvas = document.createElement('canvas');
         exportCanvas.width = canvas.width;
         exportCanvas.height = canvas.height;
@@ -413,7 +493,12 @@ export const DockScene = forwardRef<DockSceneHandle, DockSceneProps>(({ settings
 
         if (context) {
           context.drawImage(canvas, 0, 0);
-          drawExportDisclaimer(context, options.disclaimer, canvas);
+          if (options.projectDetails) {
+            drawExportProjectDetails(context, options.projectDetails, canvas);
+          }
+          if (options.disclaimer) {
+            drawExportDisclaimer(context, options.disclaimer, canvas);
+          }
           link.href = exportCanvas.toDataURL('image/png');
         } else {
           link.href = canvas.toDataURL('image/png');

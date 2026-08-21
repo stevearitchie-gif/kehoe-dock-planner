@@ -33,6 +33,11 @@ const CONCEPT_NOTE_BODY =
 const CONCEPT_NOTE_WIDTH = 360;
 const CONCEPT_NOTE_HEIGHT = 148;
 const CONCEPT_NOTE_MARGIN = 24;
+const PROJECT_DETAILS_WIDTH = 360;
+const PROJECT_DETAILS_HEIGHT = 250;
+const PROJECT_DETAILS_MARGIN = 24;
+
+type ProjectDetailsRow = { label: string; value: string };
 
 function clampConceptNotePositionToViewport(position: { x: number; y: number }, viewport: { width: number; height: number }) {
   const maxX = Math.max(CONCEPT_NOTE_MARGIN, viewport.width - CONCEPT_NOTE_WIDTH - CONCEPT_NOTE_MARGIN);
@@ -42,6 +47,44 @@ function clampConceptNotePositionToViewport(position: { x: number; y: number }, 
     x: Math.min(Math.max(CONCEPT_NOTE_MARGIN, position.x), maxX),
     y: Math.min(Math.max(CONCEPT_NOTE_MARGIN, position.y), maxY),
   };
+}
+
+function clampProjectDetailsPositionToViewport(position: { x: number; y: number }, viewport: { width: number; height: number }) {
+  const maxX = Math.max(PROJECT_DETAILS_MARGIN, viewport.width - PROJECT_DETAILS_WIDTH - PROJECT_DETAILS_MARGIN);
+  const maxY = Math.max(PROJECT_DETAILS_MARGIN, viewport.height - PROJECT_DETAILS_HEIGHT - PROJECT_DETAILS_MARGIN);
+
+  return {
+    x: Math.min(Math.max(PROJECT_DETAILS_MARGIN, position.x), maxX),
+    y: Math.min(Math.max(PROJECT_DETAILS_MARGIN, position.y), maxY),
+  };
+}
+
+function formatProjectDetailsDate(value?: string) {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+}
+
+function resolveProjectDetailsRows(project: DockProject | null, isQuotePreview: boolean): ProjectDetailsRow[] {
+  const drawingInfo = project?.drawingInfo;
+  const projectName = project?.name ?? (isQuotePreview ? 'Quote 3D Product Preview' : '3D Dock Render');
+  const scaleLabel = project?.scale
+    ? `${project.scale.realLength} ${project.scale.unit} / ${project.scale.pixels}px`
+    : 'Not to scale';
+
+  return [
+    { label: 'Date:', value: formatProjectDetailsDate(drawingInfo?.date ?? project?.drawingDate) },
+    { label: 'Client:', value: drawingInfo?.client ?? project?.clientName ?? '' },
+    { label: 'Location:', value: drawingInfo?.location ?? project?.projectLocation ?? '' },
+    { label: 'Description:', value: drawingInfo?.description ?? project?.description ?? projectName },
+    { label: 'Drawing #:', value: drawingInfo?.drawingNumber ?? project?.drawingNumber ?? '' },
+    { label: 'Rev:', value: drawingInfo?.revision ?? project?.revision ?? '0' },
+    { label: 'Completed By:', value: drawingInfo?.completedBy ?? project?.completedBy ?? '' },
+    { label: 'Scale:', value: scaleLabel },
+  ];
 }
 
 type QuotePreviewDeckMaterial = 'pressure_treated_wood' | 'tru_north_pvc' | 'composite_grey';
@@ -413,11 +456,13 @@ export function DockRender3DPage() {
   const sceneRef = useRef<DockSceneHandle | null>(null);
   const renderViewportRef = useRef<HTMLElement | null>(null);
   const conceptNoteDragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
+  const projectDetailsDragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
   const [settings, setSettings] = useState<DockRenderSettings>(defaultRenderSettings);
   const [cameraPreset, setCameraPreset] = useState<CameraPreset>('isometric');
   const [viewMode, setViewMode] = useState<RenderViewMode>('customer');
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(true);
   const [conceptNotePosition, setConceptNotePosition] = useState<{ x: number; y: number } | null>(null);
+  const [projectDetailsPosition, setProjectDetailsPosition] = useState<{ x: number; y: number } | null>(null);
   const [renderViewportSize, setRenderViewportSize] = useState({ width: 0, height: 0 });
   const [project, setProject] = useState<DockProject | null>(null);
   const [isLoadingProject, setIsLoadingProject] = useState(false);
@@ -432,29 +477,47 @@ export function DockRender3DPage() {
   const [quoteImportWarnings, setQuoteImportWarnings] = useState<string[]>([]);
   const canReturnToEditor = Boolean(projectId && projectId !== 'local-test' && !isQuotePreview);
   const toggleSidePanel = () => setIsSidePanelOpen((isOpen) => !isOpen);
+  const projectDetailsRows = useMemo(() => resolveProjectDetailsRows(project, isQuotePreview), [isQuotePreview, project]);
   const handleExportPng = useCallback(() => {
     if (!sceneRef.current) {
       return;
     }
 
-    if (!conceptNotePosition || renderViewportSize.width <= 0 || renderViewportSize.height <= 0) {
+    if (
+      renderViewportSize.width <= 0 ||
+      renderViewportSize.height <= 0 ||
+      (!conceptNotePosition && !projectDetailsPosition)
+    ) {
       sceneRef.current.exportPng();
       return;
     }
 
     sceneRef.current.exportPng({
-      disclaimer: {
-        x: conceptNotePosition.x,
-        y: conceptNotePosition.y,
-        width: CONCEPT_NOTE_WIDTH,
-        height: CONCEPT_NOTE_HEIGHT,
-        viewportWidth: renderViewportSize.width,
-        viewportHeight: renderViewportSize.height,
-        title: CONCEPT_NOTE_TITLE,
-        body: CONCEPT_NOTE_BODY,
-      },
+      projectDetails: projectDetailsPosition
+        ? {
+            x: projectDetailsPosition.x,
+            y: projectDetailsPosition.y,
+            width: PROJECT_DETAILS_WIDTH,
+            height: PROJECT_DETAILS_HEIGHT,
+            viewportWidth: renderViewportSize.width,
+            viewportHeight: renderViewportSize.height,
+            rows: projectDetailsRows,
+          }
+        : undefined,
+      disclaimer: conceptNotePosition
+        ? {
+            x: conceptNotePosition.x,
+            y: conceptNotePosition.y,
+            width: CONCEPT_NOTE_WIDTH,
+            height: CONCEPT_NOTE_HEIGHT,
+            viewportWidth: renderViewportSize.width,
+            viewportHeight: renderViewportSize.height,
+            title: CONCEPT_NOTE_TITLE,
+            body: CONCEPT_NOTE_BODY,
+          }
+        : undefined,
     });
-  }, [conceptNotePosition, renderViewportSize.height, renderViewportSize.width]);
+  }, [conceptNotePosition, projectDetailsPosition, projectDetailsRows, renderViewportSize.height, renderViewportSize.width]);
   const handleConceptNotePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!conceptNotePosition) {
       return;
@@ -510,6 +573,66 @@ export function DockRender3DPage() {
         {
           x: CONCEPT_NOTE_MARGIN,
           y: Math.max(CONCEPT_NOTE_MARGIN, renderViewportSize.height - CONCEPT_NOTE_HEIGHT - CONCEPT_NOTE_MARGIN),
+        },
+        renderViewportSize,
+      ),
+    );
+  };
+  const handleProjectDetailsPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!projectDetailsPosition) {
+      return;
+    }
+
+    const viewportRect = renderViewportRef.current?.getBoundingClientRect();
+    if (!viewportRect) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    projectDetailsDragRef.current = {
+      pointerId: event.pointerId,
+      offsetX: event.clientX - viewportRect.left - projectDetailsPosition.x,
+      offsetY: event.clientY - viewportRect.top - projectDetailsPosition.y,
+    };
+  };
+  const handleProjectDetailsPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const dragState = projectDetailsDragRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    const viewportRect = renderViewportRef.current?.getBoundingClientRect();
+    if (!viewportRect) {
+      return;
+    }
+
+    const nextPosition = {
+      x: event.clientX - viewportRect.left - dragState.offsetX,
+      y: event.clientY - viewportRect.top - dragState.offsetY,
+    };
+    setProjectDetailsPosition(clampProjectDetailsPositionToViewport(nextPosition, renderViewportSize));
+  };
+  const handleProjectDetailsPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const dragState = projectDetailsDragRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    projectDetailsDragRef.current = null;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+  const resetProjectDetailsPosition = () => {
+    setProjectDetailsPosition(
+      clampProjectDetailsPositionToViewport(
+        {
+          x: Math.max(PROJECT_DETAILS_MARGIN, renderViewportSize.width - PROJECT_DETAILS_WIDTH - PROJECT_DETAILS_MARGIN),
+          y: PROJECT_DETAILS_MARGIN,
         },
         renderViewportSize,
       ),
@@ -584,6 +707,14 @@ export function DockRender3DPage() {
         };
 
         return clampConceptNotePositionToViewport(currentPosition ?? defaultPosition, viewport);
+      });
+      setProjectDetailsPosition((currentPosition) => {
+        const defaultPosition = {
+          x: Math.max(PROJECT_DETAILS_MARGIN, viewport.width - PROJECT_DETAILS_WIDTH - PROJECT_DETAILS_MARGIN),
+          y: PROJECT_DETAILS_MARGIN,
+        };
+
+        return clampProjectDetailsPositionToViewport(currentPosition ?? defaultPosition, viewport);
       });
     };
 
@@ -890,6 +1021,52 @@ export function DockRender3DPage() {
               viewMode={viewMode}
               showFallbackModel={!isQuotePreview}
             />
+            {projectDetailsPosition && (
+              <div
+                className="absolute z-20 cursor-move select-none border border-slate-700 bg-white/95 text-left text-slate-900 shadow-md backdrop-blur-sm"
+                style={{
+                  left: projectDetailsPosition.x,
+                  top: projectDetailsPosition.y,
+                  width: PROJECT_DETAILS_WIDTH,
+                  minHeight: PROJECT_DETAILS_HEIGHT,
+                  touchAction: 'none',
+                }}
+                onPointerDown={handleProjectDetailsPointerDown}
+                onPointerMove={handleProjectDetailsPointerMove}
+                onPointerUp={handleProjectDetailsPointerUp}
+                onPointerCancel={handleProjectDetailsPointerUp}
+                role="note"
+                aria-label="Project Details"
+              >
+                <div className="flex min-h-10 items-center justify-between gap-3 border-b border-slate-700 px-3 py-2">
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex h-6 min-w-16 items-center justify-center bg-red-700 px-2 text-sm font-bold italic text-white">
+                      Kehoe
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-900">Project Details</span>
+                  </div>
+                  <button
+                    type="button"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      resetProjectDetailsPosition();
+                    }}
+                    className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-slate-600 hover:bg-slate-50"
+                  >
+                    Reset
+                  </button>
+                </div>
+                <dl className="grid text-xs">
+                  {projectDetailsRows.map((row) => (
+                    <div key={row.label} className="grid min-h-6 grid-cols-[6.5rem_minmax(0,1fr)] border-b border-slate-300 last:border-b-0">
+                      <dt className="border-r border-slate-300 px-2 py-1 font-semibold text-slate-600">{row.label}</dt>
+                      <dd className="min-w-0 px-2 py-1 text-slate-900">{row.value || '-'}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )}
             {conceptNotePosition && (
               <div
                 className="absolute z-20 cursor-move select-none rounded-md border border-slate-300 bg-white/90 px-3 py-3 text-left text-slate-700 shadow-md backdrop-blur-sm"
