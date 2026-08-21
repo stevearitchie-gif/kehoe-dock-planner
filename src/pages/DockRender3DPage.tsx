@@ -37,7 +37,12 @@ const PROJECT_DETAILS_WIDTH = 360;
 const PROJECT_DETAILS_HEIGHT = 250;
 const PROJECT_DETAILS_MARGIN = 24;
 const PROJECT_DETAILS_MIN_WIDTH = 260;
-const PROJECT_DETAILS_MIN_HEIGHT = 180;
+const PROJECT_DETAILS_HEADER_HEIGHT = 40;
+const PROJECT_DETAILS_ROW_HEIGHT = 24;
+const PROJECT_DETAILS_ROW_COUNT = 8;
+const PROJECT_DETAILS_RESIZE_HANDLE_CLEARANCE = 24;
+const PROJECT_DETAILS_MIN_HEIGHT =
+  PROJECT_DETAILS_HEADER_HEIGHT + PROJECT_DETAILS_ROW_HEIGHT * PROJECT_DETAILS_ROW_COUNT + PROJECT_DETAILS_RESIZE_HANDLE_CLEARANCE;
 const PROJECT_DETAILS_MAX_VIEWPORT_RATIO = 0.5;
 
 type ProjectDetailsRow = { label: string; value: string };
@@ -1171,9 +1176,13 @@ export function DockRender3DPage() {
                 </div>
                 <dl className="grid text-xs">
                   {projectDetailsRows.map((row) => (
-                    <div key={row.label} className="grid min-h-6 grid-cols-[6.5rem_minmax(0,1fr)] border-b border-slate-300 last:border-b-0">
+                    <div
+                      key={row.label}
+                      className="grid grid-cols-[6.5rem_minmax(0,1fr)] border-b border-slate-300 last:border-b-0"
+                      style={{ minHeight: PROJECT_DETAILS_ROW_HEIGHT }}
+                    >
                       <dt className="border-r border-slate-300 px-2 py-1 font-semibold text-slate-600">{row.label}</dt>
-                      <dd className="min-w-0 px-2 py-1 text-slate-900">{row.value || '-'}</dd>
+                      <dd className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1 text-slate-900">{row.value || '-'}</dd>
                     </div>
                   ))}
                 </dl>
