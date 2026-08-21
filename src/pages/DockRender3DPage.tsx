@@ -36,8 +36,12 @@ const CONCEPT_NOTE_MARGIN = 24;
 const PROJECT_DETAILS_WIDTH = 360;
 const PROJECT_DETAILS_HEIGHT = 250;
 const PROJECT_DETAILS_MARGIN = 24;
+const PROJECT_DETAILS_MIN_WIDTH = 260;
+const PROJECT_DETAILS_MIN_HEIGHT = 180;
+const PROJECT_DETAILS_MAX_VIEWPORT_RATIO = 0.5;
 
 type ProjectDetailsRow = { label: string; value: string };
+type ProjectDetailsSize = { width: number; height: number };
 
 function clampConceptNotePositionToViewport(position: { x: number; y: number }, viewport: { width: number; height: number }) {
   const maxX = Math.max(CONCEPT_NOTE_MARGIN, viewport.width - CONCEPT_NOTE_WIDTH - CONCEPT_NOTE_MARGIN);
@@ -49,9 +53,29 @@ function clampConceptNotePositionToViewport(position: { x: number; y: number }, 
   };
 }
 
-function clampProjectDetailsPositionToViewport(position: { x: number; y: number }, viewport: { width: number; height: number }) {
-  const maxX = Math.max(PROJECT_DETAILS_MARGIN, viewport.width - PROJECT_DETAILS_WIDTH - PROJECT_DETAILS_MARGIN);
-  const maxY = Math.max(PROJECT_DETAILS_MARGIN, viewport.height - PROJECT_DETAILS_HEIGHT - PROJECT_DETAILS_MARGIN);
+function clampProjectDetailsSizeToViewport(size: ProjectDetailsSize, viewport: { width: number; height: number }): ProjectDetailsSize {
+  const maxWidth = Math.max(
+    PROJECT_DETAILS_MIN_WIDTH,
+    Math.min(viewport.width * PROJECT_DETAILS_MAX_VIEWPORT_RATIO, viewport.width - PROJECT_DETAILS_MARGIN * 2),
+  );
+  const maxHeight = Math.max(
+    PROJECT_DETAILS_MIN_HEIGHT,
+    Math.min(viewport.height * PROJECT_DETAILS_MAX_VIEWPORT_RATIO, viewport.height - PROJECT_DETAILS_MARGIN * 2),
+  );
+
+  return {
+    width: Math.min(Math.max(PROJECT_DETAILS_MIN_WIDTH, size.width), maxWidth),
+    height: Math.min(Math.max(PROJECT_DETAILS_MIN_HEIGHT, size.height), maxHeight),
+  };
+}
+
+function clampProjectDetailsPositionToViewport(
+  position: { x: number; y: number },
+  viewport: { width: number; height: number },
+  size: ProjectDetailsSize = { width: PROJECT_DETAILS_WIDTH, height: PROJECT_DETAILS_HEIGHT },
+) {
+  const maxX = Math.max(PROJECT_DETAILS_MARGIN, viewport.width - size.width - PROJECT_DETAILS_MARGIN);
+  const maxY = Math.max(PROJECT_DETAILS_MARGIN, viewport.height - size.height - PROJECT_DETAILS_MARGIN);
 
   return {
     x: Math.min(Math.max(PROJECT_DETAILS_MARGIN, position.x), maxX),
@@ -457,12 +481,24 @@ export function DockRender3DPage() {
   const renderViewportRef = useRef<HTMLElement | null>(null);
   const conceptNoteDragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
   const projectDetailsDragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
+  const projectDetailsResizeRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startWidth: number;
+    startHeight: number;
+  } | null>(null);
   const [settings, setSettings] = useState<DockRenderSettings>(defaultRenderSettings);
   const [cameraPreset, setCameraPreset] = useState<CameraPreset>('isometric');
   const [viewMode, setViewMode] = useState<RenderViewMode>('customer');
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(true);
   const [conceptNotePosition, setConceptNotePosition] = useState<{ x: number; y: number } | null>(null);
   const [projectDetailsPosition, setProjectDetailsPosition] = useState<{ x: number; y: number } | null>(null);
+  const [projectDetailsSize, setProjectDetailsSize] = useState<ProjectDetailsSize>({
+    width: PROJECT_DETAILS_WIDTH,
+    height: PROJECT_DETAILS_HEIGHT,
+  });
+  const [isProjectDetailsVisible, setIsProjectDetailsVisible] = useState(true);
   const [renderViewportSize, setRenderViewportSize] = useState({ width: 0, height: 0 });
   const [project, setProject] = useState<DockProject | null>(null);
   const [isLoadingProject, setIsLoadingProject] = useState(false);
@@ -486,19 +522,19 @@ export function DockRender3DPage() {
     if (
       renderViewportSize.width <= 0 ||
       renderViewportSize.height <= 0 ||
-      (!conceptNotePosition && !projectDetailsPosition)
+      (!conceptNotePosition && (!isProjectDetailsVisible || !projectDetailsPosition))
     ) {
       sceneRef.current.exportPng();
       return;
     }
 
     sceneRef.current.exportPng({
-      projectDetails: projectDetailsPosition
+      projectDetails: isProjectDetailsVisible && projectDetailsPosition
         ? {
             x: projectDetailsPosition.x,
             y: projectDetailsPosition.y,
-            width: PROJECT_DETAILS_WIDTH,
-            height: PROJECT_DETAILS_HEIGHT,
+            width: projectDetailsSize.width,
+            height: projectDetailsSize.height,
             viewportWidth: renderViewportSize.width,
             viewportHeight: renderViewportSize.height,
             rows: projectDetailsRows,
@@ -517,7 +553,16 @@ export function DockRender3DPage() {
           }
         : undefined,
     });
-  }, [conceptNotePosition, projectDetailsPosition, projectDetailsRows, renderViewportSize.height, renderViewportSize.width]);
+  }, [
+    conceptNotePosition,
+    isProjectDetailsVisible,
+    projectDetailsPosition,
+    projectDetailsRows,
+    projectDetailsSize.height,
+    projectDetailsSize.width,
+    renderViewportSize.height,
+    renderViewportSize.width,
+  ]);
   const handleConceptNotePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!conceptNotePosition) {
       return;
@@ -614,7 +659,7 @@ export function DockRender3DPage() {
       x: event.clientX - viewportRect.left - dragState.offsetX,
       y: event.clientY - viewportRect.top - dragState.offsetY,
     };
-    setProjectDetailsPosition(clampProjectDetailsPositionToViewport(nextPosition, renderViewportSize));
+    setProjectDetailsPosition(clampProjectDetailsPositionToViewport(nextPosition, renderViewportSize, projectDetailsSize));
   };
   const handleProjectDetailsPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
     const dragState = projectDetailsDragRef.current;
@@ -628,15 +673,69 @@ export function DockRender3DPage() {
     event.currentTarget.releasePointerCapture(event.pointerId);
   };
   const resetProjectDetailsPosition = () => {
+    const defaultSize = clampProjectDetailsSizeToViewport(
+      {
+        width: PROJECT_DETAILS_WIDTH,
+        height: PROJECT_DETAILS_HEIGHT,
+      },
+      renderViewportSize,
+    );
+
+    setProjectDetailsSize(defaultSize);
     setProjectDetailsPosition(
       clampProjectDetailsPositionToViewport(
         {
-          x: Math.max(PROJECT_DETAILS_MARGIN, renderViewportSize.width - PROJECT_DETAILS_WIDTH - PROJECT_DETAILS_MARGIN),
+          x: Math.max(PROJECT_DETAILS_MARGIN, renderViewportSize.width - defaultSize.width - PROJECT_DETAILS_MARGIN),
           y: PROJECT_DETAILS_MARGIN,
         },
         renderViewportSize,
+        defaultSize,
       ),
     );
+  };
+  const handleProjectDetailsResizePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    projectDetailsResizeRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startWidth: projectDetailsSize.width,
+      startHeight: projectDetailsSize.height,
+    };
+  };
+  const handleProjectDetailsResizePointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const resizeState = projectDetailsResizeRef.current;
+    if (!resizeState || resizeState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    const nextSize = clampProjectDetailsSizeToViewport(
+      {
+        width: resizeState.startWidth + event.clientX - resizeState.startX,
+        height: resizeState.startHeight + event.clientY - resizeState.startY,
+      },
+      renderViewportSize,
+    );
+
+    setProjectDetailsSize(nextSize);
+    setProjectDetailsPosition((currentPosition) =>
+      currentPosition ? clampProjectDetailsPositionToViewport(currentPosition, renderViewportSize, nextSize) : currentPosition,
+    );
+  };
+  const handleProjectDetailsResizePointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const resizeState = projectDetailsResizeRef.current;
+    if (!resizeState || resizeState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    projectDetailsResizeRef.current = null;
+    event.currentTarget.releasePointerCapture(event.pointerId);
   };
 
   useEffect(() => {
@@ -708,13 +807,18 @@ export function DockRender3DPage() {
 
         return clampConceptNotePositionToViewport(currentPosition ?? defaultPosition, viewport);
       });
-      setProjectDetailsPosition((currentPosition) => {
+      setProjectDetailsSize((currentSize) => {
+        const clampedSize = clampProjectDetailsSizeToViewport(currentSize, viewport);
         const defaultPosition = {
-          x: Math.max(PROJECT_DETAILS_MARGIN, viewport.width - PROJECT_DETAILS_WIDTH - PROJECT_DETAILS_MARGIN),
+          x: Math.max(PROJECT_DETAILS_MARGIN, viewport.width - clampedSize.width - PROJECT_DETAILS_MARGIN),
           y: PROJECT_DETAILS_MARGIN,
         };
 
-        return clampProjectDetailsPositionToViewport(currentPosition ?? defaultPosition, viewport);
+        setProjectDetailsPosition((currentPosition) =>
+          clampProjectDetailsPositionToViewport(currentPosition ?? defaultPosition, viewport, clampedSize),
+        );
+
+        return clampedSize.width === currentSize.width && clampedSize.height === currentSize.height ? currentSize : clampedSize;
       });
     };
 
@@ -967,6 +1071,14 @@ export function DockRender3DPage() {
             </button>
             <button
               type="button"
+              onClick={() => setIsProjectDetailsVisible((isVisible) => !isVisible)}
+              className="min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              aria-pressed={isProjectDetailsVisible}
+            >
+              {isProjectDetailsVisible ? 'Hide Project Details' : 'Show Project Details'}
+            </button>
+            <button
+              type="button"
               onClick={toggleSidePanel}
               className="min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
               aria-expanded={isSidePanelOpen}
@@ -1021,14 +1133,14 @@ export function DockRender3DPage() {
               viewMode={viewMode}
               showFallbackModel={!isQuotePreview}
             />
-            {projectDetailsPosition && (
+            {isProjectDetailsVisible && projectDetailsPosition && (
               <div
-                className="absolute z-20 cursor-move select-none border border-slate-700 bg-white/95 text-left text-slate-900 shadow-md backdrop-blur-sm"
+                className="absolute z-20 cursor-move select-none overflow-hidden border border-slate-700 bg-white/95 text-left text-slate-900 shadow-md backdrop-blur-sm"
                 style={{
                   left: projectDetailsPosition.x,
                   top: projectDetailsPosition.y,
-                  width: PROJECT_DETAILS_WIDTH,
-                  minHeight: PROJECT_DETAILS_HEIGHT,
+                  width: projectDetailsSize.width,
+                  height: projectDetailsSize.height,
                   touchAction: 'none',
                 }}
                 onPointerDown={handleProjectDetailsPointerDown}
@@ -1065,6 +1177,23 @@ export function DockRender3DPage() {
                     </div>
                   ))}
                 </dl>
+                <button
+                  type="button"
+                  aria-label="Resize Project Details"
+                  title="Resize Project Details"
+                  className="absolute bottom-0 right-0 h-6 w-6 cursor-nwse-resize border-l border-t border-slate-400 bg-white/90"
+                  style={{ touchAction: 'none' }}
+                  onPointerDown={handleProjectDetailsResizePointerDown}
+                  onPointerMove={handleProjectDetailsResizePointerMove}
+                  onPointerUp={handleProjectDetailsResizePointerUp}
+                  onPointerCancel={handleProjectDetailsResizePointerUp}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }}
+                >
+                  <span className="pointer-events-none absolute bottom-1 right-1 h-3 w-3 border-b-2 border-r-2 border-slate-500" />
+                </button>
               </div>
             )}
             {conceptNotePosition && (
