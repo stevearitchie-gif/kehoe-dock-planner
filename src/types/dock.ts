@@ -134,6 +134,11 @@ export interface DrawingInfo {
   date?: string;
 }
 
+export interface BuildPlanDisplaySettings {
+  labelFontSizePx?: number;
+  dimensionFontSizePx?: number;
+}
+
 export interface DockProject {
   id: string;
   name: string;
@@ -151,6 +156,7 @@ export interface DockProject {
   sectionView?: SectionViewData;
   notes?: string;
   drawingInfo?: DrawingInfo;
+  buildPlanDisplaySettings?: BuildPlanDisplaySettings;
   clientName?: string;
   projectLocation?: string;
   description?: string;

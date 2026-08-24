@@ -32,6 +32,8 @@ interface EditorCanvasProps {
   currentScale: ProjectScale;
   showScaleReference?: boolean;
   isSnapToGridEnabled: boolean;
+  labelFontSizePx?: number;
+  dimensionFontSizePx?: number;
   zoom: number;
   onZoomChange: (nextZoom: number) => void;
 }
@@ -96,6 +98,7 @@ type ObjectLabelRendererProps = {
   labelText: string;
   labelColor?: string;
   labelRotation: 0 | 90 | -90;
+  fontSize: number;
   centerX: number;
   centerY: number;
   defaultCenterX: number;
@@ -113,7 +116,8 @@ const MAX_ZOOM = 3;
 const MIN_OBJECT_SIZE = 10;
 const ROTATION_HANDLE_OFFSET = 28;
 const LABEL_BOX_MIN_WIDTH = 120;
-const LABEL_FONT_SIZE = 12;
+const DEFAULT_LABEL_FONT_SIZE = 12;
+const DEFAULT_DIMENSION_FONT_SIZE = 12;
 
 const DRAW_START_THRESHOLD = 8;
 
@@ -276,8 +280,8 @@ function getFeetToPixels(feet: number, scale: ProjectScale): number {
   return (feet / scaleLengthInFeet) * scale.pixels;
 }
 
-function getLabelTextBoxWidth(text: string): number {
-  const estimatedTextWidth = Math.ceil(text.length * LABEL_FONT_SIZE * 0.7 + 20);
+function getLabelTextBoxWidth(text: string, fontSize: number): number {
+  const estimatedTextWidth = Math.ceil(text.length * fontSize * 0.7 + 20);
   return Math.max(LABEL_BOX_MIN_WIDTH, estimatedTextWidth);
 }
 
@@ -290,6 +294,7 @@ function renderObjectLabel({
   labelText,
   labelColor,
   labelRotation,
+  fontSize,
   centerX,
   centerY,
   defaultCenterX,
@@ -350,7 +355,7 @@ function renderObjectLabel({
         sceneFunc={(context) => {
           context.save();
           context.rotate((labelRotation * Math.PI) / 180);
-          context.font = `${LABEL_FONT_SIZE}px Arial`;
+          context.font = `${fontSize}px Arial`;
           context.fillStyle = labelColor ?? '#0f172a';
           context.textAlign = 'center';
           context.textBaseline = 'middle';
@@ -603,6 +608,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     currentScale,
     showScaleReference = true,
     isSnapToGridEnabled,
+    labelFontSizePx = DEFAULT_LABEL_FONT_SIZE,
+    dimensionFontSizePx = DEFAULT_DIMENSION_FONT_SIZE,
     zoom,
     onZoomChange,
   },
@@ -618,6 +625,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   const [connectorSnapPoint, setConnectorSnapPoint] = useState<Point | null>(null);
   const [stagePosition, setStagePosition] = useState<Point>({ x: 0, y: 0 });
   const [exportViewport, setExportViewport] = useState<ExportViewport | null>(null);
+  const labelFontSize = Math.max(8, Math.min(28, labelFontSizePx));
+  const dimensionFontSize = Math.max(8, Math.min(28, dimensionFontSizePx));
 
   useImperativeHandle(ref, () => ({
     async exportAsImage(pixelRatio = 2, options) {
@@ -1310,7 +1319,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 align="center"
                 verticalAlign="middle"
                 text={scaleMeasurementGuide.label}
-                fontSize={12}
+                fontSize={dimensionFontSize}
                 fontStyle="bold"
                 fill="#1d4ed8"
               />
@@ -1389,7 +1398,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 align="center"
                 verticalAlign="middle"
                 text="Shoreline"
-                fontSize={12}
+                fontSize={dimensionFontSize}
                 fontStyle="bold"
                 fill="#0f766e"
                 listening={false}
@@ -1431,8 +1440,9 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
               object.type === 'dimension_line' ? getDimensionLineLabel(object, currentScale) : object.label;
             const labelRotation = object.labelRotation ?? 0;
             const labelText = normalizeLabelText(displayLabelText);
-            const labelTextWidth = getLabelTextBoxWidth(labelText);
-            const labelTextHeight = LABEL_FONT_SIZE * 1.5;
+            const objectLabelFontSize = object.type === 'dimension_line' ? dimensionFontSize : labelFontSize;
+            const labelTextWidth = getLabelTextBoxWidth(labelText, objectLabelFontSize);
+            const labelTextHeight = objectLabelFontSize * 1.5;
             const labelHitWidth = labelRotation === 0 ? labelTextWidth + 12 : labelTextHeight + 16;
             const labelHitHeight = labelRotation === 0 ? labelTextHeight + 10 : labelTextWidth + 16;
             const defaultLabelCenterX = object.width / 2;
@@ -1454,6 +1464,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
             const heightDimensionX = defaultHeightDimensionX + (object.dimensionHeightOffsetX ?? 0);
             const heightDimensionY = defaultHeightDimensionY + (object.dimensionHeightOffsetY ?? 0);
             const canShowObjectDimensions = object.type !== 'dimension_line' && !object.dimensionsHidden;
+            const dimensionTextHeight = dimensionFontSize * 1.5;
 
             return (
               <Group
@@ -2078,6 +2089,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                     labelText,
                     labelColor: object.labelColor,
                     labelRotation,
+                    fontSize: objectLabelFontSize,
                     centerX: labelCenterX,
                     centerY: labelCenterY,
                     defaultCenterX: defaultLabelCenterX,
@@ -2113,11 +2125,11 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                         x={0}
                         y={4}
                         width={object.width}
-                        height={18}
+                        height={dimensionTextHeight}
                         align="center"
                         verticalAlign="middle"
                         text={getObjectDimensionLabel(object.width, currentScale)}
-                        fontSize={12}
+                        fontSize={dimensionFontSize}
                         fontStyle="bold"
                         fill="#1d4ed8"
                       />
@@ -2143,13 +2155,13 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                       <Line points={[0, object.height, 5, object.height - 8]} stroke="#2563eb" strokeWidth={2} />
                       <Text
                         x={8}
-                        y={object.height / 2 - 9}
+                        y={object.height / 2 - dimensionTextHeight / 2}
                         width={90}
-                        height={18}
+                        height={dimensionTextHeight}
                         align="left"
                         verticalAlign="middle"
                         text={getObjectDimensionLabel(object.height, currentScale)}
-                        fontSize={12}
+                        fontSize={dimensionFontSize}
                         fontStyle="bold"
                         fill="#1d4ed8"
                       />

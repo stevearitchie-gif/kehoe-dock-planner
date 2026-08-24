@@ -18,7 +18,7 @@ import { SectionViewCanvas } from '@/features/sectionView/SectionViewCanvas';
 import { generateSectionViewFromBuildPlan } from '@/features/sectionView/buildPlanSectionAdapter';
 import { getDefaultSectionView } from '@/features/sectionView/sectionTemplates';
 import { storage } from '@/lib/firebase';
-import type { DockObject, DockProject, DrawingInfo, Point, ProjectScale, UnitType } from '@/types/dock';
+import type { BuildPlanDisplaySettings, DockObject, DockProject, DrawingInfo, Point, ProjectScale, UnitType } from '@/types/dock';
 import type { SectionViewData } from '@/features/sectionView/sectionTypes';
 
 const MIN_OBJECT_SIZE = 10;
@@ -34,6 +34,11 @@ const FEET_PER_METER = 3.28084;
 const AUTOSAVE_DELAY_MS = 3000;
 const BUILD_PLAN_PRINT_PADDING = 120;
 const BUILD_PLAN_LABEL_FONT_SIZE = 12;
+const DEFAULT_BUILD_PLAN_LABEL_FONT_SIZE = 12;
+const DEFAULT_BUILD_PLAN_DIMENSION_FONT_SIZE = 12;
+const MIN_BUILD_PLAN_FONT_SIZE = 8;
+const MAX_BUILD_PLAN_FONT_SIZE = 28;
+const UNDO_HISTORY_LIMIT = 40;
 
 const OBJECT_COLOR_PRESETS = [
   { label: 'Cedar Dock', value: '#b77945' },
@@ -73,6 +78,12 @@ interface SelectedObjectDimensionInputs {
   objectId: string | null;
   width: string;
   height: string;
+}
+
+interface UndoSnapshot {
+  project: DockProject;
+  scalePoints: Point[];
+  selectedObjectId: string | null;
 }
 
 const shapeToolGroups: { title: string; tools: GenericShapeTool[] }[] = [
@@ -418,6 +429,27 @@ function buildEditorProject(projectId: string | undefined): DockProject {
     shorelinePoints: [],
     objects: [],
     sectionView: getDefaultSectionView(),
+  };
+}
+
+function clampBuildPlanFontSize(value: number, fallback: number): number {
+  if (!Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return Math.min(MAX_BUILD_PLAN_FONT_SIZE, Math.max(MIN_BUILD_PLAN_FONT_SIZE, Math.round(value)));
+}
+
+function resolveBuildPlanDisplaySettings(project: DockProject): Required<BuildPlanDisplaySettings> {
+  return {
+    labelFontSizePx: clampBuildPlanFontSize(
+      project.buildPlanDisplaySettings?.labelFontSizePx ?? DEFAULT_BUILD_PLAN_LABEL_FONT_SIZE,
+      DEFAULT_BUILD_PLAN_LABEL_FONT_SIZE,
+    ),
+    dimensionFontSizePx: clampBuildPlanFontSize(
+      project.buildPlanDisplaySettings?.dimensionFontSizePx ?? DEFAULT_BUILD_PLAN_DIMENSION_FONT_SIZE,
+      DEFAULT_BUILD_PLAN_DIMENSION_FONT_SIZE,
+    ),
   };
 }
 
@@ -1220,6 +1252,8 @@ export function EditorPage() {
   const lastSavedSnapshotRef = useRef<string>('');
   const pendingDeletedSiteImagePathsRef = useRef<string[]>([]);
   const autosaveTimerRef = useRef<number | null>(null);
+  const undoHistoryRef = useRef<UndoSnapshot[]>([]);
+  const [undoHistoryDepth, setUndoHistoryDepth] = useState(0);
 
   const userId = user?.uid;
 
@@ -1237,6 +1271,50 @@ export function EditorPage() {
     if (!pendingDeletedSiteImagePathsRef.current.includes(pathToDelete)) {
       pendingDeletedSiteImagePathsRef.current.push(pathToDelete);
     }
+  };
+
+  const pushUndoSnapshot = (snapshot: UndoSnapshot) => {
+    const previousSnapshot = undoHistoryRef.current[undoHistoryRef.current.length - 1];
+    if (
+      previousSnapshot &&
+      previousSnapshot.selectedObjectId === snapshot.selectedObjectId &&
+      JSON.stringify(previousSnapshot.scalePoints) === JSON.stringify(snapshot.scalePoints) &&
+      JSON.stringify(previousSnapshot.project) === JSON.stringify(snapshot.project)
+    ) {
+      return;
+    }
+
+    undoHistoryRef.current = [...undoHistoryRef.current, snapshot].slice(-UNDO_HISTORY_LIMIT);
+    setUndoHistoryDepth(undoHistoryRef.current.length);
+  };
+
+  const updateProject = (updater: DockProject | ((previousProject: DockProject) => DockProject), options?: { trackUndo?: boolean }) => {
+    setProject((previousProject) => {
+      const nextProject = typeof updater === 'function' ? updater(previousProject) : updater;
+
+      if (nextProject !== previousProject && options?.trackUndo !== false) {
+        pushUndoSnapshot({
+          project: previousProject,
+          scalePoints,
+          selectedObjectId,
+        });
+      }
+
+      return nextProject;
+    });
+  };
+
+  const handleUndo = () => {
+    const previousSnapshot = undoHistoryRef.current.pop();
+    if (!previousSnapshot) {
+      return;
+    }
+
+    setProject(previousSnapshot.project);
+    setScalePoints(previousSnapshot.scalePoints);
+    setSelectedObjectId(previousSnapshot.selectedObjectId);
+    setIsDeleteConfirmationVisible(false);
+    setUndoHistoryDepth(undoHistoryRef.current.length);
   };
 
   const deleteQueuedSiteImages = async () => {
@@ -1268,10 +1346,15 @@ export function EditorPage() {
 
   useEffect(() => {
     let isActive = true;
+    const resetUndoHistory = () => {
+      undoHistoryRef.current = [];
+      setUndoHistoryDepth(0);
+    };
 
     if (!projectId) {
       const blankProject = buildEditorProject(projectId);
       setProject(blankProject);
+      resetUndoHistory();
       lastSavedSnapshotRef.current = JSON.stringify(blankProject);
       setLastSavedAt(null);
       setIsDirty(false);
@@ -1283,6 +1366,7 @@ export function EditorPage() {
     if (!userId) {
       const blankProject = buildEditorProject(projectId);
       setProject(blankProject);
+      resetUndoHistory();
       lastSavedSnapshotRef.current = JSON.stringify(blankProject);
       setLastSavedAt(null);
       setIsDirty(false);
@@ -1299,6 +1383,7 @@ export function EditorPage() {
 
         const loadedProject = savedProject ?? buildEditorProject(projectId);
         setProject(loadedProject);
+        resetUndoHistory();
         lastSavedSnapshotRef.current = JSON.stringify(loadedProject);
         setLastSavedAt(savedProject ? loadedProject.updatedAt : null);
         setIsDirty(false);
@@ -1314,6 +1399,7 @@ export function EditorPage() {
 
         const blankProject = buildEditorProject(projectId);
         setProject(blankProject);
+        resetUndoHistory();
         lastSavedSnapshotRef.current = JSON.stringify(blankProject);
         setLastSavedAt(null);
         setIsDirty(false);
@@ -1358,6 +1444,7 @@ export function EditorPage() {
 
   const projectName = project.name.trim() || 'Untitled Project';
   const drawingInfo = useMemo(() => resolveDrawingInfo(project), [project]);
+  const buildPlanDisplaySettings = useMemo(() => resolveBuildPlanDisplaySettings(project), [project]);
 
   const measuredPixels = useMemo(() => getPixelsFromPoints(scalePoints), [scalePoints]);
 
@@ -1500,7 +1587,7 @@ export function EditorPage() {
   }, [selectedObjectId]);
 
   const setProjectScale = (nextScale: ProjectScale) => {
-    setProject((prev) => ({
+    updateProject((prev) => ({
       ...prev,
       updatedAt: new Date().toISOString(),
       scale: nextScale,
@@ -1509,7 +1596,7 @@ export function EditorPage() {
 
   const handleClearScale = () => {
     setScalePoints([]);
-    setProject((prev) => ({
+    updateProject((prev) => ({
       ...prev,
       updatedAt: new Date().toISOString(),
       scale: undefined,
@@ -1526,7 +1613,7 @@ export function EditorPage() {
   };
 
   const handleProjectNameChange = (value: string) => {
-    setProject((prev) => ({
+    updateProject((prev) => ({
       ...prev,
       name: value,
       updatedAt: new Date().toISOString(),
@@ -1547,7 +1634,7 @@ export function EditorPage() {
       drawingDate: 'date',
     };
 
-    setProject((prev) => ({
+    updateProject((prev) => ({
       ...prev,
       [field]: value,
       drawingInfo: {
@@ -1561,7 +1648,7 @@ export function EditorPage() {
   const handleTitleBlockPositionChange = (
     value: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'hidden',
   ) => {
-    setProject((prev) => ({
+    updateProject((prev) => ({
       ...prev,
       updatedAt: new Date().toISOString(),
       exportSettings: {
@@ -1577,7 +1664,7 @@ export function EditorPage() {
       return;
     }
 
-    setProject((prev) => ({
+    updateProject((prev) => ({
       ...prev,
       updatedAt: new Date().toISOString(),
       exportSettings: {
@@ -1588,7 +1675,7 @@ export function EditorPage() {
   };
 
   const handleResetTitleBlockOffset = () => {
-    setProject((prev) => ({
+    updateProject((prev) => ({
       ...prev,
       updatedAt: new Date().toISOString(),
       exportSettings: {
@@ -1600,7 +1687,7 @@ export function EditorPage() {
   };
 
   const handleSectionViewChange = (sectionView: SectionViewData) => {
-    setProject((prev) => ({
+    updateProject((prev) => ({
       ...prev,
       sectionView,
       updatedAt: new Date().toISOString(),
@@ -1608,7 +1695,7 @@ export function EditorPage() {
   };
 
   const handleGenerateSectionViewFromBuildPlan = () => {
-    setProject((prev) => ({
+    updateProject((prev) => ({
       ...prev,
       sectionView: generateSectionViewFromBuildPlan(prev, currentScale, prev.sectionView ?? getDefaultSectionView()),
       updatedAt: new Date().toISOString(),
@@ -1616,12 +1703,33 @@ export function EditorPage() {
   };
 
   const handleScaleReferenceVisibilityChange = (showScaleReference: boolean) => {
-    setProject((prev) => ({
+    updateProject((prev) => ({
       ...prev,
       updatedAt: new Date().toISOString(),
       exportSettings: {
         ...prev.exportSettings,
         showScaleReference,
+      },
+    }));
+  };
+
+  const handleBuildPlanDisplayFontSizeChange = (
+    field: keyof BuildPlanDisplaySettings,
+    value: string,
+  ) => {
+    const parsedValue = Number(value);
+    const fallback =
+      field === 'labelFontSizePx'
+        ? DEFAULT_BUILD_PLAN_LABEL_FONT_SIZE
+        : DEFAULT_BUILD_PLAN_DIMENSION_FONT_SIZE;
+    const nextValue = clampBuildPlanFontSize(parsedValue, fallback);
+
+    updateProject((prev) => ({
+      ...prev,
+      updatedAt: new Date().toISOString(),
+      buildPlanDisplaySettings: {
+        ...resolveBuildPlanDisplaySettings(prev),
+        [field]: nextValue,
       },
     }));
   };
@@ -1674,7 +1782,7 @@ export function EditorPage() {
     }
 
     if (activeTool === 'shoreline') {
-      setProject((prev) => ({
+      updateProject((prev) => ({
         ...prev,
         updatedAt: new Date().toISOString(),
         shorelinePoints: [...prev.shorelinePoints, point],
@@ -1733,7 +1841,7 @@ export function EditorPage() {
     const placementToolCandidate = toolOverride ?? activeTool;
 
     if (placementTools.includes(placementToolCandidate as (typeof placementTools)[number])) {
-      setProject((prev) => {
+      updateProject((prev) => {
         const placementTool = placementToolCandidate as (typeof placementTools)[number];
         const sameTypeCount = prev.objects.filter((object) => object.type === placementTool).length;
 
@@ -2000,7 +2108,7 @@ export function EditorPage() {
   };
 
 const handleObjectPositionChange = (objectId: string, point: Point) => {
-    setProject((prev) => ({
+    updateProject((prev) => ({
       ...prev,
       updatedAt: new Date().toISOString(),
       objects: prev.objects.map((object) =>
@@ -2017,7 +2125,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
 
   const handleObjectSizeChange = (objectId: string, size: { width: number; height: number }) => {
     setSelectedObjectId(objectId);
-    setProject((prev) => ({
+    updateProject((prev) => ({
       ...prev,
       updatedAt: new Date().toISOString(),
       objects: prev.objects.map((object) =>
@@ -2034,7 +2142,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
 
   const handleObjectRotationChange = (objectId: string, rotation: number) => {
     setSelectedObjectId(objectId);
-    setProject((prev) => ({
+    updateProject((prev) => ({
       ...prev,
       updatedAt: new Date().toISOString(),
       objects: prev.objects.map((object) =>
@@ -2053,7 +2161,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
       return;
     }
 
-    setProject((prev) => {
+    updateProject((prev) => {
       const orderedObjects = getObjectsSortedByZIndex(prev.objects);
       const index = orderedObjects.findIndex((object) => object.id === selectedObjectId);
       if (index < 0 || index >= orderedObjects.length - 1) {
@@ -2076,7 +2184,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
       return;
     }
 
-    setProject((prev) => {
+    updateProject((prev) => {
       const orderedObjects = getObjectsSortedByZIndex(prev.objects);
       const index = orderedObjects.findIndex((object) => object.id === selectedObjectId);
       if (index <= 0) {
@@ -2099,7 +2207,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
       return;
     }
 
-    setProject((prev) => {
+    updateProject((prev) => {
       const sourceObject = prev.objects.find((object) => object.id === selectedObjectId);
       if (!sourceObject) {
         return prev;
@@ -2138,7 +2246,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
       return;
     }
 
-    setProject((prev) => ({
+    updateProject((prev) => ({
       ...prev,
       updatedAt: new Date().toISOString(),
       objects: normalizeObjectZIndices(prev.objects.filter((object) => object.id !== selectedObjectId)),
@@ -2152,7 +2260,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
       return;
     }
 
-    setProject((prev) => ({
+    updateProject((prev) => ({
       ...prev,
       updatedAt: new Date().toISOString(),
       objects: normalizeObjectZIndices(prev.objects.filter((object) => object.id !== selectedObjectId)),
@@ -2170,7 +2278,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
       return;
     }
 
-    setProject((prev) => ({
+    updateProject((prev) => ({
       ...prev,
       updatedAt: new Date().toISOString(),
       objects: prev.objects.map((object) => (object.id === selectedObjectId ? updater(object) : object)),
@@ -2403,7 +2511,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
   };
 
   const handleObjectLabelOffsetChange = (objectId: string, offset: Point) => {
-    setProject((prev) => ({
+    updateProject((prev) => ({
       ...prev,
       updatedAt: new Date().toISOString(),
       objects: prev.objects.map((object) =>
@@ -2423,7 +2531,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
     dimension: 'width' | 'height',
     offset: Point,
   ) => {
-    setProject((prev) => ({
+    updateProject((prev) => ({
       ...prev,
       updatedAt: new Date().toISOString(),
       objects: prev.objects.map((object) => {
@@ -2700,7 +2808,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
 
   const handleFinishShoreline = () => {
     setActiveTool('select');
-    setProject((prev) => ({
+    updateProject((prev) => ({
       ...prev,
       shorelineFinished: true,
       updatedAt: new Date().toISOString(),
@@ -2708,7 +2816,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
   };
 
   const handleClearShoreline = () => {
-    setProject((prev) => ({
+    updateProject((prev) => ({
       ...prev,
       updatedAt: new Date().toISOString(),
       shorelinePoints: [],
@@ -2720,7 +2828,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
   };
 
   const handleShorelineLabelOffsetChange = (offset: Point) => {
-    setProject((prev) => ({
+    updateProject((prev) => ({
       ...prev,
       updatedAt: new Date().toISOString(),
       shorelineLabelOffsetX: Math.abs(offset.x) < 0.5 ? undefined : offset.x,
@@ -2729,7 +2837,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
   };
 
   const handleToggleShorelineLabel = () => {
-    setProject((prev) => ({
+    updateProject((prev) => ({
       ...prev,
       updatedAt: new Date().toISOString(),
       shorelineLabelHidden: prev.shorelineLabelHidden ? undefined : true,
@@ -2737,7 +2845,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
   };
 
   const handleResetShorelineLabelPosition = () => {
-    setProject((prev) => ({
+    updateProject((prev) => ({
       ...prev,
       updatedAt: new Date().toISOString(),
       shorelineLabelOffsetX: undefined,
@@ -2786,7 +2894,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
         objectUrlRef.current = null;
       }
 
-      setProject((prev) => {
+      updateProject((prev) => {
         queueSiteImagePathForDeletion(prev.backgroundImagePath);
 
         return {
@@ -2812,7 +2920,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
       objectUrlRef.current = null;
     }
 
-    setProject((prev) => {
+    updateProject((prev) => {
       queueSiteImagePathForDeletion(prev.backgroundImagePath);
 
       return {
@@ -3269,6 +3377,14 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                 </p>
               </div>
               <div className="flex flex-wrap gap-1.5 text-[11px] text-slate-600">
+                <button
+                  type="button"
+                  onClick={handleUndo}
+                  disabled={undoHistoryDepth === 0}
+                  className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                >
+                  Undo
+                </button>
                 {['Delete', 'Ctrl+D', 'Esc', 'Arrows', 'Shift+Arrows'].map((shortcut) => (
                   <span key={shortcut} className="rounded border border-slate-200 bg-slate-50 px-2 py-1">
                     {shortcut}
@@ -3304,6 +3420,8 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
               currentScale={currentScale}
               showScaleReference={project.exportSettings?.showScaleReference ?? true}
               isSnapToGridEnabled={isSnapToGridEnabled}
+              labelFontSizePx={buildPlanDisplaySettings.labelFontSizePx}
+              dimensionFontSizePx={buildPlanDisplaySettings.dimensionFontSizePx}
               zoom={zoom}
               onZoomChange={setZoom}
             />
@@ -3504,6 +3622,53 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                 </div>
 
               
+                </div>
+              </details>
+
+              <details className="rounded-md border border-slate-200 bg-white" open>
+                <summary className="flex cursor-pointer select-none items-center justify-between rounded-md px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50">
+                  <span>Build Plan Display</span>
+                  <span className="text-xs text-slate-400">open/close</span>
+                </summary>
+                <div className="space-y-4 border-t border-slate-100 p-3">
+                  <label className="block">
+                    <div className="mb-1 flex items-center justify-between gap-3">
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Label font size
+                      </span>
+                      <span className="text-xs font-semibold text-slate-700">
+                        {buildPlanDisplaySettings.labelFontSizePx} px
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={MIN_BUILD_PLAN_FONT_SIZE}
+                      max={MAX_BUILD_PLAN_FONT_SIZE}
+                      step={1}
+                      value={buildPlanDisplaySettings.labelFontSizePx}
+                      onChange={(event) => handleBuildPlanDisplayFontSizeChange('labelFontSizePx', event.target.value)}
+                      className="w-full accent-brand-600"
+                    />
+                  </label>
+                  <label className="block">
+                    <div className="mb-1 flex items-center justify-between gap-3">
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Dimension font size
+                      </span>
+                      <span className="text-xs font-semibold text-slate-700">
+                        {buildPlanDisplaySettings.dimensionFontSizePx} px
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={MIN_BUILD_PLAN_FONT_SIZE}
+                      max={MAX_BUILD_PLAN_FONT_SIZE}
+                      step={1}
+                      value={buildPlanDisplaySettings.dimensionFontSizePx}
+                      onChange={(event) => handleBuildPlanDisplayFontSizeChange('dimensionFontSizePx', event.target.value)}
+                      className="w-full accent-brand-600"
+                    />
+                  </label>
                 </div>
               </details>
 
@@ -3739,7 +3904,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                                   type="button"
                                   onClick={() => {
                                     const nextRotation = option.value as 0 | 90 | -90;
-                                    setProject((prev) => ({
+                                    updateProject((prev) => ({
                                       ...prev,
                                       updatedAt: new Date().toISOString(),
                                       objects: prev.objects.map((object) =>
