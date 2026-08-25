@@ -20,6 +20,7 @@ const FALLBACK_PIXELS_PER_FOOT = 20;
 const supportedObjectTypes = new Set<DockObjectType>([
   'floating_dock',
   'stationary_dock',
+  'custom_stationary_dock',
   'ramp_with_rails',
   'ramp_without_rails',
   'steps',
@@ -80,7 +81,7 @@ function getObjectCenter(object: DockObject) {
 }
 
 function getPlatformBoardDirection(object: DockObject): FloatingDockBoardDirection | undefined {
-  if (object.type !== 'floating_dock' && object.type !== 'stationary_dock') {
+  if (object.type !== 'floating_dock' && object.type !== 'stationary_dock' && object.type !== 'custom_stationary_dock') {
     return undefined;
   }
 
@@ -101,7 +102,7 @@ function getFloatingDockShowStandardCleats(object: DockObject): boolean | undefi
 }
 
 function getDockShowSideBumper(object: DockObject): boolean | undefined {
-  if (object.type !== 'floating_dock' && object.type !== 'stationary_dock') {
+  if (object.type !== 'floating_dock' && object.type !== 'stationary_dock' && object.type !== 'custom_stationary_dock') {
     return undefined;
   }
 
@@ -109,7 +110,7 @@ function getDockShowSideBumper(object: DockObject): boolean | undefined {
 }
 
 function getDockVerticalStavingEnabled(object: DockObject): boolean | undefined {
-  if (object.type !== 'floating_dock' && object.type !== 'stationary_dock') {
+  if (object.type !== 'floating_dock' && object.type !== 'stationary_dock' && object.type !== 'custom_stationary_dock') {
     return undefined;
   }
 
@@ -117,7 +118,7 @@ function getDockVerticalStavingEnabled(object: DockObject): boolean | undefined 
 }
 
 function getDockVerticalStavingColor(object: DockObject): string | undefined {
-  if (object.type !== 'floating_dock' && object.type !== 'stationary_dock') {
+  if (object.type !== 'floating_dock' && object.type !== 'stationary_dock' && object.type !== 'custom_stationary_dock') {
     return undefined;
   }
 
@@ -213,6 +214,31 @@ function getPositiveMetadataNumber(value: unknown): number | undefined {
   return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : undefined;
 }
 
+function getCustomFootprintPoints(object: DockObject, feetPerPixel: number): Array<{ x: number; z: number }> | undefined {
+  if (object.type !== 'custom_stationary_dock') {
+    return undefined;
+  }
+
+  const sourcePoints = object.metadata?.customPoints;
+  const points = Array.isArray(sourcePoints) && sourcePoints.length >= 3
+    ? sourcePoints
+    : [
+        { x: 0, y: 0 },
+        { x: object.width, y: 0 },
+        { x: object.width, y: object.height },
+        { x: 0, y: object.height },
+      ];
+
+  const localPoints = points
+    .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
+    .map((point) => ({
+      x: (Math.max(0, Math.min(object.width, point.x)) - object.width / 2) * feetPerPixel,
+      z: (Math.max(0, Math.min(object.height, point.y)) - object.height / 2) * feetPerPixel,
+    }));
+
+  return localPoints.length >= 3 ? localPoints : undefined;
+}
+
 export function buildProjectRenderModel(project: DockProject): ProjectRenderModel | null {
   const supportedObjects = project.objects.filter((object) => isProjectRenderElementType(object.type));
   const unsupportedTypes = Array.from(
@@ -252,6 +278,7 @@ export function buildProjectRenderModel(project: DockProject): ProjectRenderMode
       sourceHeight: object.height,
       sourceRotation: object.rotation,
       anchorInterpretation: 'top-left group origin, center adjusted for rotation',
+      customFootprintPoints: getCustomFootprintPoints(object, feetPerPixel),
       boardDirection: getPlatformBoardDirection(object),
       showStandardCleats: getFloatingDockShowStandardCleats(object),
       showSideBumper: getDockShowSideBumper(object),

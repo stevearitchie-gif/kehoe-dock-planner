@@ -3,6 +3,7 @@ export const coreToolModes = ['select', 'pan', 'scale', 'shoreline'] as const;
 export const dockElementToolModes = [
   'floating_dock',
   'stationary_dock',
+  'custom_stationary_dock',
   'ramp_with_rails',
   'ramp_without_rails',
   'steps',
@@ -63,6 +64,7 @@ export const toolLabels: Record<ToolMode, string> = {
   shoreline: 'shoreline',
   floating_dock: 'floating dock',
   stationary_dock: 'stationary dock',
+  custom_stationary_dock: 'custom stationary dock',
   ramp_with_rails: 'ramp with rails',
   ramp_without_rails: 'ramp without rails',
   steps: 'steps',

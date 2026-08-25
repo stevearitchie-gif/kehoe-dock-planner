@@ -28,6 +28,7 @@ export type AccessoryFinish = 'metal' | 'rubber' | 'wood' | 'neutral';
 export type ProjectRenderElementType =
   | 'floating_dock'
   | 'stationary_dock'
+  | 'custom_stationary_dock'
   | 'ramp_with_rails'
   | 'ramp_without_rails'
   | 'steps'
@@ -58,6 +59,7 @@ export interface ProjectRenderElement {
   sourceHeight: number;
   sourceRotation: number;
   anchorInterpretation: string;
+  customFootprintPoints?: Array<{ x: number; z: number }>;
   deckFinish?: DeckFinish;
   boardDirection?: FloatingDockBoardDirection;
   showStandardCleats?: boolean;

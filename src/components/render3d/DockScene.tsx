@@ -390,6 +390,7 @@ function isPrimaryWaterElement(element: ProjectRenderElement) {
   return (
     element.type === 'floating_dock' ||
     element.type === 'stationary_dock' ||
+    element.type === 'custom_stationary_dock' ||
     element.type === 'ramp_with_rails' ||
     element.type === 'ramp_without_rails' ||
     element.type === 'boat_lift' ||

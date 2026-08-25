@@ -26,6 +26,8 @@ interface EditorCanvasProps {
   onObjectPositionChange: (objectId: string, point: Point) => void;
   onObjectSizeChange: (objectId: string, size: { width: number; height: number }) => void;
   onObjectRotationChange: (objectId: string, rotation: number) => void;
+  onObjectCustomPointsChange: (objectId: string, points: Point[]) => void;
+  onObjectCustomPointSelect: (objectId: string, pointIndex: number) => void;
   onObjectLabelOffsetChange: (objectId: string, offset: Point) => void;
   onShorelineLabelOffsetChange?: (offset: Point) => void;
   onObjectDimensionOffsetChange: (objectId: string, dimension: 'width' | 'height', offset: Point) => void;
@@ -85,6 +87,11 @@ type InteractionSession =
       endpoint: ConnectorEndpointHandle;
       startWidth: number;
       startHeight: number;
+    }
+  | {
+      type: 'customPoint';
+      objectId: string;
+      pointIndex: number;
     };
 
 type DraftShapeBox = {
@@ -211,6 +218,30 @@ function buildBoardTextureLines(object: DockObject): number[][] {
 
 function canShowVerticalStaving(object: DockObject): boolean {
   return Boolean(object.metadata?.verticalStavingEnabled) && (object.type === 'floating_dock' || object.type === 'stationary_dock');
+}
+
+function getCustomStationaryDockPoints(object: DockObject): Point[] {
+  const points = object.metadata?.customPoints;
+
+  if (object.type !== 'custom_stationary_dock' || !Array.isArray(points) || points.length < 3) {
+    return [
+      { x: 0, y: 0 },
+      { x: object.width, y: 0 },
+      { x: object.width, y: object.height },
+      { x: 0, y: object.height },
+    ];
+  }
+
+  return points
+    .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
+    .map((point) => ({
+      x: Math.max(0, Math.min(object.width, point.x)),
+      y: Math.max(0, Math.min(object.height, point.y)),
+    }));
+}
+
+function getCustomStationaryDockLinePoints(object: DockObject): number[] {
+  return getCustomStationaryDockPoints(object).flatMap((point) => [point.x, point.y]);
 }
 
 function buildVerticalStavingLines(object: DockObject): number[][] {
@@ -602,6 +633,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     onObjectPositionChange,
     onObjectSizeChange,
     onObjectRotationChange,
+    onObjectCustomPointsChange,
+    onObjectCustomPointSelect,
     onObjectLabelOffsetChange,
     onShorelineLabelOffsetChange,
     onObjectDimensionOffsetChange,
@@ -817,6 +850,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       'shoreline',
       'floating_dock',
       'stationary_dock',
+      'custom_stationary_dock',
       'ramp_with_rails',
       'ramp_without_rails',
       'steps',
@@ -1041,6 +1075,23 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     });
   };
 
+  const beginCustomPoint = (
+    event: KonvaEventObject<MouseEvent | TouchEvent>,
+    object: DockObject,
+    pointIndex: number,
+  ) => {
+    event.cancelBubble = true;
+    event.evt.preventDefault();
+
+    onObjectClick(object.id);
+    onObjectCustomPointSelect(object.id, pointIndex);
+    setInteractionSession({
+      type: 'customPoint',
+      objectId: object.id,
+      pointIndex,
+    });
+  };
+
   const endInteraction = () => {
     const activeDraftShapeBox = draftShapeBoxRef.current;
 
@@ -1154,6 +1205,23 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
         width: Math.max(MIN_OBJECT_SIZE, object.width - boundedLocalX),
         height: Math.max(MIN_OBJECT_SIZE, object.height - boundedLocalY),
       });
+      return;
+    }
+
+    if (interactionSession.type === 'customPoint') {
+      const points = getCustomStationaryDockPoints(object);
+      const nextPoints = points.map((point, index) =>
+        index === interactionSession.pointIndex
+          ? {
+              x: Math.max(0, Math.min(object.width, localPoint.x)),
+              y: Math.max(0, Math.min(object.height, localPoint.y)),
+            }
+          : point,
+      );
+
+      onObjectClick(object.id);
+      onObjectCustomPointSelect(object.id, interactionSession.pointIndex);
+      onObjectCustomPointsChange(object.id, nextPoints);
       return;
     }
 
@@ -1676,6 +1744,45 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                         strokeWidth={getObjectStrokeWidth(object, 2)}
                       />
                     </>
+                  ) : object.type === 'custom_stationary_dock' ? (
+                    <>
+                      <Line
+                        points={getCustomStationaryDockLinePoints(object)}
+                        closed
+                        fill={object.color}
+                        stroke={getObjectStrokeColor(object)}
+                        strokeWidth={getObjectStrokeWidth(object, 1.5)}
+                        lineJoin="round"
+                      />
+                      {(object.metadata?.boardDirection === 'horizontal' || object.metadata?.boardDirection === 'vertical') && (
+                        <Group
+                          listening={false}
+                          clipFunc={(context) => {
+                            const points = getCustomStationaryDockPoints(object);
+                            context.beginPath();
+                            points.forEach((point, pointIndex) => {
+                              if (pointIndex === 0) {
+                                context.moveTo(point.x, point.y);
+                              } else {
+                                context.lineTo(point.x, point.y);
+                              }
+                            });
+                            context.closePath();
+                          }}
+                        >
+                          {buildBoardTextureLines(object).map((points: number[], lineIndex: number) => (
+                            <Line
+                              key={`custom-dock-board-texture-${object.id}-${lineIndex}`}
+                              points={points}
+                              stroke="#ffffff"
+                              strokeWidth={1}
+                              opacity={0.35}
+                              listening={false}
+                            />
+                          ))}
+                        </Group>
+                      )}
+                    </>
                   ) : object.type === 'shape_oval' || object.type === 'shape_circle' ? (
                     <Ellipse
                       x={object.width / 2}
@@ -2171,19 +2278,31 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 
                 {isSelected && (
                   <>
-                    <Rect
-                      x={0}
-                      y={0}
-                      width={object.width}
-                      height={object.height}
-                      stroke="#1d4ed8"
-                      strokeWidth={isConnectorEndpointObject(object) ? 1.5 : 3}
-                      fillEnabled={false}
-                      cornerRadius={cornerRadius}
-                      dash={isConnectorEndpointObject(object) ? [7, 5] : undefined}
-                      opacity={isConnectorEndpointObject(object) ? 0.65 : 1}
-                      listening={false}
-                    />
+                    {object.type === 'custom_stationary_dock' ? (
+                      <Line
+                        points={getCustomStationaryDockLinePoints(object)}
+                        closed
+                        stroke="#1d4ed8"
+                        strokeWidth={3}
+                        fillEnabled={false}
+                        lineJoin="round"
+                        listening={false}
+                      />
+                    ) : (
+                      <Rect
+                        x={0}
+                        y={0}
+                        width={object.width}
+                        height={object.height}
+                        stroke="#1d4ed8"
+                        strokeWidth={isConnectorEndpointObject(object) ? 1.5 : 3}
+                        fillEnabled={false}
+                        cornerRadius={cornerRadius}
+                        dash={isConnectorEndpointObject(object) ? [7, 5] : undefined}
+                        opacity={isConnectorEndpointObject(object) ? 0.65 : 1}
+                        listening={false}
+                      />
+                    )}
 
                     <Line
                       points={[object.width / 2, 0, object.width / 2, -ROTATION_HANDLE_OFFSET]}
@@ -2227,6 +2346,21 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                         />
                       </>
                     )}
+
+                    {object.type === 'custom_stationary_dock' &&
+                      getCustomStationaryDockPoints(object).map((point, pointIndex) => (
+                        <Circle
+                          key={`custom-dock-point-${object.id}-${pointIndex}`}
+                          x={point.x}
+                          y={point.y}
+                          radius={8}
+                          fill="#eff6ff"
+                          stroke="#2563eb"
+                          strokeWidth={3}
+                          onMouseDown={(event) => beginCustomPoint(event, object, pointIndex)}
+                          onTouchStart={(event) => beginCustomPoint(event, object, pointIndex)}
+                        />
+                      ))}
 
                     <Circle
                       x={object.width}

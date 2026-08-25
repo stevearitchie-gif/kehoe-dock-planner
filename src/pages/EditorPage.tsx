@@ -417,7 +417,7 @@ function getObjectStrokeColorForControls(object: DockObject): string {
 }
 
 function canUseBoardTextureControls(object: DockObject): boolean {
-  return ['floating_dock', 'stationary_dock', 'ramp_with_rails', 'ramp_without_rails'].includes(object.type);
+  return ['floating_dock', 'stationary_dock', 'custom_stationary_dock', 'ramp_with_rails', 'ramp_without_rails'].includes(object.type);
 }
 
 function buildEditorProject(projectId: string | undefined): DockProject {
@@ -1231,6 +1231,7 @@ export function EditorPage() {
   const [zoom, setZoom] = useState(1);
   const [isSnapToGridEnabled, setIsSnapToGridEnabled] = useState(false);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
+  const [selectedCustomDockPointIndex, setSelectedCustomDockPointIndex] = useState<number | null>(null);
   const [isShapeSelectorOpen, setIsShapeSelectorOpen] = useState(false);
   const [isLabelMoveModeEnabled, setIsLabelMoveModeEnabled] = useState(false);
   const [isDeleteConfirmationVisible, setIsDeleteConfirmationVisible] = useState(false);
@@ -1313,6 +1314,7 @@ export function EditorPage() {
     setProject(previousSnapshot.project);
     setScalePoints(previousSnapshot.scalePoints);
     setSelectedObjectId(previousSnapshot.selectedObjectId);
+    setSelectedCustomDockPointIndex(null);
     setIsDeleteConfirmationVisible(false);
     setUndoHistoryDepth(undoHistoryRef.current.length);
   };
@@ -1794,6 +1796,7 @@ export function EditorPage() {
     const placementTools = [
       'floating_dock',
       'stationary_dock',
+      'custom_stationary_dock',
       'ramp_with_rails',
       'ramp_without_rails',
       'steps',
@@ -1848,6 +1851,7 @@ export function EditorPage() {
         const objectTypeNameByTool: Record<(typeof placementTools)[number], string> = {
           floating_dock: 'Floating Dock',
           stationary_dock: 'Stationary Dock',
+          custom_stationary_dock: 'Custom Stationary Dock',
           ramp_with_rails: 'Ramp With Rails',
           ramp_without_rails: 'Ramp Without Rails',
           steps: 'Steps',
@@ -1895,6 +1899,7 @@ export function EditorPage() {
         const objectSizeByTool: Record<(typeof placementTools)[number], { width: number; height: number }> = {
           floating_dock: { width: 120, height: 40 },
           stationary_dock: { width: 120, height: 40 },
+          custom_stationary_dock: { width: 140, height: 64 },
           ramp_with_rails: { width: 100, height: 24 },
           ramp_without_rails: { width: 100, height: 24 },
           steps: { width: 60, height: 40 },
@@ -1942,6 +1947,7 @@ export function EditorPage() {
         const objectColorByTool: Record<(typeof placementTools)[number], string> = {
           floating_dock: '#b77945',
           stationary_dock: '#8f9779',
+          custom_stationary_dock: '#8f9779',
           ramp_with_rails: '#c2a878',
           ramp_without_rails: '#c2a878',
           steps: '#9a6b3f',
@@ -2008,6 +2014,19 @@ export function EditorPage() {
                   boatPortPostSideInsetFt: 0,
                   boatPortPostEndInsetFt: 0,
                 }
+              : placementTool === 'custom_stationary_dock'
+                ? {
+                    boardDirection: 'none',
+                    customPoints: [
+                      { x: 0, y: 0 },
+                      { x: drawSize?.width ?? objectSizeByTool[placementTool].width, y: 0 },
+                      {
+                        x: drawSize?.width ?? objectSizeByTool[placementTool].width,
+                        y: drawSize?.height ?? objectSizeByTool[placementTool].height,
+                      },
+                      { x: 0, y: drawSize?.height ?? objectSizeByTool[placementTool].height },
+                    ],
+                  }
               : placementTool === 'boathouse'
                 ? {
                     boathouseWallHeightFt: 9,
@@ -2091,6 +2110,7 @@ export function EditorPage() {
     }
 
     setSelectedObjectId(objectId);
+    setSelectedCustomDockPointIndex(null);
   };
 
   
@@ -2098,6 +2118,7 @@ export function EditorPage() {
     setActiveTool('select');
     setIsShapeSelectorOpen(false);
     setSelectedObjectId(objectId);
+    setSelectedCustomDockPointIndex(null);
 
     window.setTimeout(() => {
       const widthInput = document.getElementById('selected-object-width-input') as HTMLInputElement | null;
@@ -2108,6 +2129,7 @@ export function EditorPage() {
   };
 
 const handleObjectPositionChange = (objectId: string, point: Point) => {
+    setSelectedCustomDockPointIndex(null);
     updateProject((prev) => ({
       ...prev,
       updatedAt: new Date().toISOString(),
@@ -2125,16 +2147,34 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
 
   const handleObjectSizeChange = (objectId: string, size: { width: number; height: number }) => {
     setSelectedObjectId(objectId);
+    setSelectedCustomDockPointIndex(null);
     updateProject((prev) => ({
       ...prev,
       updatedAt: new Date().toISOString(),
       objects: prev.objects.map((object) =>
         object.id === objectId
-          ? {
-              ...object,
-              width: Math.max(MIN_OBJECT_SIZE, size.width),
-              height: Math.max(MIN_OBJECT_SIZE, size.height),
-            }
+          ? (() => {
+              const nextWidth = Math.max(MIN_OBJECT_SIZE, size.width);
+              const nextHeight = Math.max(MIN_OBJECT_SIZE, size.height);
+              const widthScale = object.width > 0 ? nextWidth / object.width : 1;
+              const heightScale = object.height > 0 ? nextHeight / object.height : 1;
+
+              return {
+                ...object,
+                width: nextWidth,
+                height: nextHeight,
+                metadata:
+                  object.type === 'custom_stationary_dock' && object.metadata?.customPoints
+                    ? {
+                        ...object.metadata,
+                        customPoints: object.metadata.customPoints.map((point) => ({
+                          x: point.x * widthScale,
+                          y: point.y * heightScale,
+                        })),
+                      }
+                    : object.metadata,
+              };
+            })()
           : object,
       ),
     }));
@@ -2375,6 +2415,109 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
       ...object,
       height: Math.max(MIN_OBJECT_SIZE, scaledHeight ?? parsedValue),
     }));
+  };
+
+  const getSelectedCustomDockPoints = (object: DockObject): Point[] => {
+    const points = object.metadata?.customPoints;
+
+    if (object.type !== 'custom_stationary_dock' || !Array.isArray(points) || points.length < 3) {
+      return [
+        { x: 0, y: 0 },
+        { x: object.width, y: 0 },
+        { x: object.width, y: object.height },
+        { x: 0, y: object.height },
+      ];
+    }
+
+    return points.map((point) => ({
+      x: Math.max(0, Math.min(object.width, point.x)),
+      y: Math.max(0, Math.min(object.height, point.y)),
+    }));
+  };
+
+  const handleObjectCustomPointsChange = (objectId: string, points: Point[]) => {
+    updateProject((prev) => ({
+      ...prev,
+      updatedAt: new Date().toISOString(),
+      objects: prev.objects.map((object) =>
+        object.id === objectId
+          ? {
+              ...object,
+              metadata: {
+                ...object.metadata,
+                customPoints: points,
+              },
+            }
+          : object,
+      ),
+    }));
+  };
+
+  const handleObjectCustomPointSelect = (objectId: string, pointIndex: number) => {
+    setSelectedObjectId(objectId);
+    setSelectedCustomDockPointIndex(pointIndex);
+  };
+
+  const handleAddCustomDockPoint = () => {
+    if (!selectedObject || selectedObject.type !== 'custom_stationary_dock') {
+      return;
+    }
+
+    const points = getSelectedCustomDockPoints(selectedObject);
+    const longestEdge = points.reduce(
+      (longest, point, index) => {
+        const nextPoint = points[(index + 1) % points.length];
+        const length = Math.hypot(nextPoint.x - point.x, nextPoint.y - point.y);
+        return length > longest.length ? { index, length } : longest;
+      },
+      { index: 0, length: 0 },
+    );
+    const edgeStart = points[longestEdge.index];
+    const edgeEnd = points[(longestEdge.index + 1) % points.length];
+    const insertedPoint = {
+      x: (edgeStart.x + edgeEnd.x) / 2,
+      y: (edgeStart.y + edgeEnd.y) / 2,
+    };
+    const insertIndex = longestEdge.index + 1;
+    const nextPoints = [...points.slice(0, insertIndex), insertedPoint, ...points.slice(insertIndex)];
+
+    handleObjectCustomPointsChange(selectedObject.id, nextPoints);
+    setSelectedCustomDockPointIndex(insertIndex);
+  };
+
+  const handleRemoveSelectedCustomDockPoint = () => {
+    if (
+      !selectedObject ||
+      selectedObject.type !== 'custom_stationary_dock' ||
+      selectedCustomDockPointIndex === null
+    ) {
+      return;
+    }
+
+    const points = getSelectedCustomDockPoints(selectedObject);
+    if (points.length <= 3 || selectedCustomDockPointIndex >= points.length) {
+      return;
+    }
+
+    handleObjectCustomPointsChange(
+      selectedObject.id,
+      points.filter((_, index) => index !== selectedCustomDockPointIndex),
+    );
+    setSelectedCustomDockPointIndex(null);
+  };
+
+  const handleResetCustomDockShape = () => {
+    if (!selectedObject || selectedObject.type !== 'custom_stationary_dock') {
+      return;
+    }
+
+    handleObjectCustomPointsChange(selectedObject.id, [
+      { x: 0, y: 0 },
+      { x: selectedObject.width, y: 0 },
+      { x: selectedObject.width, y: selectedObject.height },
+      { x: 0, y: selectedObject.height },
+    ]);
+    setSelectedCustomDockPointIndex(null);
   };
 
   const restoreSelectedObjectDimensionInput = (axis: 'width' | 'height') => {
@@ -3414,6 +3557,8 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
               onObjectPositionChange={handleObjectPositionChange}
               onObjectSizeChange={handleObjectSizeChange}
               onObjectRotationChange={handleObjectRotationChange}
+              onObjectCustomPointsChange={handleObjectCustomPointsChange}
+              onObjectCustomPointSelect={handleObjectCustomPointSelect}
               onObjectLabelOffsetChange={handleObjectLabelOffsetChange}
               onShorelineLabelOffsetChange={handleShorelineLabelOffsetChange}
               onObjectDimensionOffsetChange={handleObjectDimensionOffsetChange}
@@ -4016,6 +4161,46 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                                 );
                               })}
                             </div>
+                          </div>
+                        )}
+
+                        {selectedObject.type === 'custom_stationary_dock' && (
+                          <div className="mt-4 rounded-md border border-slate-200 bg-white p-3">
+                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                              Custom Dock Shape
+                            </p>
+                            <p className="mt-1 text-xs text-slate-600">
+                              Drag blue corner points on the canvas to shape the dock.
+                            </p>
+                            <div className="mt-3 grid grid-cols-1 gap-2">
+                              <button
+                                type="button"
+                                onClick={handleAddCustomDockPoint}
+                                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                              >
+                                Add Point
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleRemoveSelectedCustomDockPoint}
+                                disabled={selectedCustomDockPointIndex === null || getSelectedCustomDockPoints(selectedObject).length <= 3}
+                                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                              >
+                                Remove Selected Point
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleResetCustomDockShape}
+                                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                              >
+                                Reset Shape
+                              </button>
+                            </div>
+                            <p className="mt-2 text-xs text-slate-500">
+                              {selectedCustomDockPointIndex === null
+                                ? `${getSelectedCustomDockPoints(selectedObject).length} points. Select a point on the canvas to remove it.`
+                                : `Point ${selectedCustomDockPointIndex + 1} selected.`}
+                            </p>
                           </div>
                         )}
 

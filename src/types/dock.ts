@@ -5,6 +5,7 @@ export type UnitType = 'ft' | 'm';
 export type DockObjectType =
   | 'floating_dock'
   | 'stationary_dock'
+  | 'custom_stationary_dock'
   | 'ramp_with_rails'
   | 'ramp_without_rails'
   | 'steps'
@@ -90,6 +91,8 @@ export interface DockObject {
     verticalStavingEnabled?: boolean;
     verticalStavingColor?: string;
     verticalStavingSpacingFt?: number;
+    // Custom stationary dock points are local to the object's top-left anchor.
+    customPoints?: Point[];
     textureRef?: string;
     connectionPoints?: Point[];
     modelType3D?: string;

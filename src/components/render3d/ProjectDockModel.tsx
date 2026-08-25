@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Text } from '@react-three/drei';
 import { KehoeAccessory } from '@/components/render3d/products/KehoeAccessory';
 import { KehoeBoathouse } from '@/components/render3d/products/KehoeBoathouse';
@@ -321,6 +322,118 @@ function PlatformElement({ element, viewMode }: { element: ProjectRenderElement;
           </mesh>
         )),
       )}
+    </group>
+  );
+}
+
+function buildCustomDockGeometry(points: Array<{ x: number; z: number }>, topY: number, bottomY: number) {
+  const cleanPoints = points.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.z));
+  if (cleanPoints.length < 3) {
+    return null;
+  }
+
+  const center = cleanPoints.reduce(
+    (total, point) => ({
+      x: total.x + point.x / cleanPoints.length,
+      z: total.z + point.z / cleanPoints.length,
+    }),
+    { x: 0, z: 0 },
+  );
+
+  const topVertices: number[] = [center.x, topY, center.z];
+  const topIndices: number[] = [];
+
+  cleanPoints.forEach((point) => {
+    topVertices.push(point.x, topY, point.z);
+  });
+
+  cleanPoints.forEach((_, index) => {
+    const current = index + 1;
+    const next = ((index + 1) % cleanPoints.length) + 1;
+    topIndices.push(0, current, next);
+  });
+
+  const sideVertices: number[] = [];
+  const sideIndices: number[] = [];
+
+  cleanPoints.forEach((point, index) => {
+    const nextPoint = cleanPoints[(index + 1) % cleanPoints.length];
+    const vertexIndex = sideVertices.length / 3;
+
+    sideVertices.push(
+      point.x,
+      bottomY,
+      point.z,
+      nextPoint.x,
+      bottomY,
+      nextPoint.z,
+      nextPoint.x,
+      topY,
+      nextPoint.z,
+      point.x,
+      topY,
+      point.z,
+    );
+    sideIndices.push(vertexIndex, vertexIndex + 1, vertexIndex + 2, vertexIndex, vertexIndex + 2, vertexIndex + 3);
+  });
+
+  return {
+    topVertices: new Float32Array(topVertices),
+    topIndices: new Uint16Array(topIndices),
+    sideVertices: new Float32Array(sideVertices),
+    sideIndices: new Uint16Array(sideIndices),
+  };
+}
+
+function CustomStationaryDockElement({ element, viewMode }: { element: ProjectRenderElement; viewMode: RenderViewMode }) {
+  const platformHeight = 0.62;
+  const topY = element.elevation + platformHeight;
+  const bottomY = element.elevation;
+  const deckColor = getDeckColor(element, viewMode);
+  const sideColor = viewMode === 'customer' ? '#6f5738' : element.color;
+  const footprintPoints = element.customFootprintPoints;
+  const geometry = useMemo(
+    () => (footprintPoints ? buildCustomDockGeometry(footprintPoints, topY, bottomY) : null),
+    [bottomY, footprintPoints, topY],
+  );
+
+  if (!geometry) {
+    return <PlatformElement element={element} viewMode={viewMode} />;
+  }
+
+  return (
+    <group position={[element.x, 0, element.z]} rotation={[0, element.rotation, 0]}>
+      <mesh castShadow receiveShadow>
+        <bufferGeometry onUpdate={(bufferGeometry) => bufferGeometry.computeVertexNormals()}>
+          <bufferAttribute attach="attributes-position" args={[geometry.sideVertices, 3]} />
+          <bufferAttribute attach="index" args={[geometry.sideIndices, 1]} />
+        </bufferGeometry>
+        <meshStandardMaterial color={sideColor} roughness={0.78} transparent opacity={element.opacity} />
+      </mesh>
+      <mesh castShadow receiveShadow>
+        <bufferGeometry onUpdate={(bufferGeometry) => bufferGeometry.computeVertexNormals()}>
+          <bufferAttribute attach="attributes-position" args={[geometry.topVertices, 3]} />
+          <bufferAttribute attach="index" args={[geometry.topIndices, 1]} />
+        </bufferGeometry>
+        <meshStandardMaterial color={deckColor} roughness={0.76} transparent opacity={element.opacity} />
+      </mesh>
+      {footprintPoints?.map((point, index) => {
+        const nextPoint = footprintPoints[(index + 1) % footprintPoints.length];
+        const edgeLength = Math.hypot(nextPoint.x - point.x, nextPoint.z - point.z);
+        const edgeAngle = Math.atan2(nextPoint.z - point.z, nextPoint.x - point.x);
+
+        return (
+          <mesh
+            key={`custom-dock-edge-${index}`}
+            position={[(point.x + nextPoint.x) / 2, topY + 0.025, (point.z + nextPoint.z) / 2]}
+            rotation={[0, -edgeAngle, 0]}
+            receiveShadow
+          >
+            <boxGeometry args={[edgeLength, 0.025, 0.025]} />
+            <meshStandardMaterial color={viewMode === 'customer' ? '#5f4630' : '#334155'} roughness={0.84} />
+          </mesh>
+        );
+      })}
     </group>
   );
 }
@@ -893,11 +1006,13 @@ function isRampElement(element: ProjectRenderElement) {
 }
 
 function isPlatformElement(element: ProjectRenderElement) {
-  return element.type === 'floating_dock' || element.type === 'stationary_dock';
+  return element.type === 'floating_dock' || element.type === 'stationary_dock' || element.type === 'custom_stationary_dock';
 }
 
 function getPlatformDeckTopHeight(element: ProjectRenderElement) {
-  return element.type === 'stationary_dock' ? STATIONARY_DOCK_DECK_TOP_HEIGHT : FLOATING_DOCK_DECK_TOP_HEIGHT;
+  return element.type === 'stationary_dock' || element.type === 'custom_stationary_dock'
+    ? STATIONARY_DOCK_DECK_TOP_HEIGHT
+    : FLOATING_DOCK_DECK_TOP_HEIGHT;
 }
 
 function getAccessoryMountInfo(element: ProjectRenderElement, platforms: ProjectRenderElement[]): AccessoryMountInfo {
@@ -1138,6 +1253,7 @@ function getElementRenderKey(element: ProjectRenderElement, rampElevation?: Ramp
     String(element.verticalStavingEnabled ?? 'vertical-staving-default'),
     element.verticalStavingColor ?? 'vertical-staving-color-default',
     formatKeyNumber(element.verticalStavingSpacingFt),
+    element.customFootprintPoints?.map((point) => `${formatKeyNumber(point.x)},${formatKeyNumber(point.z)}`).join('|') ?? 'no-custom-footprint',
     formatKeyNumber(element.tubeDiameterFt),
     formatKeyNumber(element.boatPortWallHeightFt),
     formatKeyNumber(element.boatPortRoofRiseFt),
@@ -1179,6 +1295,9 @@ function ProjectElement({
       break;
     case 'stationary_dock':
       renderedElement = <PlatformElement element={element} viewMode={viewMode} />;
+      break;
+    case 'custom_stationary_dock':
+      renderedElement = <CustomStationaryDockElement element={element} viewMode={viewMode} />;
       break;
     case 'ramp_with_rails':
       renderedElement = (

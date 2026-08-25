@@ -231,6 +231,12 @@ function elementSummary(object: DockObject, scale: ProjectScale) {
     return `Stationary dock${sizeSuffix}${details ? `, ${details}` : ''}`;
   }
 
+  if (object.type === 'custom_stationary_dock') {
+    const details = formatDockDetails(object);
+    const pointCount = object.metadata?.customPoints?.length;
+    return `Custom stationary dock${sizeSuffix}${pointCount ? `, ${pointCount} points` : ''}${details ? `, ${details}` : ''}`;
+  }
+
   if (object.type === 'ramp_with_rails' || object.type === 'ramp_without_rails') {
     return `${formatRampType(object.type)}${sizeSuffix}`;
   }
@@ -279,6 +285,7 @@ function buildPlanReference(object: DockObject, scale: ProjectScale): SectionVie
   if (
     object.type !== 'floating_dock' &&
     object.type !== 'stationary_dock' &&
+    object.type !== 'custom_stationary_dock' &&
     object.type !== 'ramp_with_rails' &&
     object.type !== 'ramp_without_rails' &&
     object.type !== 'boat_lift' &&
@@ -294,6 +301,7 @@ function buildPlanReference(object: DockObject, scale: ProjectScale): SectionVie
   const dimensions = objectReferenceDimensionsFeet(object, scale);
   const details =
     object.type === 'floating_dock' || object.type === 'stationary_dock'
+      || object.type === 'custom_stationary_dock'
       ? formatDockDetails(object)
       : object.type === 'boat_port'
         ? formatBoatPortDetails(object)
@@ -400,7 +408,7 @@ function projectObjectsToSection(
     ),
   );
   const supportedObjects = project.objects.filter((object) =>
-    ['floating_dock', 'ramp_with_rails', 'ramp_without_rails', 'boat_lift', 'boat_port', 'boathouse', 'accessory', 'rip_rap', 'armour_stone'].includes(object.type),
+    ['floating_dock', 'stationary_dock', 'custom_stationary_dock', 'ramp_with_rails', 'ramp_without_rails', 'boat_lift', 'boat_port', 'boathouse', 'accessory', 'rip_rap', 'armour_stone'].includes(object.type),
   );
   const projectedObjects: SectionViewProjectedBuildPlanObject[] = [];
   let offSectionCount = 0;
@@ -489,6 +497,7 @@ export function generateSectionViewFromBuildPlan(
 ): SectionViewData {
   const floatingDock = firstOfType(project, ['floating_dock']);
   const ramp = firstOfType(project, ['ramp_with_rails', 'ramp_without_rails']);
+  const customStationaryDockCount = countTypes(project, ['custom_stationary_dock']);
   const boatLiftCount = countTypes(project, ['boat_lift']);
   const boatPortCount = countTypes(project, ['boat_port']);
   const boathouseCount = countTypes(project, ['boathouse']);
@@ -498,7 +507,7 @@ export function generateSectionViewFromBuildPlan(
   const detectedItems: string[] = [];
   const structureSummary: string[] = [];
   const supportedObjects = project.objects.filter((object) =>
-    ['floating_dock', 'ramp_with_rails', 'ramp_without_rails', 'boat_lift', 'boat_port', 'boathouse', 'rip_rap', 'armour_stone'].includes(object.type),
+    ['floating_dock', 'stationary_dock', 'custom_stationary_dock', 'ramp_with_rails', 'ramp_without_rails', 'boat_lift', 'boat_port', 'boathouse', 'rip_rap', 'armour_stone'].includes(object.type),
   );
   const floatingDockDimensions = floatingDock ? objectProfileDimensionsFeet(floatingDock, currentScale) : undefined;
   const rampDimensions = ramp ? objectProfileDimensionsFeet(ramp, currentScale) : undefined;
@@ -510,6 +519,10 @@ export function generateSectionViewFromBuildPlan(
   const buildPlanProjection = projectObjectsToSection(project, currentScale, ramp, floatingDock);
 
   detectedItems.push(...supportedObjects.map((object) => elementSummary(object, currentScale)));
+
+  if (customStationaryDockCount > 0) {
+    structureSummary.push(`${customStationaryDockCount} custom stationary dock${customStationaryDockCount === 1 ? '' : 's'} present`);
+  }
 
   if (boatLiftCount > 0) {
     structureSummary.push(`${boatLiftCount} boat lift${boatLiftCount === 1 ? '' : 's'} present`);
