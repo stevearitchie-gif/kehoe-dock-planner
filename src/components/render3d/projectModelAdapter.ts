@@ -232,8 +232,8 @@ function getCustomFootprintPoints(object: DockObject, feetPerPixel: number): Arr
   const localPoints = points
     .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
     .map((point) => ({
-      x: (Math.max(0, Math.min(object.width, point.x)) - object.width / 2) * feetPerPixel,
-      z: (Math.max(0, Math.min(object.height, point.y)) - object.height / 2) * feetPerPixel,
+      x: (point.x - object.width / 2) * feetPerPixel,
+      z: (point.y - object.height / 2) * feetPerPixel,
     }));
 
   return localPoints.length >= 3 ? localPoints : undefined;

@@ -15,6 +15,7 @@ interface EditorCanvasProps {
   shorelineLabelOffsetY?: number;
   objects: DockObject[];
   selectedObjectId: string | null;
+  selectedCustomDockPointIndex?: number | null;
   isLabelMoveModeEnabled: boolean;
   backgroundImageUrl?: string;
   onCanvasPointClick: (point: Point) => void;
@@ -235,8 +236,8 @@ function getCustomStationaryDockPoints(object: DockObject): Point[] {
   return points
     .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
     .map((point) => ({
-      x: Math.max(0, Math.min(object.width, point.x)),
-      y: Math.max(0, Math.min(object.height, point.y)),
+      x: point.x,
+      y: point.y,
     }));
 }
 
@@ -622,6 +623,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     shorelineLabelOffsetY = 0,
     objects,
     selectedObjectId,
+    selectedCustomDockPointIndex = null,
     isLabelMoveModeEnabled,
     backgroundImageUrl,
     onCanvasPointClick,
@@ -1213,8 +1215,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       const nextPoints = points.map((point, index) =>
         index === interactionSession.pointIndex
           ? {
-              x: Math.max(0, Math.min(object.width, localPoint.x)),
-              y: Math.max(0, Math.min(object.height, localPoint.y)),
+              x: localPoint.x,
+              y: localPoint.y,
             }
           : point,
       );
@@ -2347,21 +2349,6 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                       </>
                     )}
 
-                    {object.type === 'custom_stationary_dock' &&
-                      getCustomStationaryDockPoints(object).map((point, pointIndex) => (
-                        <Circle
-                          key={`custom-dock-point-${object.id}-${pointIndex}`}
-                          x={point.x}
-                          y={point.y}
-                          radius={8}
-                          fill="#eff6ff"
-                          stroke="#2563eb"
-                          strokeWidth={3}
-                          onMouseDown={(event) => beginCustomPoint(event, object, pointIndex)}
-                          onTouchStart={(event) => beginCustomPoint(event, object, pointIndex)}
-                        />
-                      ))}
-
                     <Circle
                       x={object.width}
                       y={object.height / 2}
@@ -2394,6 +2381,32 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                       onMouseDown={(event) => beginResize(event, object.id, 'corner')}
                       onTouchStart={(event) => beginResize(event, object.id, 'corner')}
                     />
+
+                    {object.type === 'custom_stationary_dock' &&
+                      getCustomStationaryDockPoints(object).map((point, pointIndex) => {
+                        const isSelectedPoint = selectedCustomDockPointIndex === pointIndex;
+
+                        return (
+                          <Group
+                            key={`custom-dock-point-${object.id}-${pointIndex}`}
+                            x={point.x}
+                            y={point.y}
+                            onMouseDown={(event) => beginCustomPoint(event, object, pointIndex)}
+                            onTouchStart={(event) => beginCustomPoint(event, object, pointIndex)}
+                          >
+                            <Circle radius={17} fill="#ffffff" opacity={0.001} />
+                            <Circle
+                              radius={isSelectedPoint ? 10 : 8}
+                              fill={isSelectedPoint ? '#bfdbfe' : '#eff6ff'}
+                              stroke={isSelectedPoint ? '#1d4ed8' : '#2563eb'}
+                              strokeWidth={isSelectedPoint ? 4 : 3}
+                              shadowColor={isSelectedPoint ? '#1d4ed8' : undefined}
+                              shadowBlur={isSelectedPoint ? 6 : 0}
+                              listening={false}
+                            />
+                          </Group>
+                        );
+                      })}
                   </>
                 )}
               </Group>

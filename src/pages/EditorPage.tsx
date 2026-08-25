@@ -750,12 +750,15 @@ function expandRectBounds(
 
 function expandRotatedObjectBounds(bounds: { minX: number; minY: number; maxX: number; maxY: number }, object: DockObject) {
   const angle = (object.rotation * Math.PI) / 180;
-  const corners = [
-    { x: 0, y: 0 },
-    { x: object.width, y: 0 },
-    { x: object.width, y: object.height },
-    { x: 0, y: object.height },
-  ];
+  const corners =
+    object.type === 'custom_stationary_dock' && object.metadata?.customPoints && object.metadata.customPoints.length >= 3
+      ? object.metadata.customPoints
+      : [
+          { x: 0, y: 0 },
+          { x: object.width, y: 0 },
+          { x: object.width, y: object.height },
+          { x: 0, y: object.height },
+        ];
 
   corners.forEach((corner) => {
     expandBounds(bounds, object.x + corner.x * Math.cos(angle) - corner.y * Math.sin(angle), object.y + corner.x * Math.sin(angle) + corner.y * Math.cos(angle));
@@ -2430,8 +2433,8 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
     }
 
     return points.map((point) => ({
-      x: Math.max(0, Math.min(object.width, point.x)),
-      y: Math.max(0, Math.min(object.height, point.y)),
+      x: point.x,
+      y: point.y,
     }));
   };
 
@@ -3546,6 +3549,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
               shorelineLabelOffsetY={project.shorelineLabelOffsetY}
               objects={sortedObjects}
               selectedObjectId={selectedObjectId}
+              selectedCustomDockPointIndex={selectedCustomDockPointIndex}
               isLabelMoveModeEnabled={isLabelMoveModeEnabled}
               backgroundImageUrl={project.backgroundImageUrl}
               onCanvasPointClick={handleCanvasPointClick}
