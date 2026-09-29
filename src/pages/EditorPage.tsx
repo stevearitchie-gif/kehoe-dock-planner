@@ -286,6 +286,62 @@ function snapToGrid(value: number): number {
   return Math.round(value / GRID_SIZE) * GRID_SIZE;
 }
 
+const SHORELINE_DOCK_SNAP_SCREEN_PX = 18;
+const shorelineSnapObjectTypes = new Set<DockObject['type']>([
+  'floating_dock',
+  'stationary_dock',
+  'custom_stationary_dock',
+  'ramp_with_rails',
+  'ramp_without_rails',
+]);
+
+function getObjectPerimeterPoints(object: DockObject): Point[] {
+  const localPoints = object.type === 'custom_stationary_dock' && Array.isArray(object.metadata?.customPoints) && object.metadata.customPoints.length >= 3
+    ? object.metadata.customPoints
+    : [
+        { x: 0, y: 0 },
+        { x: object.width, y: 0 },
+        { x: object.width, y: object.height },
+        { x: 0, y: object.height },
+      ];
+  const angle = (object.rotation * Math.PI) / 180;
+  const cosine = Math.cos(angle);
+  const sine = Math.sin(angle);
+  return localPoints.map((point) => ({
+    x: object.x + point.x * cosine - point.y * sine,
+    y: object.y + point.x * sine + point.y * cosine,
+  }));
+}
+
+function getClosestPointOnSegment(point: Point, start: Point, end: Point): Point {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared < 0.0001) return start;
+  const projection = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared));
+  return { x: start.x + dx * projection, y: start.y + dy * projection };
+}
+
+function snapShorelinePointToDockEdge(point: Point, objects: DockObject[], threshold: number): Point {
+  let closestPoint = point;
+  let closestDistance = threshold;
+
+  objects.forEach((object) => {
+    if (!shorelineSnapObjectTypes.has(object.type)) return;
+    const perimeter = getObjectPerimeterPoints(object);
+    perimeter.forEach((start, index) => {
+      const candidate = getClosestPointOnSegment(point, start, perimeter[(index + 1) % perimeter.length]);
+      const distance = Math.hypot(point.x - candidate.x, point.y - candidate.y);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestPoint = candidate;
+      }
+    });
+  });
+
+  return closestPoint;
+}
+
 function clampOpacity(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
@@ -1242,6 +1298,7 @@ export function EditorPage() {
   const [isDetailsPanelVisible, setIsDetailsPanelVisible] = useState(true);
   const [includeSectionViewInPdf, setIncludeSectionViewInPdf] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isShorelineDockSnapEnabled, setIsShorelineDockSnapEnabled] = useState(true);
   const [isUploadingSiteImage, setIsUploadingSiteImage] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
@@ -1787,10 +1844,13 @@ export function EditorPage() {
     }
 
     if (activeTool === 'shoreline') {
+      const shorelinePoint = isShorelineDockSnapEnabled
+        ? snapShorelinePointToDockEdge(point, project.objects, SHORELINE_DOCK_SNAP_SCREEN_PX / zoom)
+        : point;
       updateProject((prev) => ({
         ...prev,
         updatedAt: new Date().toISOString(),
-        shorelinePoints: [...prev.shorelinePoints, point],
+        shorelinePoints: [...prev.shorelinePoints, shorelinePoint],
         shorelineFinished: false,
       }));
       return;
@@ -5177,6 +5237,15 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
 
               <div className="rounded-md border border-slate-200 p-3">
                 <h3 className="text-sm font-semibold text-slate-800">Shoreline</h3>
+                <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={isShorelineDockSnapEnabled}
+                    onChange={(event) => setIsShorelineDockSnapEnabled(event.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                  />
+                  <span>Snap new points to dock/ramp edges</span>
+                </label>
                 <p className="mt-1 text-sm text-slate-600">Point count: {project.shorelinePoints.length}</p>
                 <p className="mt-1 text-sm text-slate-600">Total length: {shorelineLengthPixels.toFixed(2)} px</p>
 
@@ -5232,7 +5301,7 @@ const handleObjectPositionChange = (objectId: string, point: Point) => {
                     {isLabelMoveModeEnabled ? 'Done Moving Label' : 'Move Shoreline Label'}
                   </button>
                 <p className="mt-2 text-xs text-slate-500">
-                  Use Move Label mode to drag the shoreline label.
+                  New points snap within 18 screen pixels. Use Move Label mode to drag the shoreline label.
                 </p>
               </div>
             </div>
